@@ -1,0 +1,148 @@
+/* =========================================================
+   base.css — cores, tipografia, botões e campos
+   Tema escuro é o padrão; o claro entra com data-theme="light".
+   ========================================================= */
+
+:root {
+  --bg: #0f1012;
+  --surface: #16171a;
+  --sunk: #1d1f23;
+  --hover: #23262b;
+  --line: #2a2d33;
+  --line-strong: #3b3f47;
+  --fg: #ecebe8;
+  --muted: #8f929a;
+  --faint: #5d6068;
+
+  --accent: #d7f36b;          /* fundo de botão principal */
+  --accent-ink: #12130f;      /* texto em cima do accent */
+  --accent-text: #d7f36b;     /* links e destaques em texto */
+  --accent-soft: rgba(215, 243, 107, .1);
+
+  --pos: #d7f36b;
+  --neg: #ff7466;
+  --neg-soft: rgba(255, 116, 102, .12);
+  --gold: #e9c46a;
+
+  --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --r: 6px;
+  --r-lg: 8px;
+
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #f3f2ee;
+  --surface: #ffffff;
+  --sunk: #ebe9e4;
+  --hover: #e4e2dc;
+  --line: #dddad3;
+  --line-strong: #c5c1b8;
+  --fg: #1b1b19;
+  --muted: #696862;
+  --faint: #9a988f;
+
+  --accent: #c9ec4c;
+  --accent-ink: #1b1b19;
+  --accent-text: #4a6600;
+  --accent-soft: rgba(110, 150, 0, .1);
+
+  --pos: #4a7a00;
+  --neg: #c8382b;
+  --neg-soft: rgba(200, 56, 43, .08);
+  --gold: #9a6b00;
+
+  color-scheme: light;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -.01em; }
+h1 { font-size: 26px; line-height: 1.2; overflow-wrap: anywhere; }
+h2 { font-size: 16px; }
+h3 { font-size: 15px; }
+p { margin: 0; }
+a { color: var(--accent-text); }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+img { max-width: 100%; }
+:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.ico { width: 18px; height: 18px; display: inline-block; vertical-align: -4px; flex: none; }
+
+/* ---------- botões ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: var(--r);
+  padding: 8px 14px;
+  font-weight: 600; font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover { filter: brightness(.94); }
+.btn.ghost { background: transparent; color: var(--fg); border-color: var(--line-strong); }
+.btn.ghost:hover { background: var(--hover); filter: none; }
+.btn.danger { background: var(--neg); border-color: var(--neg); color: #fff; }
+.btn.sm { padding: 4px 10px; font-size: 13px; }
+.btn.block { width: 100%; padding: 10px 14px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* botão que parece link */
+.link {
+  border: 0; background: none; padding: 0;
+  color: var(--muted); font-size: 13px; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-strong);
+}
+.link:hover { color: var(--fg); }
+.link.danger:hover { color: var(--neg); }
+
+.icon-btn {
+  display: inline-grid; place-items: center;
+  width: 34px; height: 34px; flex: none;
+  border-radius: var(--r); border: 1px solid transparent; background: transparent;
+  color: var(--muted); cursor: pointer;
+}
+.icon-btn:hover { color: var(--fg); background: var(--hover); }
+
+/* ---------- campos ---------- */
+.f { display: grid; gap: 14px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.field { display: grid; gap: 5px; min-width: 0; }
+.field > label, .lbl { font-size: 13px; color: var(--muted); }
+.field input, .field select, .field textarea {
+  border: 1px solid var(--line-strong);
+  background: var(--bg);
+  border-radius: var(--r);
+  padding: 9px 11px;
+  min-width: 0; width: 100%;
+}
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent-text); }
+.field textarea { resize: vertical; min-height: 70px; }
+.field input.code { font-family: var(--mono); letter-spacing: .3em; font-size: 18px; max-width: 180px; }
+.grow { flex: 1 1 220px; }
+.hint { font-size: 13px; color: var(--muted); }
+.hint.warn { color: var(--neg); }
+.err { color: var(--neg); font-size: 13px; }
+.err:empty { display: none; }
+.ok-msg { color: var(--pos); font-size: 13px; }
+.ok-msg:empty { display: none; }

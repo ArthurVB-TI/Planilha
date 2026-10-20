@@ -1,0 +1,131 @@
+/* =========================================================
+   motion.css — animações. Tudo aqui some para quem pediu
+   "reduzir movimento" no sistema.
+   ========================================================= */
+
+.fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
+
+@media (prefers-reduced-motion: no-preference) {
+
+  /* ---------- entrada das telas ---------- */
+  .enter > * { animation: rise .45s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i, 0) * 60ms); }
+  .enter :is(.tlist, .plist, ol.board, .subs, .members, .settings) > * {
+    animation: rise .42s cubic-bezier(.2, .7, .2, 1) both;
+    animation-delay: calc(140ms + var(--j, 0) * 45ms);
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .auth-box { animation: rise .5s cubic-bezier(.2, .7, .2, 1) both; }
+
+  /* ---------- toques e passagens do mouse ---------- */
+  .btn, .icon-btn, .day, .wk, .cam, .dopt, .seg button, .person, .nav-item, .link {
+    transition: transform .12s ease, background-color .15s, border-color .15s, color .15s, filter .15s;
+  }
+  .btn:active, .icon-btn:active, .cam:active, .dopt:active, .person:active,
+  .day:active:not(:disabled), .wk:active:not(:disabled) { transform: scale(.95); }
+  .day:hover:not(:disabled), .wk:hover:not(:disabled) { transform: translateY(-2px); }
+  .btn:not(.ghost):hover { transform: translateY(-1px); }
+
+  .prow, .sub { transition: background-color .15s, padding-left .2s cubic-bezier(.2, .7, .2, 1); }
+  .prow:hover, .sub:hover { padding-left: 22px; }
+  .sub .go { transition: transform .2s; }
+  .sub:hover .go { transform: translateX(4px); color: var(--accent-text); }
+
+  .task { transition: border-color .2s, transform .2s; }
+  .task:hover { border-color: var(--line-strong); }
+
+  /* ---------- marcar uma tarefa ---------- */
+  .day.pop, .wk.pop { animation: pop .42s cubic-bezier(.3, 1.6, .5, 1); }
+  @keyframes pop {
+    0% { transform: scale(.75); }
+    55% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+  }
+  .day.pop svg path, .wk.pop svg path { stroke-dasharray: 24; animation: draw .4s .05s ease-out both; }
+  @keyframes draw { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+
+  .task.flash { animation: glow 1s ease-out; }
+  @keyframes glow {
+    0% { box-shadow: 0 0 0 0 var(--accent); }
+    30% { box-shadow: 0 0 0 3px var(--accent-soft); }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+
+  .float-pts {
+    position: absolute; transform: translate(-50%, 0);
+    font-family: var(--mono); font-weight: 600; font-size: 15px;
+    color: var(--accent-text);
+    animation: floatUp .95s cubic-bezier(.2, .7, .2, 1) forwards;
+    text-shadow: 0 1px 0 var(--bg);
+  }
+  @keyframes floatUp {
+    0% { opacity: 0; transform: translate(-50%, 4px) scale(.8); }
+    20% { opacity: 1; transform: translate(-50%, -14px) scale(1.1); }
+    100% { opacity: 0; transform: translate(-50%, -48px) scale(1); }
+  }
+
+  /* ---------- confete ---------- */
+  .confetti {
+    position: absolute; width: 8px; height: 5px; border-radius: 1px;
+    animation: burst 1.25s cubic-bezier(.15, .7, .3, 1) forwards;
+  }
+  @keyframes burst {
+    0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+    70% { opacity: 1; }
+    100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 90px)) rotate(var(--rot)); }
+  }
+
+  /* ---------- barra de progresso ---------- */
+  .meter .fill { transition: width .8s cubic-bezier(.2, .7, .2, 1); position: relative; overflow: hidden; }
+  .meter .fill::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .45), transparent);
+    transform: translateX(-100%);
+    animation: shine 2.4s 1s ease-in-out infinite;
+  }
+  @keyframes shine { 0% { transform: translateX(-100%); } 60%, 100% { transform: translateX(100%); } }
+
+  /* ---------- obrigatória pendente pulsa de leve ---------- */
+  .hint.warn::before {
+    content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--neg); margin-right: 7px; vertical-align: 2px;
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 var(--neg-soft); }
+    50% { box-shadow: 0 0 0 5px transparent; opacity: .6; }
+  }
+
+  /* ---------- menu ---------- */
+  .app { transition: grid-template-columns .25s cubic-bezier(.2, .7, .2, 1); }
+  .side { transition: transform .25s cubic-bezier(.2, .7, .2, 1), visibility .25s; }
+  .nav-sub.opening { animation: open .25s cubic-bezier(.2, .7, .2, 1) both; transform-origin: top; }
+  @keyframes open { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  .nav-item .count { animation: pulse 1.6s ease-in-out infinite; }
+
+  /* ---------- foto ---------- */
+  .lightbox:not([hidden]) { animation: fade .2s ease both; }
+  .lightbox:not([hidden]) img { animation: zoom .3s cubic-bezier(.2, .7, .2, 1) both; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes zoom { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+  .thumb img { transition: transform .25s; }
+  .thumb:hover img { transform: scale(1.08); }
+
+  /* ---------- carregando ---------- */
+  .loading-line {
+    height: 12px; border-radius: 4px; max-width: 320px;
+    background: linear-gradient(90deg, var(--sunk), var(--hover), var(--sunk));
+    background-size: 200% 100%;
+    animation: shimmer 1.2s linear infinite;
+  }
+  @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+  .ok-msg:not(:empty), .err:not(:empty) { animation: rise .3s ease both; }
+}
+
+/* quando o menu está fechado no computador, ele desliza para fora */
+.nav-closed .side { transform: translateX(-100%); }
+@media (max-width: 760px) { .nav-closed .side { transform: translateX(-102%); } .nav-open .side { transform: none; } }

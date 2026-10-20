@@ -1,0 +1,117 @@
+rules_version = '2';
+
+// Regras de segurança da Liga das Tarefas.
+// Cole este arquivo inteiro em: Firebase > Firestore Database > Regras > Publicar.
+//
+// Resumo:
+// - "usernames" só pode ser consultado por nome exato (para entrar com o usuário); ninguém lista;
+// - o resto só quem está logado lê;
+// - o primeiro a "Assumir como dono" vira o dono (config/liga) e isso não muda mais;
+// - só o dono da liga cria/edita/apaga projetos;
+// - qualquer integrante de um projeto cria listRats nele (coleção subprojetos) e vira o dono delas;
+// - o dono da listRat renomeia, apaga e escolhe ajudantes; dono e ajudantes cuidam das tarefas;
+// - o dono da liga pode mexer em tudo;
+// - cada jogador só grava o próprio documento players/<seu uid>;
+// - cada jogador só cria e apaga as próprias fotos.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isProjectMember(pid) {
+      return signedIn()
+        && request.auth.uid in get(/databases/$(database)/documents/projetos/$(pid)).data.members;
+    }
+    // dono ou ajudante da listRat (listRats antigas sem dono só o dono da liga mexe)
+    function canEditSub(sid) {
+      let s = get(/databases/$(database)/documents/subprojetos/$(sid)).data;
+      return signedIn()
+        && (s.get('owner', '') == request.auth.uid || request.auth.uid in s.get('helpers', []));
+    }
+    function isOwner() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/config/liga)
+        && get(/databases/$(database)/documents/config/liga).data.owner == request.auth.uid;
+    }
+
+    match /usernames/{name} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if signedIn()
+        && name.matches('^[a-z0-9_.]{3,20}$')
+        && request.resource.data.keys().hasOnly(['uid', 'email'])
+        && request.resource.data.uid == request.auth.uid;
+      allow update: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'email'])
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /config/liga {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['owner', 'createdAt'])
+        && request.resource.data.owner == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /projetos/{id} {
+      allow read: if signedIn();
+      allow write: if isOwner()
+        && (request.resource == null || (
+          request.resource.data.name is string && request.resource.data.name.size() <= 60
+          && request.resource.data.members is list && request.resource.data.members.size() <= 50));
+    }
+
+    match /subprojetos/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && (isOwner() || isProjectMember(request.resource.data.projectId))
+        && request.resource.data.keys().hasOnly(['projectId', 'name', 'owner', 'helpers', 'createdAt'])
+        && request.resource.data.owner == request.auth.uid
+        && request.resource.data.name is string && request.resource.data.name.size() <= 60
+        && request.resource.data.helpers is list && request.resource.data.helpers.size() <= 20;
+      allow update: if isOwner()
+        || (signedIn()
+          && resource.data.get('owner', '') == request.auth.uid
+          && request.resource.data.owner == resource.data.owner
+          && request.resource.data.projectId == resource.data.projectId
+          && request.resource.data.helpers is list && request.resource.data.helpers.size() <= 20);
+      allow delete: if isOwner() || (signedIn() && resource.data.get('owner', '') == request.auth.uid);
+    }
+
+    match /tarefas/{id} {
+      allow read: if signedIn();
+      allow create: if isOwner() || canEditSub(request.resource.data.subId);
+      allow update: if isOwner()
+        || (canEditSub(resource.data.subId) && request.resource.data.subId == resource.data.subId);
+      allow delete: if isOwner() || canEditSub(resource.data.subId);
+    }
+
+    match /players/{uid} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['nick', 'done', 'proofs', 'updatedAt', 'weeks'])
+        && request.resource.data.nick is string
+        && request.resource.data.nick.size() >= 1
+        && request.resource.data.nick.size() <= 20
+        && request.resource.data.done is map
+        && request.resource.data.proofs is map;
+      allow delete: if signedIn() && (request.auth.uid == uid || isOwner());
+    }
+
+    match /fotos/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid', 'data', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.data is string
+        && request.resource.data.data.size() < 1000000;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+  }
+}

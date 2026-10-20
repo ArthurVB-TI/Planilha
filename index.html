@@ -11,190 +11,252 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
-/* Layout: placar de liga — cabeçalho com a semana, grade "minha semana" ao lado da tabela de classificação, painel do dono embaixo */
+/* Layout: liga com quatro telas — Início (hoje + projetos + placar geral), Novo projeto, Projeto (membros, subprojetos, placar), Subprojeto (colunas por integrante) */
 :root{
   --bg:#eef1f6; --surface:#ffffff; --sunk:#e3e8f1; --line:#cfd6e3;
   --fg:#141a2b; --muted:#5a6479;
   --accent:#2346d8; --accent-ink:#ffffff; --accent-soft:#dfe6ff;
-  --gold:#a8790c; --gold-soft:#fbefcc; --ok:#1f8a4c; --danger:#c0322b;
-  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
-  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --f-num:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --gold:#a8790c; --gold-soft:#fbefcc; --ok:#1f8a4c; --ok-soft:#dcf3e4; --danger:#c0322b; --danger-soft:#fbe1df;
+  --d1:#1f8a4c; --d2:#2346d8; --d3:#c2600e; --d4:#8a2bb8;
+  --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --f-body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
   --r:10px;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0f1320; --surface:#171d2e; --sunk:#1f2740; --line:#2c3654;
   --fg:#e8ecf7; --muted:#9aa4bd;
   --accent:#7d95ff; --accent-ink:#0b1022; --accent-soft:#232d55;
-  --gold:#f0c24e; --gold-soft:#3a3016; --ok:#4fd08a; --danger:#ff7a70; color-scheme:dark}}
+  --gold:#f0c24e; --gold-soft:#3a3016; --ok:#4fd08a; --ok-soft:#15392a; --danger:#ff7a70; --danger-soft:#43201f;
+  --d1:#4fd08a; --d2:#7d95ff; --d3:#ffa05a; --d4:#d08cff; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0f1320; --surface:#171d2e; --sunk:#1f2740; --line:#2c3654;
   --fg:#e8ecf7; --muted:#9aa4bd;
   --accent:#7d95ff; --accent-ink:#0b1022; --accent-soft:#232d55;
-  --gold:#f0c24e; --gold-soft:#3a3016; --ok:#4fd08a; --danger:#ff7a70; color-scheme:dark}
+  --gold:#f0c24e; --gold-soft:#3a3016; --ok:#4fd08a; --ok-soft:#15392a; --danger:#ff7a70; --danger-soft:#43201f;
+  --d1:#4fd08a; --d2:#7d95ff; --d3:#ffa05a; --d4:#d08cff; color-scheme:dark}
 
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5}
-.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px;display:grid;gap:22px}
+.wrap{max-width:1160px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:22px 48px;display:grid;gap:20px}
 h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
-h1{font-size:clamp(28px,5vw,44px);font-weight:800;line-height:1.05}
+h1{font-size:clamp(28px,5vw,42px);font-weight:800;line-height:1.05;overflow-wrap:anywhere}
 h2{font-size:20px;font-weight:800}
+h3{font-size:16px;font-weight:800}
+p{margin:0}
 .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
 .num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
 .muted{color:var(--muted)}
-button,input,select{font:inherit;color:inherit}
+.small{font-size:13px}
+button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
-header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
-.week-box{display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap}
-.week-box .big{font-family:var(--f-num);font-size:18px;font-weight:700}
+/* topo */
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;background:none;border:0;padding:0;cursor:pointer;font-family:var(--f-display);font-weight:800;font-size:18px}
+.brand .mark{width:30px;height:30px;border-radius:8px;background:var(--accent);display:grid;place-items:center;color:var(--accent-ink);font-family:var(--f-num);font-size:12px;font-weight:700;letter-spacing:-.02em}
+.ico{width:1em;height:1em;display:inline-block;vertical-align:-.15em;flex:none}
+.crumbs{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:14px;color:var(--muted);min-width:0}
+
+/* menu */
+.menu{display:flex;gap:4px;flex-wrap:wrap;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:5px}
+.menu button{border:0;background:transparent;border-radius:7px;padding:8px 14px;cursor:pointer;font-weight:600;font-size:14px;color:var(--muted);display:inline-flex;gap:7px;align-items:center}
+.menu button:hover{color:var(--fg);background:var(--sunk)}
+.menu button.on{background:var(--fg);color:var(--bg)}
+.menu .sep{flex:1}
+.menu .count{font-family:var(--f-num);font-size:11px;background:var(--danger);color:#fff;border-radius:999px;padding:0 6px;line-height:17px}
+.menu-toggle{display:none}
+@media (max-width:640px){
+  .menu{display:none;flex-direction:column;align-items:stretch}
+  .menu.open{display:flex}
+  .menu .sep{display:none}
+  .menu button{justify-content:flex-start;padding:11px 14px}
+  .menu-toggle{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;font-weight:600;cursor:pointer}
+}
+
+/* fotos de prova */
+.proof{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.cam{display:inline-flex;gap:7px;align-items:center;border:1.5px solid var(--accent);color:var(--accent);background:var(--surface);border-radius:8px;padding:7px 12px;font-weight:600;font-size:13px;cursor:pointer}
+.cam:hover{background:var(--accent-soft)}
+.cam:disabled{opacity:.5;cursor:wait}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap}
+.thumb{width:52px;height:52px;border-radius:7px;border:1px solid var(--line);padding:0;overflow:hidden;cursor:pointer;background:var(--sunk);position:relative}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb span{position:absolute;inset:auto 0 0 0;font-size:10px;font-family:var(--f-num);background:rgba(0,0,0,.55);color:#fff;text-align:center;line-height:15px}
+.thumb.broken{display:grid;place-items:center;font-size:10px;color:var(--muted)}
+.ptag{font-size:11.5px;font-weight:600;color:var(--muted)}
+.ptag.ok{color:var(--ok)}
+.lightbox{position:fixed;inset:0;z-index:50;background:rgba(8,10,18,.86);display:grid;grid-template-rows:auto minmax(0,1fr);gap:10px;padding:calc(12px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.lightbox .bar{display:flex;justify-content:space-between;align-items:center;gap:10px;color:#fff;flex-wrap:wrap}
+.lightbox .bar > div{min-width:0;overflow-wrap:anywhere}
+.lightbox img{max-width:100%;max-height:100%;margin:auto;object-fit:contain;border-radius:8px;min-height:0}
+.lightbox .btn.ghost{color:#fff;border-color:rgba(255,255,255,.4)}
+.crumbs button{background:none;border:0;padding:2px 4px;color:var(--accent);cursor:pointer;font-weight:600;overflow-wrap:anywhere;text-align:left}
+.crumbs span.cur{color:var(--fg);font-weight:600;overflow-wrap:anywhere}
 .status{font-size:13px;padding:8px 12px;border-radius:8px;background:var(--sunk);color:var(--muted)}
 .status.warn{background:var(--gold-soft);color:var(--fg)}
 
-.grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:22px;align-items:start}
-@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.head > div{min-width:0}
+.stats{display:flex;gap:22px;flex-wrap:wrap}
+.stat .v{font-family:var(--f-num);font-size:26px;font-weight:700;line-height:1.1}
+.stat .v.neg{color:var(--danger)}
+.stat .v.pos{color:var(--ok)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:880px){.grid{grid-template-columns:minmax(0,1fr)}}
+.stack{display:grid;gap:20px;min-width:0}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:grid;gap:14px;min-width:0}
 .panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
 
-/* minha semana */
-.scroll{overflow-x:auto}
-table.week{border-collapse:collapse;width:100%;min-width:520px}
-table.week th,table.week td{padding:8px 4px;border-bottom:1px solid var(--line);text-align:center}
-table.week th{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-table.week th.today{color:var(--accent)}
-table.week td.name{text-align:left;padding-left:0;min-width:150px}
-.tname{font-weight:600;overflow-wrap:anywhere}
-.tmeta{font-size:12px;color:var(--muted)}
-.day{width:34px;height:34px;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;display:inline-grid;place-items:center;font-family:var(--f-num);font-size:12px;color:var(--muted)}
-.day:hover:not(:disabled){border-color:var(--accent)}
-.day.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.day:disabled{cursor:not-allowed;opacity:.35}
-.wk-btn{border:1.5px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:600}
-.wk-btn.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.wk-btn:disabled{cursor:not-allowed;opacity:.5}
-.mysum{display:flex;gap:18px;flex-wrap:wrap;align-items:baseline}
-.mysum .v{font-family:var(--f-num);font-size:26px;font-weight:700}
+/* cartões de projeto */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.card{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:16px;display:grid;gap:10px;text-align:left;cursor:pointer;min-width:0}
+.card:hover{border-color:var(--accent)}
+.card .t{font-family:var(--f-display);font-weight:800;font-size:18px;overflow-wrap:anywhere}
+.card .d{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.card .meta{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted);align-items:baseline;flex-wrap:wrap}
+.card .meta b{font-family:var(--f-num);color:var(--fg);font-size:16px}
+.card.add{border-color:transparent;place-content:center;text-align:center;color:var(--accent);font-weight:600;min-height:110px;background:var(--accent-soft)}
+.card.add:hover{border-color:var(--accent)}
 
 /* placar */
-.chips{display:flex;gap:6px;flex-wrap:wrap}
-.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 11px;font-size:13px;cursor:pointer}
-.chip.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 ol.board{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-ol.board li{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border-radius:8px;background:var(--sunk)}
+ol.board li{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border-radius:8px;background:var(--sunk)}
 ol.board li.first{background:var(--gold-soft)}
 ol.board li.me{outline:1.5px solid var(--accent)}
 .rank{font-family:var(--f-display);font-weight:800;font-size:20px;text-align:center;color:var(--muted)}
 li.first .rank{color:var(--gold)}
 .pname{font-weight:600;overflow-wrap:anywhere;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.tag{font-size:11px;padding:1px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-weight:600}
-.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:6px}
-.bar>i{display:block;height:100%;background:var(--accent)}
-li.first .bar>i{background:var(--gold)}
-.pts{text-align:right}
-.pts b{font-family:var(--f-num);font-size:18px}
-.pts span{display:block;font-size:12px;color:var(--muted);font-family:var(--f-num)}
+.split{font-size:12px;color:var(--muted);font-family:var(--f-num)}
+.split .p{color:var(--ok)} .split .m{color:var(--danger)}
+.pts{text-align:right;font-family:var(--f-num);font-size:18px;font-weight:700}
+.pts.neg{color:var(--danger)}
+.tag{font-size:11px;padding:1px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-weight:600;white-space:nowrap}
 
-/* tabela de pesos */
-table.weights{border-collapse:collapse;width:100%}
-table.weights td,table.weights th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
-table.weights th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
-table.weights td.r,table.weights th.r{text-align:right}
+/* tarefas */
+.tlist{display:grid;gap:10px}
+.task{border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:10px;background:var(--surface);min-width:0}
+.task.obr{border-left:4px solid var(--danger)}
+.task.nor{border-left:4px solid var(--ok)}
+.task-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.task-top > div{min-width:0}
+.tname{font-weight:600;overflow-wrap:anywhere}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.chip{font-size:11.5px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-weight:600;white-space:nowrap}
+.chip.obr{border-color:var(--danger);color:var(--danger)}
+.chip.nor{border-color:var(--ok);color:var(--ok)}
+.chip.diff{color:var(--dc);border-color:var(--dc)}
+.chip.diff::before{content:"";display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--dc);margin-right:5px;vertical-align:1px}
+.tscore{font-family:var(--f-num);font-weight:700;white-space:nowrap}
+.tscore.neg{color:var(--danger)} .tscore.pos{color:var(--ok)} .tscore.zero{color:var(--muted)}
+.days{display:flex;gap:6px;flex-wrap:wrap}
+.day{width:42px;height:42px;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;display:grid;place-items:center;align-content:center;line-height:1.1;font-size:11px;color:var(--muted)}
+.day b{font-family:var(--f-num);font-size:13px;color:var(--fg)}
+.day.today{border-color:var(--accent)}
+.day:hover:not(:disabled){border-color:var(--accent)}
+.day.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.day.on b{color:var(--accent-ink)}
+.day.miss{background:var(--danger-soft);border-color:var(--danger)}
+.day:disabled{cursor:default}
+.day.off{opacity:.3}
+.wk{border:1.5px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;cursor:pointer;font-weight:600;font-size:13px}
+.wk.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.wk.miss{background:var(--danger-soft);border-color:var(--danger)}
+.wk:disabled{cursor:default}
+.hint{font-size:12.5px;color:var(--muted)}
+.hint.warn{color:var(--danger);font-weight:600}
+
+/* colunas de integrantes */
+.members{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;align-items:start}
+@media (max-width:400px){.members{grid-template-columns:minmax(0,1fr)}}
+.mcol{background:var(--sunk);border-radius:var(--r);padding:14px;display:grid;gap:12px;min-width:0}
+.mhead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.who{display:flex;gap:10px;align-items:center;min-width:0}
+.av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;flex:none;font-size:14px}
+.who .n{font-weight:700;overflow-wrap:anywhere}
+
+/* pessoas */
+.people{display:flex;flex-wrap:wrap;gap:8px}
+.person{display:inline-flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);font-size:14px;font-weight:600;max-width:100%}
+.person .av{width:24px;height:24px;font-size:11px}
+.person span{overflow-wrap:anywhere}
+button.person{cursor:pointer}
+button.person.on{border-color:var(--accent);background:var(--accent-soft)}
+button.person .ck{display:none;color:var(--accent)}
+button.person.on .ck{display:inline-flex}
+
+/* dificuldades */
+.dpick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:560px){.dpick{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.dopt{border:1.5px solid var(--line);border-radius:8px;padding:9px 10px;background:var(--surface);cursor:pointer;text-align:left;display:grid;gap:2px}
+.dopt .l{font-weight:700;color:var(--dc)}
+.dopt .v{font-family:var(--f-num);font-size:12px;color:var(--muted)}
+.dopt.on{border-color:var(--dc);box-shadow:inset 0 0 0 1px var(--dc)}
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:0;background:var(--surface);padding:8px 14px;cursor:pointer;font-weight:600;font-size:14px}
+.seg button + button{border-left:1.5px solid var(--line)}
+.seg button.on{background:var(--fg);color:var(--bg)}
+table.legend{border-collapse:collapse;width:100%;font-size:14px}
+table.legend td,table.legend th{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left}
+table.legend th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+table.legend .r{text-align:right}
 
 /* formulários */
-form.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
-.field{display:grid;gap:4px;min-width:0}
-.field label{font-size:12px;color:var(--muted);font-weight:600}
-.field input,.field select{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-width:0}
+form.f{display:grid;gap:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.field{display:grid;gap:5px;min-width:0}
+.field > label,.lbl{font-size:12px;color:var(--muted);font-weight:600}
+.field input,.field select,.field textarea{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 10px;min-width:0;width:100%;box-sizing:border-box}
+.field textarea{resize:vertical;min-height:64px}
 .grow{flex:1 1 220px}
 .btn{border:0;background:var(--accent);color:var(--accent-ink);border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer}
 .btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
 .btn.danger{background:var(--danger);color:#fff}
+.btn.sm{padding:5px 10px;font-size:13px}
 .btn:disabled{opacity:.5;cursor:not-allowed}
-.task-admin{display:grid;gap:8px}
-.task-admin .item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:var(--sunk);flex-wrap:wrap}
-.task-admin .item .tname{min-width:0}
-.empty{padding:18px;border:1.5px dashed var(--line);border-radius:8px;color:var(--muted);text-align:center}
+.empty{padding:18px;background:var(--sunk);border-radius:8px;color:var(--muted);text-align:center;font-size:14px}
 .err{color:var(--danger);font-size:13px}
-footer{font-size:13px;color:var(--muted);max-width:70ch}
-@media (prefers-reduced-motion:no-preference){.bar>i{transition:width .4s ease}}
+.err:empty{display:none}
+.subs{display:grid;gap:8px}
+.sub{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border-radius:8px;background:var(--sunk);cursor:pointer;border:1px solid transparent;text-align:left;width:100%}
+.sub:hover{border-color:var(--accent)}
+.sub .t{font-weight:700;overflow-wrap:anywhere}
+.sub > div{min-width:0}
+footer{font-size:13px;color:var(--muted);max-width:75ch}
 </style>
 
 <div class="wrap">
-  <header class="top">
-    <div>
-      <div class="eyebrow">Competição semanal</div>
-      <h1>Liga das Tarefas</h1>
-    </div>
-    <div class="week-box">
-      <div><div class="eyebrow">Semana</div><div class="big" id="weekLabel">—</div></div>
-      <div><div class="eyebrow">Zera em</div><div class="big" id="countdown">—</div></div>
-    </div>
-  </header>
-
-  <div class="status" id="status">Conectando ao placar…</div>
-
-  <section class="panel" id="joinPanel" hidden>
-    <h2>Entrar na liga</h2>
-    <p class="muted" style="margin:0">Escolha o apelido que vai aparecer no placar.</p>
-    <form class="row" id="joinForm">
-      <div class="field grow"><label for="joinNick">Apelido</label><input id="joinNick" maxlength="24" required autocomplete="off" placeholder="ex.: Arthur"></div>
-      <button class="btn" type="submit">Entrar</button>
-    </form>
-    <div class="err" id="joinErr"></div>
-  </section>
-
-  <div class="grid">
-    <section class="panel" id="myPanel">
-      <div class="panel-head">
-        <h2>Minha semana</h2>
-        <div class="mysum">
-          <div><div class="eyebrow">Pontos</div><div class="v" id="myPts">0</div></div>
-          <div><div class="eyebrow">Aproveitamento</div><div class="v" id="myPct">0%</div></div>
-        </div>
-      </div>
-      <div id="myBody"></div>
-      <form class="row" id="nickForm" hidden>
-        <div class="field grow"><label for="nickInput">Seu apelido</label><input id="nickInput" maxlength="24" autocomplete="off"></div>
-        <button class="btn ghost" type="submit">Salvar apelido</button>
-      </form>
-    </section>
-
-    <section class="panel">
-      <div class="panel-head"><h2>Placar</h2><span class="muted" id="boardInfo"></span></div>
-      <div class="chips" id="weekChips"></div>
-      <div id="boardBody"></div>
-    </section>
+  <div class="topbar">
+    <button class="brand" type="button" id="brandBtn"><span class="mark" aria-hidden="true">LT</span>Liga das Tarefas</button>
+    <button class="menu-toggle" type="button" id="menuToggle" aria-expanded="false" aria-controls="menu">Menu</button>
   </div>
-
-  <section class="panel">
-    <div class="panel-head"><h2>Quanto vale cada tarefa</h2><span class="muted num" id="maxInfo"></span></div>
-    <p class="muted" style="margin:0">A porcentagem é a fatia de cada tarefa no total possível da semana. Tarefa diária conta 7 vezes, semanal conta 1 vez.</p>
-    <div class="scroll" id="weightsBody"></div>
-  </section>
-
-  <section class="panel" id="adminPanel" hidden>
-    <h2>Gerenciar tarefas</h2>
-    <p class="muted" style="margin:0">Só você, dono da liga, vê este painel e pode criar ou apagar tarefas.</p>
-    <form class="row" id="taskForm">
-      <div class="field grow"><label for="tTitle">Tarefa</label><input id="tTitle" maxlength="60" required autocomplete="off" placeholder="ex.: Treinar na academia"></div>
-      <div class="field"><label for="tKind">Frequência</label><select id="tKind"><option value="daily">Diária</option><option value="weekly">Semanal</option></select></div>
-      <div class="field" style="width:96px"><label for="tWeight">Pontos</label><input id="tWeight" type="number" min="1" max="100" step="1" value="1" required></div>
-      <button class="btn" type="submit">Criar tarefa</button>
-    </form>
-    <div class="err" id="taskErr"></div>
-    <div class="task-admin" id="taskList"></div>
-  </section>
-
-  <footer>
-    Cada jogador só consegue gravar a própria marcação; tarefas e pontos só o dono altera. Os pontos são recalculados a partir das tarefas e marcações válidas, então valores forjados são ignorados. O placar zera toda segunda-feira à meia-noite.
-  </footer>
+  <nav class="menu" id="menu" aria-label="Menu principal"></nav>
+  <div class="crumbs" id="crumbs"></div>
+  <div class="status" id="status">Conectando…</div>
+  <main id="view" class="stack">
+    <section class="panel">
+      <h2>Carregando a liga</h2>
+      <p class="muted">Os projetos, as tarefas e o placar aparecem aqui assim que a conexão terminar.</p>
+    </section>
+  </main>
+  <input type="file" id="camInput" accept="image/*" capture="environment" hidden>
+  <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Foto de prova"></div>
+  <footer>Tarefas normais somam pontos cada vez que são feitas. Tarefas obrigatórias não somam nada, mas tiram pontos a cada dia (ou semana) que passa sem serem feitas. O placar é o total de tudo desde a criação de cada tarefa. Só o dono da liga cria projetos, subprojetos e tarefas; cada integrante só marca as próprias tarefas.</footer>
 </div>
 
 <script>
 (function(){
   "use strict";
-  const DAYS = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
-  const MAX_WEEKS_KEPT = 12;
   const $ = (id) => document.getElementById(id);
+  const WD = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+  const DIFF = {
+    facil:    { label:"Fácil",    pts:10,  pen:5,  c:"var(--d1)" },
+    media:    { label:"Média",    pts:25,  pen:10, c:"var(--d2)" },
+    dificil:  { label:"Difícil",  pts:50,  pen:20, c:"var(--d3)" },
+    lendaria: { label:"Lendária", pts:100, pen:40, c:"var(--d4)" },
+  };
+  const DIFF_KEYS = Object.keys(DIFF);
+  const MAX_MARKS = 800;
 
   // ---------- helpers ----------
   function el(tag, attrs, ...kids){
@@ -209,333 +271,932 @@ footer{font-size:13px;color:var(--muted);max-width:70ch}
       else if (v === true) n.setAttribute(k, "");
       else n.setAttribute(k, String(v));
     }
-    for (const c of kids){ if (c == null) continue; n.append(c instanceof Node ? c : document.createTextNode(String(c))); }
+    for (const c of kids){ if (c == null || c === false) continue; n.append(c instanceof Node ? c : document.createTextNode(String(c))); }
     return n;
   }
-  const clean = (s, max) => String(s ?? "").replace(/[\u0000-\u001f\u007f​-‏‪-‮]/g, "").trim().slice(0, max);
+  const ICONS = {
+    check: "M4 12.5l5 5L20 6.5",
+    camera: "M4 8h3l2-3h6l2 3h3v11H4z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+    home: "M4 11l8-7 8 7v9h-5v-6H9v6H4z",
+    folder: "M3 6h7l2 2h9v11H3z",
+    list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
+    book: "M4 5h7v15H4z M13 5h7v15h-7z",
+    plus: "M12 5v14M5 12h14",
+    close: "M6 6l12 12M18 6L6 18",
+  };
+  function icon(name){
+    const NS = "http://www.w3.org/2000/svg";
+    const s = document.createElementNS(NS, "svg");
+    s.setAttribute("viewBox","0 0 24 24"); s.setAttribute("class","ico"); s.setAttribute("aria-hidden","true");
+    s.setAttribute("fill","none"); s.setAttribute("stroke","currentColor"); s.setAttribute("stroke-width","2.2");
+    s.setAttribute("stroke-linecap","round"); s.setAttribute("stroke-linejoin","round");
+    const p = document.createElementNS(NS, "path"); p.setAttribute("d", ICONS[name]); s.append(p);
+    return s;
+  }
+  const isAssetId = (v) => typeof v === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(v);
+  const clean = (s, max) => String(s ?? "").replace(/[\u0000-\u001f\u007f​-‏‪-‮]/g, " ").replace(/\s+/g," ").trim().slice(0, max);
   const pad = (n) => String(n).padStart(2, "0");
   const keyOf = (d) => d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate());
-  function mondayOf(d){ const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay()+6)%7)); return x; }
+  const isKey = (k) => typeof k === "string" && /^\d{4}-\d{2}-\d{2}$/.test(k);
   function parseKey(k){ const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(k); return m ? new Date(+m[1], +m[2]-1, +m[3]) : null; }
-  function weekRange(k){
-    const s = parseKey(k); if (!s) return k;
-    const e = new Date(s); e.setDate(e.getDate()+6);
-    return pad(s.getDate()) + "/" + pad(s.getMonth()+1) + " – " + pad(e.getDate()) + "/" + pad(e.getMonth()+1);
-  }
-  const fmtPct = (x) => (Math.round(x*1000)/10).toLocaleString("pt-BR") + "%";
+  function addDays(k, n){ const d = parseKey(k); d.setDate(d.getDate()+n); return keyOf(d); }
+  function weekOf(k){ const d = parseKey(k); d.setDate(d.getDate() - ((d.getDay()+6)%7)); return keyOf(d); }
+  const todayKey = () => keyOf(new Date());
+  const curWeek = () => weekOf(todayKey());
+  const fmtPts = (n) => (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(n).toLocaleString("pt-BR");
+  const fmtTotal = (n) => (n < 0 ? "−" : "") + Math.abs(n).toLocaleString("pt-BR");
+  const shortDate = (k) => { const d = parseKey(k); return pad(d.getDate()) + "/" + pad(d.getMonth()+1); };
+  const plural = (n, a, b) => n + " " + (n === 1 ? a : b);
+  const store = {
+    get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } },
+    set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} },
+  };
 
   // ---------- state ----------
   const S = {
-    db: null, user: null, myId: null, isOwner: false, readOnly: true,
-    tasks: [], players: {}, profiles: {},
-    viewWeek: null, mine: null, myLoaded: false,
-    pending: false, writing: false, saveTimer: 0, confirmDel: null,
+    db:null, user:null, assets:null, uploading:null, camTarget:null, menuOpen:false, myId:null, isOwner:false, readOnly:false,
+    players:{}, projects:{}, subs:{}, tasks:{}, profiles:{},
+    loaded:{players:false, projects:false, subs:false, tasks:false}, myLoaded:false,
+    mine:null, pending:false, writing:false, saveTimer:0,
+    view: store.get("liga.view") || { page:"home" },
+    confirm:null, draft:{ members:null, editProject:null, editTask:null, editSub:null, task:{ type:"normal", kind:"daily", diff:"media", assignee:"" } },
   };
-  function currentWeek(){ return keyOf(mondayOf(new Date())); }
-  function todayIdx(){ return (new Date().getDay()+6)%7; }
 
-  function setStatus(msg, warn){ const s = $("status"); s.textContent = msg; s.classList.toggle("warn", !!warn); s.hidden = !msg; }
+  function setStatus(msg, warn){ const s = $("status"); s.textContent = msg || ""; s.classList.toggle("warn", !!warn); s.hidden = !msg; }
+  function go2project(p){ const dr = S.draft.editProject; go({page:"project", pid:p.id}); S.draft.editProject = dr; render(); }
+  function go(v){ S.view = v; S.confirm = null; S.draft.editProject = null; S.draft.editTask = null; S.draft.editSub = null; store.set("liga.view", v); render(); window.scrollTo({top:0}); }
 
-  // ---------- validation (all shared data is untrusted) ----------
-  function sanitizeTask(doc){
-    const d = doc.data() || {};
-    const title = clean(d.title, 60);
-    const kind = d.kind === "weekly" ? "weekly" : (d.kind === "daily" ? "daily" : null);
-    const w = Math.round(Number(d.weight));
-    if (!title || !kind || !Number.isFinite(w)) return null;
-    return { id: doc.id, title, kind, weight: Math.min(100, Math.max(1, w)), createdAt: Number(d.createdAt) || 0 };
+  // ---------- validation (dados compartilhados não são confiáveis) ----------
+  function sanitizeProject(id, d){
+    const name = clean(d.name, 60); if (!name) return null;
+    const members = Array.isArray(d.members) ? [...new Set(d.members.filter(x => typeof x === "string" && x.length < 200))].slice(0, 50) : [];
+    return { id, name, desc: clean(d.desc, 200), members, createdAt: Number(d.createdAt) || 0 };
   }
-  function validDays(raw, task, wk){
-    const cur = currentWeek();
-    if (wk > cur) return [];
-    if (!Array.isArray(raw)) return [];
-    const lim = wk === cur ? todayIdx() : 6;
+  function sanitizeSub(id, d){
+    const name = clean(d.name, 60); const projectId = typeof d.projectId === "string" ? d.projectId : "";
+    if (!name || !projectId) return null;
+    return { id, name, projectId, createdAt: Number(d.createdAt) || 0 };
+  }
+  function sanitizeTask(id, d){
+    const title = clean(d.title, 80);
+    const subId = typeof d.subId === "string" ? d.subId : "";
+    const assignee = typeof d.assignee === "string" ? d.assignee : "";
+    const kind = d.kind === "weekly" ? "weekly" : d.kind === "daily" ? "daily" : null;
+    const type = d.type === "obrigatoria" ? "obrigatoria" : d.type === "normal" ? "normal" : null;
+    const diff = DIFF[d.diff] ? d.diff : null;
+    const startKey = isKey(d.startKey) ? d.startKey : null;
+    if (!title || !subId || !assignee || !kind || !type || !diff || !startKey) return null;
+    return { id, title, subId, assignee, kind, type, diff, startKey, createdAt: Number(d.createdAt) || 0 };
+  }
+
+  // ---------- pontuação ----------
+  function marksOf(pid, taskId){
+    const p = (S.mine && pid === S.myId) ? S.mine : S.players[pid];
+    const arr = p && p.done && typeof p.done === "object" ? p.done[taskId] : null;
+    return Array.isArray(arr) ? arr : [];
+  }
+  function validMarks(task, raw){
     const set = new Set();
-    for (const v of raw.slice(0, 7)) if (Number.isInteger(v) && v >= 0 && v <= lim) set.add(v);
-    let arr = [...set].sort((a,b)=>a-b);
-    if (task.kind === "weekly") arr = arr.slice(0, 1);
-    return arr;
-  }
-  function maxPoints(){ return S.tasks.reduce((s,t)=>s + t.weight*(t.kind==="daily"?7:1), 0); }
-  function scoreOf(weeks, wk){
-    const w = weeks && typeof weeks === "object" ? weeks[wk] : null;
-    let pts = 0;
-    if (!w || typeof w !== "object") return 0;
-    for (const t of S.tasks) pts += t.weight * validDays(w[t.id], t, wk).length;
-    return pts;
-  }
-
-  // ---------- my data ----------
-  function myWeekMap(){
-    if (!S.mine) return {};
-    const wk = currentWeek();
-    if (!S.mine.weeks[wk] || typeof S.mine.weeks[wk] !== "object") S.mine.weeks[wk] = {};
-    return S.mine.weeks[wk];
-  }
-  function buildMyDoc(){
-    const keys = Object.keys(S.mine.weeks).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort().slice(-MAX_WEEKS_KEPT);
-    const weeks = {};
-    const ids = new Set(S.tasks.map(t=>t.id));
-    for (const k of keys){
-      const src = S.mine.weeks[k] || {}; const out = {};
-      for (const id in src){ if (Array.isArray(src[id]) && (ids.has(id) || k !== currentWeek())) out[id] = src[id].filter(Number.isInteger).slice(0,7); }
-      weeks[k] = out;
+    if (task.kind === "daily"){
+      const t = todayKey();
+      for (const k of raw) if (isKey(k) && k >= task.startKey && k <= t) set.add(k);
+    } else {
+      const sw = weekOf(task.startKey), cw = curWeek();
+      for (const k of raw) if (isKey(k) && k === weekOf(k) && k >= sw && k <= cw) set.add(k);
     }
-    return { nick: clean(S.mine.nick, 24), weeks, updatedAt: Date.now() };
+    return set;
   }
-  function scheduleSave(){ S.pending = true; clearTimeout(S.saveTimer); S.saveTimer = setTimeout(flush, 600); }
-  async function flush(){
-    if (S.writing || !S.pending || !S.db || !S.myId) return;
-    S.pending = false; S.writing = true;
-    try { await S.db.doc("players/" + S.myId).set(buildMyDoc()); }
-    catch (e){
-      if (e && e.code === "invalid_argument"){ S.readOnly = true; setStatus("Você está só assistindo: peça ao dono da liga um convite com permissão de edição para marcar tarefas.", true); render(); }
-      else if (e && e.code === "unavailable"){ S.pending = true; setTimeout(flush, 1500 + Math.random()*1500); }
-      else if (e && e.code === "quota_exceeded"){ setStatus("O placar atingiu o limite de armazenamento.", true); }
-      else setStatus("Não foi possível salvar agora. Tente marcar de novo em instantes.", true);
+  // Resultado de uma tarefa para o responsável
+  function taskResult(task){
+    const done = validMarks(task, marksOf(task.assignee, task.id));
+    const D = DIFF[task.diff];
+    if (task.type === "normal") return { done, plus: D.pts * done.size, minus: 0, missed: 0 };
+    let missed = 0;
+    if (task.kind === "daily"){
+      const end = addDays(todayKey(), -1);
+      for (let k = task.startKey, i = 0; k <= end && i < 4000; k = addDays(k, 1), i++) if (!done.has(k)) missed++;
+    } else {
+      const end = addDays(curWeek(), -7);
+      for (let k = weekOf(task.startKey), i = 0; k <= end && i < 600; k = addDays(k, 7), i++) if (!done.has(k)) missed++;
     }
-    S.writing = false;
-    if (S.pending) flush();
+    return { done, plus: 0, minus: D.pen * missed, missed };
+  }
+  function tasksOfProject(pid){ return Object.values(S.tasks).filter(t => S.subs[t.subId] && S.subs[t.subId].projectId === pid); }
+  function counts(task){ const p = S.projects[S.subs[task.subId]?.projectId]; return !!p && p.members.includes(task.assignee); }
+  function scoreFor(pid, tasks){
+    let plus = 0, minus = 0;
+    for (const t of tasks) if (t.assignee === pid && counts(t)){ const r = taskResult(t); plus += r.plus; minus += r.minus; }
+    return { plus, minus, total: plus - minus };
   }
 
-  function toggleDay(task, d){
-    if (S.readOnly || !S.mine) return;
-    if (d > todayIdx()) return;
-    const map = myWeekMap();
-    let arr = validDays(map[task.id], task, currentWeek());
-    if (arr.includes(d)) arr = arr.filter(x=>x!==d);
-    else arr = task.kind === "weekly" ? [d] : [...arr, d].sort((a,b)=>a-b);
-    map[task.id] = arr;
-    render(); scheduleSave();
-  }
-
-  // ---------- render ----------
+  // ---------- nomes ----------
   function nameOf(id){
     const p = S.players[id];
     const nick = p && clean(p.nick, 24);
     return nick || (S.profiles[id] && S.profiles[id].name) || "Jogador";
   }
-
-  function renderHeader(){
-    $("weekLabel").textContent = weekRange(currentWeek());
-    const next = mondayOf(new Date()); next.setDate(next.getDate()+7);
-    const ms = next - new Date();
-    const d = Math.floor(ms/864e5), h = Math.floor(ms%864e5/36e5), m = Math.floor(ms%36e5/6e4);
-    $("countdown").textContent = d > 0 ? d + "d " + h + "h" : h + "h " + pad(m) + "min";
-  }
-
-  function renderMine(){
-    const body = $("myBody"); body.replaceChildren();
-    const max = maxPoints();
-    const wk = currentWeek();
-    const myPts = S.mine ? scoreOf({ [wk]: myWeekMap() }, wk) : 0;
-    $("myPts").textContent = myPts;
-    $("myPct").textContent = max ? fmtPct(myPts/max) : "0%";
-    $("nickForm").hidden = !S.mine || S.readOnly;
-
-    if (!S.tasks.length){
-      body.append(el("div",{class:"empty", text: S.isOwner ? "Nenhuma tarefa ainda. Crie a primeira no painel Gerenciar tarefas, lá embaixo." : "O dono da liga ainda não criou as tarefas desta semana."}));
-      return;
-    }
-    const t = todayIdx();
-    const head = el("tr",null, el("th",{class:"name", style:"text-align:left"},"Tarefa"),
-      ...DAYS.map((n,i)=>el("th",{class: i===t ? "today" : null}, n)));
-    const rows = S.tasks.map(task=>{
-      const done = S.mine ? validDays(myWeekMap()[task.id], task, wk) : [];
-      const meta = (task.kind==="daily" ? "Diária · " + task.weight + " pt/dia" : "Semanal · " + task.weight + " pt");
-      const nameCell = el("td",{class:"name"}, el("div",{class:"tname", text:task.title}), el("div",{class:"tmeta", text:meta}));
-      if (task.kind === "daily"){
-        return el("tr",null, nameCell, ...DAYS.map((n,i)=>{
-          const on = done.includes(i);
-          return el("td",null, el("button",{class:"day"+(on?" on":""), type:"button", disabled: S.readOnly || !S.mine || i>t,
-            "aria-pressed": on ? "true":"false", "aria-label": task.title + " — " + n, title: i>t ? "Ainda não chegou esse dia" : n,
-            onclick:()=>toggleDay(task,i)}, on ? "✓" : ""));
-        }));
-      }
-      const on = done.length > 0;
-      return el("tr",null, nameCell, el("td",{colspan:7},
-        el("button",{class:"wk-btn"+(on?" on":""), type:"button", disabled: S.readOnly || !S.mine,
-          "aria-pressed": on?"true":"false", onclick:()=>toggleDay(task, on ? done[0] : t)},
-          on ? "Feita (" + DAYS[done[0]] + ")" : "Marcar como feita")));
-    });
-    body.append(el("div",{class:"scroll"}, el("table",{class:"week"}, el("thead",null,head), el("tbody",null,...rows))));
-  }
-
-  function weeksAvailable(){
-    const cur = currentWeek(); const set = new Set([cur]);
-    for (const id in S.players){ const w = S.players[id].weeks; if (w && typeof w === "object") for (const k in w) if (/^\d{4}-\d{2}-\d{2}$/.test(k) && k <= cur) set.add(k); }
-    return [...set].sort().reverse().slice(0, MAX_WEEKS_KEPT);
-  }
-
-  function renderBoard(){
-    const cur = currentWeek();
-    if (!S.viewWeek) S.viewWeek = cur;
-    const chips = $("weekChips"); chips.replaceChildren();
-    for (const k of weeksAvailable()){
-      chips.append(el("button",{class:"chip"+(k===S.viewWeek?" on":""), type:"button", onclick:()=>{S.viewWeek=k; render();}}, k===cur ? "Esta semana" : weekRange(k)));
-    }
-    const body = $("boardBody"); body.replaceChildren();
-    const max = maxPoints();
-    const wk = S.viewWeek;
-    const list = Object.keys(S.players).map(id=>{
-      const p = S.players[id];
-      const weeks = (S.mine && id === S.myId) ? Object.assign({}, p.weeks, { [cur]: myWeekMap() }) : p.weeks;
-      return { id, pts: scoreOf(weeks, wk) };
-    }).filter(r => wk === cur || r.pts > 0).sort((a,b)=> b.pts - a.pts || nameOf(a.id).localeCompare(nameOf(b.id)));
-
-    $("boardInfo").textContent = list.length ? list.length + (list.length===1?" jogador":" jogadores") : "";
-    if (!list.length){ body.append(el("div",{class:"empty", text: wk===cur ? "Ninguém entrou na liga ainda." : "Ninguém pontuou nesta semana."})); return; }
-
-    const ol = el("ol",{class:"board"});
-    let lastPts = null, rank = 0;
-    list.forEach((r, i)=>{
-      if (r.pts !== lastPts){ rank = i+1; lastPts = r.pts; }
-      const lead = rank === 1 && r.pts > 0;
-      const pct = max ? r.pts/max : 0;
-      const nameRow = el("div",{class:"pname"}, el("span",{text:nameOf(r.id)}),
-        r.id===S.myId ? el("span",{class:"tag"},"você") : null,
-        lead && wk!==cur ? el("span",{class:"tag"},"campeão") : null);
-      ol.append(el("li",{class:(lead?"first":"") + (r.id===S.myId?" me":"")},
-        el("div",{class:"rank"}, rank + "º"),
-        el("div",{style:"min-width:0"}, nameRow, el("div",{class:"bar"}, el("i",{style:"width:"+Math.min(100,pct*100).toFixed(1)+"%"}))),
-        el("div",{class:"pts"}, el("b",null,String(r.pts)), el("span",null, fmtPct(pct)))));
-    });
-    body.append(ol);
-    if (wk !== cur) body.append(el("p",{class:"muted", style:"margin:0;font-size:13px", text:"Semanas passadas são recalculadas com as tarefas atuais."}));
-  }
-
-  function renderWeights(){
-    const body = $("weightsBody"); body.replaceChildren();
-    const max = maxPoints();
-    $("maxInfo").textContent = max ? "Total possível: " + max + " pts" : "";
-    if (!S.tasks.length){ body.append(el("div",{class:"empty", text:"Sem tarefas por enquanto."})); return; }
-    const rows = [...S.tasks].sort((a,b)=> b.weight*(b.kind==="daily"?7:1) - a.weight*(a.kind==="daily"?7:1)).map(t=>{
-      const tot = t.weight*(t.kind==="daily"?7:1);
-      return el("tr",null, el("td",null, el("span",{class:"tname",text:t.title})),
-        el("td",null, t.kind==="daily"?"Diária":"Semanal"),
-        el("td",{class:"r num"}, t.kind==="daily" ? t.weight+" × 7" : String(t.weight)),
-        el("td",{class:"r num"}, String(tot)),
-        el("td",{class:"r num"}, fmtPct(tot/max)));
-    });
-    body.append(el("table",{class:"weights"},
-      el("thead",null, el("tr",null, el("th",null,"Tarefa"), el("th",null,"Tipo"), el("th",{class:"r"},"Pontos"), el("th",{class:"r"},"Na semana"), el("th",{class:"r"},"Do total"))),
-      el("tbody",null,...rows)));
-  }
-
-  function renderAdmin(){
-    $("adminPanel").hidden = !S.isOwner;
-    if (!S.isOwner) return;
-    const box = $("taskList"); box.replaceChildren();
-    for (const t of S.tasks){
-      const confirming = S.confirmDel === t.id;
-      box.append(el("div",{class:"item"},
-        el("div",{class:"tname"}, t.title + " ", el("span",{class:"tmeta", text:"· " + (t.kind==="daily"?"diária":"semanal") + " · " + t.weight + " pt"})),
-        confirming
-          ? el("div",{style:"display:flex;gap:6px"},
-              el("button",{class:"btn danger",type:"button",onclick:()=>deleteTask(t.id)},"Apagar mesmo"),
-              el("button",{class:"btn ghost",type:"button",onclick:()=>{S.confirmDel=null;render();}},"Cancelar"))
-          : el("button",{class:"btn ghost",type:"button",onclick:()=>{S.confirmDel=t.id;render();}},"Apagar")));
-    }
-  }
-
-  function renderJoin(){
-    $("joinPanel").hidden = !(S.db && S.myId && S.myLoaded && !S.mine && !S.readOnlyForced);
-  }
-
-  function render(){ renderHeader(); renderJoin(); renderMine(); renderBoard(); renderWeights(); renderAdmin(); }
-
-  // ---------- actions ----------
-  async function deleteTask(id){
-    S.confirmDel = null;
-    try { await S.db.doc("tasks/" + id).delete(); $("taskErr").textContent = ""; }
-    catch(e){ $("taskErr").textContent = "Não foi possível apagar a tarefa."; }
-  }
-
-  $("taskForm").addEventListener("submit", async (ev)=>{
-    ev.preventDefault();
-    if (!S.isOwner || !S.db) return;
-    const title = clean($("tTitle").value, 60);
-    const kind = $("tKind").value === "weekly" ? "weekly" : "daily";
-    const weight = Math.round(Number($("tWeight").value));
-    if (!title){ $("taskErr").textContent = "Dê um nome para a tarefa."; return; }
-    if (!(weight >= 1 && weight <= 100)){ $("taskErr").textContent = "Os pontos vão de 1 a 100."; return; }
-    if (S.tasks.length >= 60){ $("taskErr").textContent = "Limite de 60 tarefas."; return; }
-    const btn = ev.submitter; if (btn) btn.disabled = true;
-    try {
-      await S.db.collection("tasks").doc().set({ title, kind, weight, createdAt: Date.now() });
-      $("tTitle").value = ""; $("tWeight").value = "1"; $("taskErr").textContent = "";
-    } catch(e){ $("taskErr").textContent = "Não foi possível criar a tarefa. Confira sua conexão e tente de novo."; }
-    if (btn) btn.disabled = false;
-  });
-
-  $("joinForm").addEventListener("submit", async (ev)=>{
-    ev.preventDefault();
-    const nick = clean($("joinNick").value, 24);
-    if (nick.length < 2){ $("joinErr").textContent = "Use pelo menos 2 caracteres."; return; }
-    S.mine = { nick, weeks: {} };
-    S.readOnly = false;
-    try { await S.db.doc("players/" + S.myId).set(buildMyDoc()); $("joinErr").textContent = ""; setStatus(""); }
-    catch(e){
-      S.mine = null; S.readOnly = true; S.readOnlyForced = e && e.code === "invalid_argument";
-      $("joinErr").textContent = S.readOnlyForced ? "Seu acesso é só de leitura. Peça ao dono da liga um convite com permissão de edição." : "Não deu para entrar agora. Tente de novo.";
-    }
-    render();
-  });
-
-  $("nickForm").addEventListener("submit", (ev)=>{
-    ev.preventDefault();
-    const nick = clean($("nickInput").value, 24);
-    if (!S.mine || nick.length < 2) return;
-    S.mine.nick = nick; render(); scheduleSave();
-  });
-
-  // ---------- boot ----------
-  async function resolveProfiles(){
+  const PALETTE = ["#2346d8","#1f8a4c","#c2600e","#8a2bb8","#b0336b","#0e7c86","#7a5a12","#4b5bb0"];
+  function colorOf(id){ let h = 0; for (const c of String(id)) h = (h*31 + c.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; }
+  function avatar(id){ return el("span",{class:"av", style:"background:"+colorOf(id), "aria-hidden":"true"}, (nameOf(id)[0] || "?").toUpperCase()); }
+  async function refreshProfiles(){
     if (!S.user) return;
     const ids = Object.keys(S.players);
+    for (const p of Object.values(S.projects)) ids.push(...p.members);
     if (!ids.length) return;
-    try { const ps = await S.user.profiles(ids); S.profiles = ps || {}; render(); } catch(_){}
+    try { const ps = await S.user.profiles([...new Set(ids)]); let ch = false;
+      for (const id in ps){ const n = ps[id] && ps[id].name || ""; if ((S.profiles[id]||{}).name !== n){ S.profiles[id] = { name:n }; ch = true; } }
+      if (ch) render();
+    } catch(e){}
   }
 
-  async function boot(){
+  // ---------- meus dados ----------
+  function buildMyDoc(){
+    const done = {};
+    const src = S.mine.done || {};
+    for (const id in src){
+      if (S.loaded.tasks && !S.tasks[id]) continue;
+      if (!Array.isArray(src[id])) continue;
+      const arr = [...new Set(src[id].filter(isKey))].sort().slice(-MAX_MARKS);
+      if (arr.length) done[id] = arr;
+    }
+    const proofs = {};
+    const psrc = S.mine.proofs || {};
+    for (const id in psrc){
+      if (S.loaded.tasks && !S.tasks[id]) continue;
+      const m = psrc[id]; if (!m || typeof m !== "object") continue;
+      const o = {}; for (const k in m) if (isKey(k) && isAssetId(m[k])) o[k] = m[k];
+      if (Object.keys(o).length) proofs[id] = o;
+    }
+    const out = { nick: clean(S.mine.nick, 24), done, proofs, updatedAt: Date.now() };
+    if (S.mine.weeks && typeof S.mine.weeks === "object") out.weeks = S.mine.weeks; // dados da versão antiga, mantidos
+    return out;
+  }
+  function scheduleSave(){ S.pending = true; clearTimeout(S.saveTimer); S.saveTimer = setTimeout(flush, 500); }
+  async function flush(){
+    if (S.writing || !S.pending || !S.db || !S.myId || !S.mine) return;
+    S.pending = false; S.writing = true;
+    try { await S.db.doc("players/" + S.myId).set(buildMyDoc()); }
+    catch(e){
+      if (e && e.code === "invalid_argument"){ S.readOnly = true; setStatus("Você está só assistindo. Peça ao dono da liga um convite como Editor para marcar suas tarefas.", true); render(); }
+      else if (e && e.code === "unavailable"){ S.pending = true; setTimeout(flush, 1500 + Math.random()*1500); }
+      else if (e && e.code === "quota_exceeded"){ setStatus("A liga atingiu o limite de armazenamento.", true); }
+      else setStatus("Não deu para salvar agora. Marque de novo em instantes.", true);
+    }
+    S.writing = false;
+    if (S.pending) flush();
+  }
+  function toggleMark(task, key){
+    if (S.readOnly || !S.mine || task.assignee !== S.myId) return;
+    if (!S.mine.done || typeof S.mine.done !== "object") S.mine.done = {};
+    const arr = Array.isArray(S.mine.done[task.id]) ? [...S.mine.done[task.id]] : [];
+    const i = arr.indexOf(key);
+    if (i >= 0){
+      arr.splice(i, 1);
+      const old = S.mine.proofs && S.mine.proofs[task.id] && S.mine.proofs[task.id][key];
+      if (old){ delete S.mine.proofs[task.id][key]; removeAsset(old); }
+    } else arr.push(key);
+    S.mine.done[task.id] = arr;
+    render(); scheduleSave();
+  }
+
+  // ---------- fotos de prova ----------
+  function proofsOf(pid, taskId){
+    const p = (S.mine && pid === S.myId) ? S.mine : S.players[pid];
+    const m = p && p.proofs && typeof p.proofs === "object" ? p.proofs[taskId] : null;
+    const out = {};
+    if (m && typeof m === "object") for (const k in m) if (isKey(k) && isAssetId(m[k])) out[k] = m[k];
+    return out;
+  }
+  function removeAsset(id){ if (S.assets) S.assets.delete(id).catch(() => {}); }
+  function startPhoto(task, key){
+    if (!S.assets || S.uploading || task.assignee !== S.myId || S.readOnly || !S.mine) return;
+    S.camTarget = { taskId: task.id, key };
+    const inp = $("camInput"); inp.value = ""; inp.click();
+  }
+  // reduz a foto para no máximo 1600px e JPEG, para caber bem no armazenamento
+  function shrink(file){
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const max = 1600, sc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.naturalWidth * sc); c.height = Math.round(img.naturalHeight * sc);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob((b) => resolve(b || file), "image/jpeg", 0.82);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
+  $("camInput").addEventListener("change", async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    const tgt = S.camTarget; S.camTarget = null;
+    if (!file || !tgt || !S.assets) return;
+    const task = S.tasks[tgt.taskId]; if (!task) return;
+    S.uploading = tgt.taskId + "|" + tgt.key; render();
+    try {
+      const blob = await shrink(file);
+      const type = ["image/jpeg","image/png","image/webp","image/gif"].includes(blob.type) ? blob.type : "image/jpeg";
+      const res = await S.assets.upload(blob, { type });
+      if (!S.mine.proofs || typeof S.mine.proofs !== "object") S.mine.proofs = {};
+      if (!S.mine.proofs[task.id]) S.mine.proofs[task.id] = {};
+      const old = S.mine.proofs[task.id][tgt.key];
+      S.mine.proofs[task.id][tgt.key] = res.id;
+      if (!S.mine.done[task.id]) S.mine.done[task.id] = [];
+      if (!S.mine.done[task.id].includes(tgt.key)) S.mine.done[task.id].push(tgt.key);
+      if (old && old !== res.id) removeAsset(old);
+      setStatus("");
+      scheduleSave();
+    } catch(e){
+      const c = e && e.code;
+      setStatus(c === "too_large" ? "A foto é grande demais. Tente outra." :
+        c === "unsupported_type" ? "Esse formato de imagem não é aceito. Use JPG ou PNG." :
+        c === "quota_or_state" ? "O espaço de fotos da liga acabou." :
+        c === "rate_limited" ? "Muitas fotos seguidas. Espere um pouco e tente de novo." :
+        "Não deu para enviar a foto. Tente de novo.", true);
+    }
+    S.uploading = null; render();
+  });
+  function openPhoto(id, caption){
+    const lb = $("lightbox"); lb.replaceChildren();
+    const close = () => { lb.hidden = true; lb.replaceChildren(); };
+    const img = el("img",{src:"/_blob/" + id, alt:"Foto de prova: " + caption});
+    img.addEventListener("error", () => img.replaceWith(el("p",{style:"color:#fff;margin:auto;text-align:center"},"Esta foto não pode ser exibida para você.")));
+    lb.append(el("div",{class:"bar"}, el("div",{text:caption}),
+      el("button",{class:"btn ghost sm", type:"button", id:"lbClose", onclick:close}, icon("close"), " Fechar")), img);
+    lb.onclick = (e) => { if (e.target === lb) close(); };
+    lb.hidden = false; $("lbClose").focus();
+  }
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("lightbox").hidden){ $("lightbox").hidden = true; $("lightbox").replaceChildren(); } });
+
+  // ---------- componentes ----------
+  function diffChip(task){
+    const D = DIFF[task.diff];
+    const val = task.type === "normal" ? "+" + D.pts : "−" + D.pen + " se faltar";
+    return el("span",{class:"chip diff", style:"--dc:"+D.c}, D.label + " · " + val);
+  }
+  function taskCard(task, opts){
+    opts = opts || {};
+    const r = taskResult(task);
+    const mine = task.assignee === S.myId && !S.readOnly && !!S.mine;
+    const isObr = task.type === "obrigatoria";
+    const today = todayKey();
+    const scoreVal = isObr ? -r.minus : r.plus;
+    const top = el("div",{class:"task-top"},
+      el("div",null,
+        el("div",{class:"tname", text: task.title}),
+        el("div",{class:"chips"},
+          el("span",{class:"chip " + (isObr ? "obr" : "nor")}, isObr ? "Obrigatória" : "Normal"),
+          el("span",{class:"chip"}, task.kind === "daily" ? "Diária" : "Semanal"),
+          diffChip(task),
+          opts.where ? el("span",{class:"chip", text: opts.where}) : null)),
+      el("span",{class:"tscore " + (scoreVal > 0 ? "pos" : scoreVal < 0 ? "neg" : "zero"), title:"Saldo desta tarefa"}, fmtPts(scoreVal)));
+
+    let controls;
+    if (task.kind === "daily"){
+      const btns = [];
+      for (let i = 6; i >= 0; i--){
+        const k = addDays(today, -i);
+        const before = k < task.startKey;
+        const on = r.done.has(k);
+        const miss = isObr && !on && !before && k < today;
+        const d = parseKey(k);
+        btns.push(el("button",{type:"button", class:"day" + (on?" on":"") + (miss?" miss":"") + (k===today?" today":"") + (before?" off":""),
+          disabled: !mine || before, "aria-pressed": on ? "true":"false",
+          "aria-label": task.title + " — " + WD[d.getDay()] + " " + shortDate(k) + (on ? ", feita" : miss ? ", não feita" : ""),
+          title: before ? "Antes da tarefa existir" : (k===today ? "Hoje" : WD[d.getDay()] + " " + shortDate(k)),
+          onclick: () => toggleMark(task, k)},
+          el("span",null, k===today ? "Hoje" : WD[d.getDay()]), el("b",null, on ? icon("check") : String(d.getDate()))));
+      }
+      controls = el("div",{class:"days"}, ...btns);
+    } else {
+      const cw = curWeek(), lw = addDays(cw, -7);
+      const mk = (k, label) => {
+        if (k < weekOf(task.startKey)) return null;
+        const on = r.done.has(k);
+        const miss = isObr && !on && k < cw;
+        return el("button",{type:"button", class:"wk" + (on?" on":"") + (miss?" miss":""), disabled: !mine,
+          "aria-pressed": on?"true":"false", onclick: () => toggleMark(task, k)}, on ? icon("check") : null, (on ? " " : "") + label);
+      };
+      controls = el("div",{class:"days"}, mk(lw, "Semana passada"), mk(cw, "Esta semana"));
+    }
+
+    let hint;
+    if (isObr){
+      const pendingNow = task.kind === "daily" ? !r.done.has(today) : !r.done.has(curWeek());
+      const txt = (r.missed ? "Faltou " + plural(r.missed, task.kind==="daily"?"dia":"semana", task.kind==="daily"?"dias":"semanas") + " · " : "") +
+        (pendingNow ? (task.kind==="daily" ? "Falta fazer hoje: perde " + DIFF[task.diff].pen + " à meia-noite." : "Falta fazer esta semana: perde " + DIFF[task.diff].pen + " na segunda.") : (task.kind==="daily" ? "Feita hoje." : "Feita esta semana."));
+      hint = el("div",{class:"hint" + (pendingNow ? " warn" : "")}, txt);
+    } else {
+      hint = el("div",{class:"hint"}, "Feita " + plural(r.done.size, "vez", "vezes") + " · vale " + DIFF[task.diff].pts + " por " + (task.kind==="daily"?"dia":"semana") + ".");
+    }
+
+    if (S.isOwner && opts.admin && S.draft.editTask && S.draft.editTask.id === task.id) return taskEditCard(task);
+    let admin = null;
+    if (S.isOwner && opts.admin){
+      const c = S.confirm === "t:" + task.id;
+      admin = c
+        ? el("div",{class:"row"}, el("span",{class:"small muted"},"Apagar esta tarefa e os pontos dela?"),
+            el("button",{class:"btn danger sm", type:"button", onclick:()=>del("tarefas/" + task.id)},"Apagar"),
+            el("button",{class:"btn ghost sm", type:"button", onclick:()=>{S.confirm=null;render();}},"Cancelar"))
+        : el("div",{class:"row"},
+            el("button",{class:"btn ghost sm", type:"button", onclick:()=>{ S.confirm = null; S.draft.editTask = { id:task.id, title:task.title, assignee:task.assignee, type:task.type, kind:task.kind, diff:task.diff }; render(); }},"Editar tarefa"),
+            el("button",{class:"btn ghost sm", type:"button", onclick:()=>{S.confirm="t:"+task.id;render();}},"Apagar tarefa"));
+    }
+    // foto de prova
+    const proofs = proofsOf(task.assignee, task.id);
+    const curKey = task.kind === "daily" ? today : curWeek();
+    const keys = Object.keys(proofs).filter(k => r.done.has(k)).sort().reverse();
+    const withPhoto = [...r.done].filter(k => proofs[k]).length;
+    const who = nameOf(task.assignee);
+    const thumbs = keys.slice(0, 6).map(k => {
+      const lab = task.kind === "daily" ? (k === today ? "hoje" : shortDate(k)) : (k === curWeek() ? "semana" : shortDate(k));
+      const cap = task.title + " — " + who + " — " + (task.kind === "daily" ? shortDate(k) : "semana de " + shortDate(k));
+      const img = el("img",{src:"/_blob/" + proofs[k], alt:"", loading:"lazy"});
+      const b = el("button",{type:"button", class:"thumb", "aria-label":"Ver foto de " + lab, onclick:()=>openPhoto(proofs[k], cap)}, img, el("span",null, lab));
+      img.addEventListener("error", () => { b.classList.add("broken"); img.remove(); });
+      return b;
+    });
+    let camBtn = null;
+    if (mine && S.assets){
+      const busy = S.uploading === task.id + "|" + curKey;
+      const has = !!proofs[curKey] && r.done.has(curKey);
+      camBtn = el("button",{type:"button", class:"cam", disabled: !!S.uploading, onclick:()=>startPhoto(task, curKey)},
+        icon("camera"), busy ? "Enviando foto…" : has ? (task.kind==="daily" ? "Trocar a foto de hoje" : "Trocar a foto da semana") : (task.kind==="daily" ? "Provar hoje com foto" : "Provar esta semana com foto"));
+    }
+    const ptag = r.done.size ? el("span",{class:"ptag" + (withPhoto === r.done.size ? " ok" : "")}, withPhoto + " de " + r.done.size + " com foto") : null;
+    const proofRow = (camBtn || thumbs.length || ptag) ? el("div",{class:"proof"}, camBtn, thumbs.length ? el("div",{class:"thumbs"}, ...thumbs) : null, ptag) : null;
+
+    return el("div",{class:"task " + (isObr ? "obr" : "nor")}, top, controls, proofRow, hint, admin);
+  }
+
+  function board(ids, tasks){
+    const rows = ids.map(id => Object.assign({ id }, scoreFor(id, tasks)))
+      .sort((a,b) => b.total - a.total || nameOf(a.id).localeCompare(nameOf(b.id)));
+    if (!rows.length) return el("div",{class:"empty"}, "Ninguém no placar ainda.");
+    const ol = el("ol",{class:"board"});
+    let last = null, rank = 0;
+    rows.forEach((r, i) => {
+      if (r.total !== last){ rank = i+1; last = r.total; }
+      const lead = rank === 1 && r.total > 0;
+      ol.append(el("li",{class:(lead?"first":"") + (r.id===S.myId?" me":"")},
+        el("div",{class:"rank"}, rank + "º"),
+        el("div",{style:"min-width:0"},
+          el("div",{class:"pname"}, el("span",{text:nameOf(r.id)}), r.id===S.myId ? el("span",{class:"tag"},"você") : null),
+          el("div",{class:"split"}, el("span",{class:"p"}, "+" + r.plus.toLocaleString("pt-BR")), "  ", el("span",{class:"m"}, "−" + r.minus.toLocaleString("pt-BR")))),
+        el("div",{class:"pts" + (r.total<0?" neg":"")}, fmtTotal(r.total))));
+    });
+    return ol;
+  }
+
+  function legend(){
+    return el("section",{class:"panel"},
+      el("h2",null,"Dificuldades"),
+      el("p",{class:"muted small"},"Normal: ganha os pontos cada vez que faz. Obrigatória: não ganha nada, mas perde os pontos a cada dia ou semana que terminar sem ela."),
+      el("div",{style:"overflow-x:auto"}, el("table",{class:"legend"},
+        el("thead",null, el("tr",null, el("th",null,"Nível"), el("th",{class:"r"},"Normal ganha"), el("th",{class:"r"},"Obrigatória perde"))),
+        el("tbody",null, ...DIFF_KEYS.map(k => el("tr",null,
+          el("td",null, el("span",{class:"chip diff", style:"--dc:"+DIFF[k].c}, DIFF[k].label)),
+          el("td",{class:"r num"}, "+" + DIFF[k].pts),
+          el("td",{class:"r num"}, "−" + DIFF[k].pen)))))));
+  }
+
+  function personChip(id, onToggle, on){
+    const kids = [avatar(id), el("span",{text:nameOf(id)})];
+    if (onToggle) return el("button",{type:"button", class:"person" + (on?" on":""), "aria-pressed": on?"true":"false", onclick:onToggle}, ...kids, el("span",{class:"ck"}, icon("check")));
+    return el("span",{class:"person"}, ...kids);
+  }
+
+  function crumbs(parts){
+    const c = $("crumbs"); c.replaceChildren();
+    parts.forEach((p, i) => {
+      if (i) c.append(el("span",{"aria-hidden":"true"},"/"));
+      c.append(p.go ? el("button",{type:"button", onclick:p.go, text:p.label}) : el("span",{class:"cur", text:p.label}));
+    });
+  }
+
+  // ---------- telas ----------
+  function visibleProjects(){
+    return Object.values(S.projects).filter(p => S.isOwner || p.members.includes(S.myId)).sort((a,b)=>a.createdAt-b.createdAt);
+  }
+
+  function pageHome(){
+    crumbs([{label:"Início"}]);
+    const v = $("view");
+    const myProjects = visibleProjects();
+    const allTasks = Object.values(S.tasks);
+    const my = S.myId ? scoreFor(S.myId, allTasks) : { plus:0, minus:0, total:0 };
+
+    // cabeçalho
+    v.append(el("div",{class:"head"},
+      el("div",null, el("div",{class:"eyebrow"}, "Início"), el("h1",null, S.mine && S.mine.nick ? "Olá, " + clean(S.mine.nick,24) : "Liga das Tarefas")),
+      el("div",{class:"stats"},
+        el("div",{class:"stat"}, el("div",{class:"eyebrow"},"Seu total"), el("div",{class:"v" + (my.total<0?" neg":"")}, fmtTotal(my.total))),
+        el("div",{class:"stat"}, el("div",{class:"eyebrow"},"Ganhos"), el("div",{class:"v pos"}, "+" + my.plus)),
+        el("div",{class:"stat"}, el("div",{class:"eyebrow"},"Perdidos"), el("div",{class:"v neg"}, "−" + my.minus)))));
+
+    if (S.db && S.myId && S.myLoaded && !S.mine) v.append(joinPanel());
+
+    const grid = el("div",{class:"grid"});
+    const left = el("div",{class:"stack"}), right = el("div",{class:"stack"});
+    grid.append(left, right); v.append(grid);
+
+    // hoje
+    const mineTasks = allTasks.filter(t => t.assignee === S.myId && counts(t));
+    const today = todayKey(), cw = curWeek();
+    const pend = mineTasks.filter(t => { const r = taskResult(t); return t.kind==="daily" ? !r.done.has(today) : !r.done.has(cw); })
+      .sort((a,b) => (a.type==="obrigatoria"?0:1) - (b.type==="obrigatoria"?0:1) || DIFF_KEYS.indexOf(b.diff) - DIFF_KEYS.indexOf(a.diff));
+    const hoje = el("section",{class:"panel"},
+      el("div",{class:"panel-head"}, el("h2",null,"Para hoje"), el("span",{class:"muted small"}, mineTasks.length ? plural(pend.length, "pendente", "pendentes") : "")));
+    if (!mineTasks.length) hoje.append(el("div",{class:"empty"}, S.isOwner ? "Nenhuma tarefa sua ainda. Crie um projeto, um subprojeto e atribua tarefas." : "Você ainda não tem tarefas. Quando o dono da liga te colocar num projeto, elas aparecem aqui."));
+    else if (!pend.length) hoje.append(el("div",{class:"empty"}, "Tudo feito por hoje. Bom trabalho!"));
+    else hoje.append(el("div",{class:"tlist"}, ...pend.slice(0, 8).map(t => {
+      const sub = S.subs[t.subId], proj = sub && S.projects[sub.projectId];
+      return taskCard(t, { where: (proj ? proj.name + " / " : "") + (sub ? sub.name : "") });
+    })));
+    left.append(hoje);
+
+    left.append(projectsPanel());
+
+    // placar geral
+    const ids = Object.keys(S.players).filter(id => S.players[id] && clean(S.players[id].nick,24));
+    right.append(el("section",{class:"panel"},
+      el("div",{class:"panel-head"}, el("h2",null,"Placar geral"), el("span",{class:"muted small"}, "todos os projetos")),
+      board(ids, allTasks)));
+    if (S.mine && !S.readOnly) right.append(nickPanel());
+  }
+
+  function projectsPanel(){
+    const myProjects = visibleProjects();
+    const projPanel = el("section",{class:"panel"},
+      el("div",{class:"panel-head"}, el("h2",null,"Projetos"), el("span",{class:"muted small"}, myProjects.length ? plural(myProjects.length,"projeto","projetos") : "")));
+    const cards = el("div",{class:"cards"});
+    for (const p of myProjects){
+      const subsN = Object.values(S.subs).filter(s => s.projectId === p.id).length;
+      const sc = S.myId ? scoreFor(S.myId, tasksOfProject(p.id)) : { total:0 };
+      cards.append(el("button",{type:"button", class:"card", onclick:()=>go({page:"project", pid:p.id})},
+        el("div",{class:"t", text:p.name}),
+        p.desc ? el("div",{class:"d", text:p.desc}) : null,
+        el("div",{class:"meta"}, el("span",null, plural(p.members.length,"integrante","integrantes") + " · " + plural(subsN,"subprojeto","subprojetos")),
+          p.members.includes(S.myId) ? el("span",null, "Você ", el("b",null, fmtTotal(sc.total))) : null)));
+    }
+    if (S.isOwner) cards.append(el("button",{type:"button", class:"card add", onclick:()=>go({page:"new"})}, "Novo projeto"));
+    if (!myProjects.length && !S.isOwner) projPanel.append(el("div",{class:"empty"}, "Você ainda não está em nenhum projeto."));
+    else projPanel.append(cards);
+    return projPanel;
+  }
+
+  function pageProjects(){
+    crumbs([{label:"Início", go:()=>go({page:"home"})}, {label:"Projetos"}]);
+    $("view").append(el("div",{class:"head"}, el("div",null, el("div",{class:"eyebrow"},"Todos"), el("h1",null,"Projetos"))), projectsPanel());
+  }
+
+  function pageMine(){
+    crumbs([{label:"Início", go:()=>go({page:"home"})}, {label:"Minhas tarefas"}]);
+    const v = $("view");
+    const mt = Object.values(S.tasks).filter(t => t.assignee === S.myId && counts(t));
+    const sc = S.myId ? scoreFor(S.myId, mt) : { plus:0, minus:0, total:0 };
+    v.append(el("div",{class:"head"},
+      el("div",null, el("div",{class:"eyebrow"},"Suas tarefas em todos os projetos"), el("h1",null,"Minhas tarefas")),
+      el("div",{class:"stats"},
+        el("div",{class:"stat"}, el("div",{class:"eyebrow"},"Tarefas"), el("div",{class:"v"}, String(mt.length))),
+        el("div",{class:"stat"}, el("div",{class:"eyebrow"},"Saldo"), el("div",{class:"v" + (sc.total<0?" neg":"")}, fmtTotal(sc.total))))));
+    if (!mt.length){ v.append(el("div",{class:"empty"},"Você ainda não tem tarefas.")); return; }
+    for (const p of visibleProjects()){
+      const subs = Object.values(S.subs).filter(s => s.projectId === p.id).sort((a,b)=>a.createdAt-b.createdAt);
+      for (const s of subs){
+        const list = mt.filter(t => t.subId === s.id).sort((a,b) => (a.type==="obrigatoria"?0:1) - (b.type==="obrigatoria"?0:1) || a.createdAt - b.createdAt);
+        if (!list.length) continue;
+        v.append(el("section",{class:"panel"},
+          el("div",{class:"panel-head"}, el("h2",{text: s.name}), el("button",{class:"btn ghost sm", type:"button", onclick:()=>go({page:"sub", pid:p.id, sid:s.id}), text:p.name})),
+          el("div",{class:"tlist"}, ...list.map(t => taskCard(t)))));
+      }
+    }
+  }
+
+  function pageRules(){
+    crumbs([{label:"Início", go:()=>go({page:"home"})}, {label:"Regras"}]);
+    const v = $("view");
+    v.append(el("div",{class:"head"}, el("div",null, el("div",{class:"eyebrow"},"Como funciona"), el("h1",null,"Regras da liga"))));
+    const grid = el("div",{class:"grid"});
+    grid.append(
+      el("div",{class:"stack"}, el("section",{class:"panel"},
+        el("h2",null,"Pontuação"),
+        el("p",null,"Cada projeto tem subprojetos, e cada subprojeto tem as tarefas de cada integrante. O placar soma todos os pontos desde que cada tarefa foi criada; ele não zera."),
+        el("p",null,"Tarefa normal: você ganha os pontos da dificuldade cada dia (ou semana) em que fizer."),
+        el("p",null,"Tarefa obrigatória: não dá pontos. Cada dia (ou semana) que terminar sem ela tira os pontos da dificuldade. O dia de hoje só conta depois da meia-noite, e a semana depois de domingo."),
+        el("p",null,"Você pode marcar até 6 dias para trás, caso tenha esquecido.")),
+        el("section",{class:"panel"},
+        el("h2",null,"Foto de prova"),
+        el("p",null,"Em cada tarefa sua aparece o botão para provar com foto. No celular ele abre a câmera; no computador, escolhe uma imagem. Mandar a foto já marca a tarefa como feita."),
+        el("p",null,"Todo mundo da liga vê as fotos. Cada tarefa mostra quantas marcações têm foto, e tocar numa miniatura abre a foto grande. Se desmarcar o dia, a foto daquele dia é apagada."),
+        el("p",{class:"muted small"},"A foto é opcional: a marcação conta mesmo sem ela, mas aparece como sem foto para os outros."))),
+      el("div",{class:"stack"}, legend()));
+    v.append(grid);
+  }
+
+  function renderMenu(){
+    const pg = S.view.page;
+    const cur = pg === "project" || pg === "sub" || pg === "new" ? "projects" : pg;
+    const today = todayKey(), cw = curWeek();
+    const pend = Object.values(S.tasks).filter(t => t.assignee === S.myId && counts(t) && t.type === "obrigatoria")
+      .filter(t => { const r = taskResult(t); return t.kind === "daily" ? !r.done.has(today) : !r.done.has(cw); }).length;
+    const item = (id, ic, label, extra) => el("button",{type:"button", class: cur === id ? "on" : "", "aria-current": cur === id ? "page" : null,
+      onclick:()=>{ S.menuOpen = false; go({page:id}); }}, icon(ic), label, extra || null);
+    const m = $("menu"); m.replaceChildren(
+      item("home","home","Início"),
+      item("projects","folder","Projetos"),
+      S.myId ? item("mine","list","Minhas tarefas", pend ? el("span",{class:"count", title: plural(pend,"obrigatória pendente","obrigatórias pendentes")}, String(pend)) : null) : null,
+      item("rules","book","Regras"),
+      S.isOwner ? el("span",{class:"sep"}) : null,
+      S.isOwner ? el("button",{type:"button", class: pg === "new" ? "on" : "", onclick:()=>{ S.menuOpen = false; go({page:"new"}); }}, icon("plus"), "Novo projeto") : null);
+    m.classList.toggle("open", S.menuOpen);
+    $("menuToggle").setAttribute("aria-expanded", S.menuOpen ? "true" : "false");
+  }
+  $("menuToggle").addEventListener("click", () => { S.menuOpen = !S.menuOpen; renderMenu(); });
+
+  function joinPanel(){
+    return el("section",{class:"panel"},
+      el("h2",null,"Entrar na liga"),
+      el("p",{class:"muted"},"Escolha o apelido que vai aparecer no placar. Depois disso o dono da liga consegue te colocar nos projetos."),
+      el("form",{class:"row", id:"joinForm", onsubmit: async (ev) => {
+        ev.preventDefault();
+        const nick = clean($("joinNick").value, 24);
+        if (!nick){ $("joinErr").textContent = "Escreva um apelido."; return; }
+        S.mine = { nick, done:{} }; S.pending = true; render(); flush();
+      }},
+        el("div",{class:"field grow"}, el("label",{for:"joinNick"},"Apelido"), el("input",{id:"joinNick", maxlength:"24", required:true, autocomplete:"off", placeholder:"ex.: Arthur"})),
+        el("button",{class:"btn", type:"submit"},"Entrar")),
+      el("div",{class:"err", id:"joinErr"}));
+  }
+  function nickPanel(){
+    return el("section",{class:"panel"},
+      el("h3",null,"Seu apelido"),
+      el("form",{class:"row", id:"nickForm", onsubmit:(ev)=>{
+        ev.preventDefault(); const n = clean($("nickInput").value, 24); if (!n) return;
+        S.mine.nick = n; render(); scheduleSave();
+      }},
+        el("div",{class:"field grow"}, el("label",{for:"nickInput", class:"lbl"},"Como aparece no placar"), el("input",{id:"nickInput", maxlength:"24", autocomplete:"off", value: clean(S.mine.nick,24)})),
+        el("button",{class:"btn ghost", type:"submit"},"Salvar")));
+  }
+
+  function memberPicker(selected, onChange){
+    const set = new Set(Object.keys(S.players).filter(id => clean(S.players[id].nick, 24)));
+    if (S.myId) set.add(S.myId);
+    for (const id of selected) set.add(id);
+    const ids = [...set].sort((a,b) => (a===S.myId?-1:b===S.myId?1:nameOf(a).localeCompare(nameOf(b))));
+    if (!ids.length) return el("div",{class:"empty"},"Ninguém entrou na liga ainda. Peça aos amigos para abrir o link e escolher um apelido.");
+    return el("div",{class:"people"}, ...ids.map(id => personChip(id, () => {
+      const s = new Set(selected); s.has(id) ? s.delete(id) : s.add(id); onChange([...s]);
+    }, selected.includes(id))));
+  }
+
+  function pageNew(){
+    crumbs([{label:"Início", go:()=>go({page:"home"})}, {label:"Novo projeto"}]);
+    const v = $("view");
+    if (!S.isOwner){ v.append(el("section",{class:"panel"}, el("h2",null,"Só o dono cria projetos"), el("p",{class:"muted"},"Peça ao dono da liga para criar o projeto e te adicionar."))); return; }
+    if (S.draft.members == null) S.draft.members = S.myId ? [S.myId] : [];
+    v.append(el("div",{class:"head"}, el("div",null, el("div",{class:"eyebrow"},"Criar"), el("h1",null,"Novo projeto"))));
+    const form = el("form",{class:"f panel", id:"newProjForm", style:"max-width:760px", onsubmit: async (ev) => {
+      ev.preventDefault();
+      const name = clean($("pName").value, 60), desc = clean($("pDesc").value, 200);
+      if (!name){ $("pErr").textContent = "Dê um nome ao projeto."; return; }
+      $("pSubmit").disabled = true;
+      try {
+        const ref = S.db.collection("projetos").doc();
+        await ref.set({ name, desc, members: S.draft.members, createdAt: Date.now() });
+        S.draft.members = null; go({page:"project", pid: ref.id});
+      } catch(e){ $("pErr").textContent = e && e.code === "quota_exceeded" ? "A liga atingiu o limite de armazenamento." : "Não deu para criar o projeto. Tente de novo."; $("pSubmit").disabled = false; }
+    }},
+      el("div",{class:"field"}, el("label",{for:"pName"},"Nome do projeto"), el("input",{id:"pName", maxlength:"60", required:true, autocomplete:"off", placeholder:"ex.: Semestre 2026.2"})),
+      el("div",{class:"field"}, el("label",{for:"pDesc"},"Descrição (opcional)"), el("textarea",{id:"pDesc", maxlength:"200", placeholder:"ex.: Estudos e treino até as férias"})),
+      el("div",{class:"field"}, el("span",{class:"lbl"},"Integrantes"),
+        el("p",{class:"hint"},"Opcional. Você já vem marcado; dá para criar sozinho e adicionar gente depois. Só aparece quem já abriu o site e escolheu um apelido."),
+        memberPicker(S.draft.members, (m) => { S.draft.members = m; const keep = { n:$("pName").value, d:$("pDesc").value }; render(); $("pName").value = keep.n; $("pDesc").value = keep.d; })),
+      el("div",{class:"row"}, el("button",{class:"btn", type:"submit", id:"pSubmit"},"Criar projeto"), el("button",{class:"btn ghost", type:"button", onclick:()=>{S.draft.members=null;go({page:"home"});}},"Cancelar")),
+      el("div",{class:"err", id:"pErr"}));
+    v.append(form);
+  }
+
+  function pageProject(){
+    const p = S.projects[S.view.pid];
+    if (!p){ return notFound(); }
+    crumbs([{label:"Início", go:()=>go({page:"home"})}, {label:p.name}]);
+    const v = $("view");
+    const ptasks = tasksOfProject(p.id);
+    const subs = Object.values(S.subs).filter(s => s.projectId === p.id).sort((a,b)=>a.createdAt-b.createdAt);
+    const my = S.myId ? scoreFor(S.myId, ptasks) : { total:0, plus:0, minus:0 };
+
+    v.append(el("div",{class:"head"},
+      el("div",null, el("div",{class:"eyebrow"},"Projeto"), el("h1",{text:p.name}), p.desc ? el("p",{class:"muted", style:"margin-top:6px;max-width:65ch", text:p.desc}) : null),
+      el("div",{class:"stats"},
+        p.members.includes(S.myId) ? el("div",{class:"stat"}, el("div",{class:"eyebrow"},"Seu total aqui"), el("div",{class:"v" + (my.total<0?" neg":"")}, fmtTotal(my.total))) : null,
+        S.isOwner && !S.draft.editProject ? el("div",{style:"align-self:center"}, el("button",{class:"btn ghost", type:"button", onclick:()=>{ S.draft.editProject = { name:p.name, desc:p.desc, members:[...p.members] }; render(); }},"Editar projeto")) : null)));
+    if (S.isOwner && S.draft.editProject) v.append(projectEditForm(p));
+
+    const grid = el("div",{class:"grid"}), left = el("div",{class:"stack"}), right = el("div",{class:"stack"});
+    grid.append(left, right); v.append(grid);
+
+    // subprojetos
+    const sp = el("section",{class:"panel"}, el("div",{class:"panel-head"}, el("h2",null,"Subprojetos"), el("span",{class:"muted small"}, plural(subs.length,"subprojeto","subprojetos"))));
+    if (!subs.length) sp.append(el("div",{class:"empty"}, S.isOwner ? "Crie o primeiro subprojeto logo abaixo." : "O dono ainda não criou subprojetos aqui."));
+    else sp.append(el("div",{class:"subs"}, ...subs.map(s => {
+      const st = ptasks.filter(t => t.subId === s.id);
+      const obr = st.filter(t => t.type==="obrigatoria").length;
+      const mineN = st.filter(t => t.assignee === S.myId).length;
+      return el("button",{type:"button", class:"sub", onclick:()=>go({page:"sub", pid:p.id, sid:s.id})},
+        el("div",null, el("div",{class:"t", text:s.name}), el("div",{class:"small muted"}, plural(st.length,"tarefa","tarefas") + " · " + plural(obr,"obrigatória","obrigatórias") + (mineN ? " · " + mineN + " sua" + (mineN>1?"s":"") : ""))),
+        el("span",{class:"muted small", style:"white-space:nowrap"},"Abrir"));
+    })));
+    if (S.isOwner) sp.append(el("form",{class:"row", id:"subForm", onsubmit: async (ev) => {
+      ev.preventDefault(); const name = clean($("sName").value, 60); if (!name) return;
+      $("sErr").textContent = "";
+      try { await S.db.collection("subprojetos").doc().set({ projectId:p.id, name, createdAt:Date.now() }); $("sName").value = ""; }
+      catch(e){ $("sErr").textContent = "Não deu para criar o subprojeto."; }
+    }},
+      el("div",{class:"field grow"}, el("label",{for:"sName"},"Novo subprojeto"), el("input",{id:"sName", maxlength:"60", required:true, autocomplete:"off", placeholder:"ex.: Academia, Faculdade, Casa"})),
+      el("button",{class:"btn", type:"submit"},"Criar subprojeto")), el("div",{class:"err", id:"sErr"}));
+    left.append(sp);
+
+    // integrantes
+    const mp = el("section",{class:"panel"}, el("div",{class:"panel-head"}, el("h2",null,"Integrantes"), el("span",{class:"muted small"}, plural(p.members.length,"pessoa","pessoas"))));
+    mp.append(p.members.length ? el("div",{class:"people"}, ...p.members.map(id => personChip(id))) : el("div",{class:"empty"},"Sem integrantes ainda."));
+    if (S.isOwner && !S.draft.editProject) mp.append(el("div",null, el("button",{class:"btn ghost sm", type:"button", onclick:()=>{ S.draft.editProject = { name:p.name, desc:p.desc, members:[...p.members] }; render(); window.scrollTo({top:0}); }},"Adicionar ou tirar pessoas")));
+    left.append(mp);
+
+    // placar do projeto
+    right.append(el("section",{class:"panel"}, el("div",{class:"panel-head"}, el("h2",null,"Placar do projeto")), board(p.members, ptasks)));
+    right.append(legend());
+
+    if (S.isOwner){
+      const c = S.confirm === "p:" + p.id;
+      right.append(el("section",{class:"panel"}, el("h3",null,"Apagar projeto"),
+        el("p",{class:"muted small"},"Apaga o projeto, os subprojetos e as tarefas dele. Os pontos somem do placar."),
+        c ? el("div",{class:"row"},
+              el("button",{class:"btn danger", type:"button", onclick:()=>deleteProject(p.id)},"Apagar tudo"),
+              el("button",{class:"btn ghost", type:"button", onclick:()=>{S.confirm=null;render();}},"Cancelar"))
+          : el("div",null, el("button",{class:"btn ghost", type:"button", onclick:()=>{S.confirm="p:"+p.id;render();}},"Apagar projeto"))));
+    }
+  }
+
+  function projectEditForm(p){
+    const d = S.draft.editProject;
+    return el("form",{class:"f panel", id:"editProjForm", onsubmit: async (ev) => {
+      ev.preventDefault();
+      const name = clean(d.name, 60), desc = clean(d.desc, 200);
+      if (!name){ $("epErr").textContent = "Dê um nome ao projeto."; return; }
+      $("epSave").disabled = true;
+      try { await S.db.doc("projetos/" + p.id).update({ name, desc, members: d.members }); S.draft.editProject = null; render(); }
+      catch(e){ $("epErr").textContent = "Não deu para salvar o projeto. Tente de novo."; $("epSave").disabled = false; }
+    }},
+      el("h2",null,"Editar projeto"),
+      el("div",{class:"field"}, el("label",{for:"epName"},"Nome do projeto"), el("input",{id:"epName", maxlength:"60", required:true, autocomplete:"off", value:d.name, oninput:(e)=>{ d.name = e.target.value; }})),
+      el("div",{class:"field"}, el("label",{for:"epDesc"},"Descrição (opcional)"), (() => { const t = el("textarea",{id:"epDesc", maxlength:"200", oninput:(e)=>{ d.desc = e.target.value; }}); t.value = d.desc; return t; })()),
+      el("div",{class:"field"}, el("span",{class:"lbl"},"Integrantes"),
+        el("p",{class:"hint"},"Toque para adicionar ou tirar. Quem sair deixa de pontuar neste projeto, mas as tarefas dele ficam guardadas."),
+        memberPicker(d.members, (m) => { d.members = m; render(); })),
+      el("div",{class:"row"}, el("button",{class:"btn", type:"submit", id:"epSave"},"Salvar alterações"),
+        el("button",{class:"btn ghost", type:"button", onclick:()=>{ S.draft.editProject = null; render(); }},"Cancelar")),
+      el("div",{class:"err", id:"epErr"}));
+  }
+
+  function pageSub(){
+    const p = S.projects[S.view.pid], s = S.subs[S.view.sid];
+    if (!p || !s || s.projectId !== p.id) return notFound();
+    crumbs([{label:"Início", go:()=>go({page:"home"})}, {label:p.name, go:()=>go({page:"project", pid:p.id})}, {label:s.name}]);
+    const v = $("view");
+    const stasks = Object.values(S.tasks).filter(t => t.subId === s.id)
+      .sort((a,b) => (a.type==="obrigatoria"?0:1) - (b.type==="obrigatoria"?0:1) || a.createdAt - b.createdAt);
+
+    v.append(el("div",{class:"head"},
+      el("div",null, el("div",{class:"eyebrow", text:"Subprojeto de " + p.name}), el("h1",{text:s.name})),
+      el("div",{class:"stats"},
+        el("div",{class:"stat"}, el("div",{class:"eyebrow"},"Tarefas"), el("div",{class:"v"}, String(stasks.length))),
+        el("div",{class:"stat"}, el("div",{class:"eyebrow"},"Obrigatórias"), el("div",{class:"v"}, String(stasks.filter(t=>t.type==="obrigatoria").length))))));
+
+    if (S.isOwner) v.append(taskForm(p, s));
+
+    const cols = el("div",{class:"members"});
+    const order = [...p.members].sort((a,b) => (a===S.myId?-1:b===S.myId?1:0));
+    for (const id of order){
+      const mt = stasks.filter(t => t.assignee === id);
+      const sc = scoreFor(id, mt);
+      cols.append(el("section",{class:"mcol"},
+        el("div",{class:"mhead"},
+          el("div",{class:"who"}, avatar(id), el("div",{style:"min-width:0"}, el("div",{class:"n", text:nameOf(id)}), el("div",{class:"small muted"}, plural(mt.length,"tarefa","tarefas") + (id===S.myId ? " · você" : "")))),
+          el("div",{class:"pts" + (sc.total<0?" neg":"")}, fmtTotal(sc.total))),
+        mt.length ? el("div",{class:"tlist"}, ...mt.map(t => taskCard(t, { admin:true }))) : el("div",{class:"empty"}, "Sem tarefas aqui.")));
+    }
+    const orphan = stasks.filter(t => !p.members.includes(t.assignee));
+    if (S.isOwner && orphan.length){
+      cols.append(el("section",{class:"mcol"},
+        el("div",{class:"mhead"}, el("div",null, el("h3",null,"Fora do projeto"), el("div",{class:"small muted"},"Tarefas de quem saiu. Não contam no placar."))),
+        el("div",{class:"tlist"}, ...orphan.map(t => taskCard(t, { admin:true, where: nameOf(t.assignee) })))));
+    }
+    v.append(el("section",{class:"stack"}, el("h2",null,"Tarefas de cada integrante"), p.members.length ? cols : el("div",{class:"empty"},"Este projeto não tem integrantes.")));
+
+    if (S.isOwner){
+      const c = S.confirm === "s:" + s.id;
+      const es = S.draft.editSub;
+      v.append(el("section",{class:"panel", style:"max-width:560px"}, el("h3",null,"Gerenciar subprojeto"),
+        es ? el("form",{class:"row", id:"editSubForm", onsubmit: async (ev) => {
+              ev.preventDefault(); const name = clean(es.name, 60); if (!name) return;
+              try { await S.db.doc("subprojetos/" + s.id).update({ name }); S.draft.editSub = null; render(); }
+              catch(e){ setStatus("Não deu para renomear o subprojeto.", true); }
+            }},
+              el("div",{class:"field grow"}, el("label",{for:"esName"},"Nome do subprojeto"), el("input",{id:"esName", maxlength:"60", required:true, autocomplete:"off", value:es.name, oninput:(e)=>{ es.name = e.target.value; }})),
+              el("button",{class:"btn", type:"submit"},"Salvar"),
+              el("button",{class:"btn ghost", type:"button", onclick:()=>{ S.draft.editSub = null; render(); }},"Cancelar"))
+           : el("div",null, el("button",{class:"btn ghost", type:"button", onclick:()=>{ S.draft.editSub = { name:s.name }; render(); }},"Renomear subprojeto")),
+        el("p",{class:"muted small"},"Apagar remove este subprojeto e as tarefas dele."),
+        c ? el("div",{class:"row"},
+              el("button",{class:"btn danger", type:"button", onclick:()=>deleteSub(s.id, p.id)},"Apagar"),
+              el("button",{class:"btn ghost", type:"button", onclick:()=>{S.confirm=null;render();}},"Cancelar"))
+          : el("div",null, el("button",{class:"btn ghost", type:"button", onclick:()=>{S.confirm="s:"+s.id;render();}},"Apagar subprojeto"))));
+    }
+  }
+
+  function segOf(d, field, opts){
+    return el("div",{class:"seg", role:"group"}, ...opts.map(([val, label]) =>
+      el("button",{type:"button", class: d[field]===val ? "on" : "", "aria-pressed": d[field]===val ? "true":"false", onclick:()=>{ d[field] = val; render(); }}, label)));
+  }
+  function diffPick(d){
+    return el("div",{class:"dpick", role:"group"}, ...DIFF_KEYS.map(k => el("button",{type:"button", class:"dopt" + (d.diff===k?" on":""), style:"--dc:"+DIFF[k].c, "aria-pressed": d.diff===k?"true":"false", onclick:()=>{ d.diff = k; render(); }},
+      el("span",{class:"l"}, DIFF[k].label),
+      el("span",{class:"v"}, d.type==="normal" ? "+" + DIFF[k].pts + " pts" : "−" + DIFF[k].pen + " se faltar"))));
+  }
+  function taskEditCard(task){
+    const d = S.draft.editTask;
+    const sub = S.subs[task.subId], p = sub && S.projects[sub.projectId];
+    const people = p ? [...new Set([...p.members, task.assignee])] : [task.assignee];
+    return el("form",{class:"task f", id:"editTaskForm", onsubmit: async (ev) => {
+      ev.preventDefault();
+      const title = clean(d.title, 80);
+      if (!title){ $("etErr").textContent = "Escreva o nome da tarefa."; return; }
+      $("etSave").disabled = true;
+      try {
+        await S.db.doc("tarefas/" + task.id).update({ title, assignee:d.assignee, type:d.type, kind:d.kind, diff:d.diff });
+        S.draft.editTask = null; render();
+      } catch(e){ $("etErr").textContent = "Não deu para salvar a tarefa."; $("etSave").disabled = false; }
+    }},
+      el("h3",null,"Editar tarefa"),
+      el("div",{class:"field"}, el("label",{for:"etTitle"},"Tarefa"), el("input",{id:"etTitle", maxlength:"80", required:true, autocomplete:"off", value:d.title, oninput:(e)=>{ d.title = e.target.value; }})),
+      el("div",{class:"field"}, el("label",{for:"etWho"},"Quem faz"),
+        el("select",{id:"etWho", onchange:(e)=>{ d.assignee = e.target.value; render(); }},
+          ...people.map(id => { const o = el("option",{value:id}, nameOf(id) + (id===S.myId?" (você)":"") + (p && !p.members.includes(id) ? " (fora do projeto)" : "")); if (id === d.assignee) o.selected = true; return o; }))),
+      el("div",{class:"field"}, el("span",{class:"lbl"},"Tipo"), segOf(d, "type", [["normal","Normal"],["obrigatoria","Obrigatória"]])),
+      el("div",{class:"field"}, el("span",{class:"lbl"},"Frequência"), segOf(d, "kind", [["daily","Diária"],["weekly","Semanal"]])),
+      el("div",{class:"field"}, el("span",{class:"lbl"},"Dificuldade"), diffPick(d)),
+      (d.kind !== task.kind || d.assignee !== task.assignee) ? el("p",{class:"hint warn"},
+        d.assignee !== task.assignee ? "Trocando quem faz, as marcações e fotos da pessoa anterior deixam de contar nesta tarefa." : "Trocando a frequência, as marcações antigas desta tarefa deixam de contar.") : null,
+      el("p",{class:"hint"},"Mudanças de tipo e dificuldade recalculam os pontos desde a criação da tarefa."),
+      el("div",{class:"row"}, el("button",{class:"btn sm", type:"submit", id:"etSave"},"Salvar"),
+        el("button",{class:"btn ghost sm", type:"button", onclick:()=>{ S.draft.editTask = null; render(); }},"Cancelar")),
+      el("div",{class:"err", id:"etErr"}));
+  }
+
+  function taskForm(p, s){
+    const d = S.draft.task;
+    if (!p.members.length) return el("section",{class:"panel"}, el("h2",null,"Nova tarefa"),
+      el("p",{class:"muted"},"Este projeto ainda não tem integrantes. Adicione alguém (você mesmo, por exemplo) para poder criar tarefas."),
+      el("div",null, el("button",{class:"btn", type:"button", onclick:()=>{ S.draft.editProject = { name:p.name, desc:p.desc, members:[...p.members] }; go2project(p); }},"Adicionar integrantes")));
+    if (!p.members.includes(d.assignee)) d.assignee = p.members.includes(S.myId) ? S.myId : (p.members[0] || "");
+    const keep = () => ({ t: $("tTitle") ? $("tTitle").value : "" });
+    const restore = (k) => { if ($("tTitle")) $("tTitle").value = k.t; };
+    const setD = (patch) => { const k = keep(); Object.assign(d, patch); render(); restore(k); };
+    const seg = (field, opts) => el("div",{class:"seg", role:"group"}, ...opts.map(([val, label]) =>
+      el("button",{type:"button", class: d[field]===val ? "on" : "", "aria-pressed": d[field]===val ? "true":"false", onclick:()=>setD({[field]:val})}, label)));
+    const Dsel = DIFF[d.diff];
+    const preview = d.type === "normal"
+      ? "Ganha " + Dsel.pts + " pontos a cada " + (d.kind==="daily"?"dia":"semana") + " que fizer."
+      : "Não ganha pontos. Perde " + Dsel.pen + " a cada " + (d.kind==="daily"?"dia":"semana") + " que terminar sem fazer.";
+
+    return el("form",{class:"f panel", id:"taskForm", onsubmit: async (ev) => {
+      ev.preventDefault();
+      const title = clean($("tTitle").value, 80);
+      if (!title){ $("tErr").textContent = "Escreva o nome da tarefa."; return; }
+      if (!p.members.includes(d.assignee)){ $("tErr").textContent = "Escolha quem vai fazer."; return; }
+      $("tErr").textContent = ""; $("tSubmit").disabled = true;
+      try {
+        await S.db.collection("tarefas").doc().set({ subId:s.id, projectId:p.id, title, assignee:d.assignee, kind:d.kind, type:d.type, diff:d.diff, startKey: todayKey(), createdAt: Date.now() });
+        $("tTitle").value = "";
+      } catch(e){ $("tErr").textContent = e && e.code === "quota_exceeded" ? "A liga atingiu o limite de armazenamento." : "Não deu para criar a tarefa."; }
+      if ($("tSubmit")) $("tSubmit").disabled = false;
+    }},
+      el("h2",null,"Nova tarefa"),
+      el("div",{class:"row"},
+        el("div",{class:"field grow"}, el("label",{for:"tTitle"},"Tarefa"), el("input",{id:"tTitle", maxlength:"80", required:true, autocomplete:"off", placeholder:"ex.: Ler 20 páginas"})),
+        el("div",{class:"field", style:"flex:0 1 220px"}, el("label",{for:"tWho"},"Quem faz"),
+          el("select",{id:"tWho", onchange:(e)=>{ d.assignee = e.target.value; }},
+            ...p.members.map(id => { const o = el("option",{value:id}, nameOf(id) + (id===S.myId?" (você)":"")); if (id === d.assignee) o.selected = true; return o; })))),
+      el("div",{class:"row"},
+        el("div",{class:"field"}, el("span",{class:"lbl"},"Tipo"), seg("type", [["normal","Normal (dá pontos)"],["obrigatoria","Obrigatória (tira se faltar)"]])),
+        el("div",{class:"field"}, el("span",{class:"lbl"},"Frequência"), seg("kind", [["daily","Diária"],["weekly","Semanal"]]))),
+      el("div",{class:"field"}, el("span",{class:"lbl"},"Dificuldade"),
+        el("div",{class:"dpick", role:"group"}, ...DIFF_KEYS.map(k => el("button",{type:"button", class:"dopt" + (d.diff===k?" on":""), style:"--dc:"+DIFF[k].c, "aria-pressed": d.diff===k?"true":"false", onclick:()=>setD({diff:k})},
+          el("span",{class:"l"}, DIFF[k].label),
+          el("span",{class:"v"}, d.type==="normal" ? "+" + DIFF[k].pts + " pts" : "−" + DIFF[k].pen + " se faltar"))))),
+      el("p",{class:"hint"}, preview),
+      el("div",{class:"row"}, el("button",{class:"btn", type:"submit", id:"tSubmit"},"Criar tarefa")),
+      el("div",{class:"err", id:"tErr"}));
+  }
+
+  function notFound(){
+    crumbs([{label:"Início", go:()=>go({page:"home"})}]);
+    const loading = !S.loaded.projects || !S.loaded.subs;
+    $("view").append(el("section",{class:"panel"},
+      el("h2",null, loading ? "Carregando…" : "Não encontrado"),
+      el("p",{class:"muted"}, loading ? "Buscando os dados da liga." : "Este projeto ou subprojeto foi apagado."),
+      loading ? null : el("div",null, el("button",{class:"btn", type:"button", onclick:()=>go({page:"home"})},"Voltar ao início"))));
+  }
+
+  // ---------- ações do dono ----------
+  async function del(path){
+    S.confirm = null;
+    try { await S.db.doc(path).delete(); } catch(e){ setStatus("Não deu para apagar agora.", true); }
     render();
-    if (!window.claude || typeof window.claude.use !== "function"){ setStatus("Abra esta página pelo link do Claude para ver o placar.", true); return; }
-    const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
-    S.db = db; S.user = user;
-    if (!db){ setStatus("Entre na sua conta para ver o placar da liga.", true); return; }
-    S.isOwner = user ? await user.isOwner() : false;
-    S.myId = user ? await user.id() : null;
-    S.readOnly = !S.myId;
-    if (!S.myId) setStatus("Você está só assistindo. Entre com uma conta convidada para jogar.", true);
-    else setStatus("");
-
-    db.collection("tasks").onSnapshot(snap=>{
-      S.tasks = snap.docs.map(sanitizeTask).filter(Boolean).sort((a,b)=>a.createdAt-b.createdAt || a.id.localeCompare(b.id));
-      render();
-    }, ()=> setStatus("A conexão com as tarefas caiu. Recarregue a página.", true));
-
-    db.collection("players").onSnapshot(snap=>{
-      const next = {};
-      for (const d of snap.docs){
-        const v = d.data() || {};
-        next[d.id] = { nick: clean(v.nick, 24), weeks: (v.weeks && typeof v.weeks === "object" && !Array.isArray(v.weeks)) ? v.weeks : {} };
+  }
+  async function deleteSub(sid, pid){
+    S.confirm = null;
+    try {
+      for (const t of Object.values(S.tasks)) if (t.subId === sid) await S.db.doc("tarefas/" + t.id).delete();
+      await S.db.doc("subprojetos/" + sid).delete();
+      go({page:"project", pid});
+    } catch(e){ setStatus("Não deu para apagar o subprojeto.", true); render(); }
+  }
+  async function deleteProject(pid){
+    S.confirm = null;
+    try {
+      const subs = Object.values(S.subs).filter(s => s.projectId === pid);
+      for (const s of subs){
+        for (const t of Object.values(S.tasks)) if (t.subId === s.id) await S.db.doc("tarefas/" + t.id).delete();
+        await S.db.doc("subprojetos/" + s.id).delete();
       }
-      S.players = next;
-      if (S.myId){
-        const mine = next[S.myId];
-        if (mine && !S.pending && !S.writing){
-          S.mine = { nick: mine.nick, weeks: JSON.parse(JSON.stringify(mine.weeks)) };
-          if (!S.readOnlyForced) S.readOnly = false;
-          const ni = $("nickInput"); if (document.activeElement !== ni) ni.value = mine.nick;
-        }
-        S.myLoaded = true;
-      }
-      render(); resolveProfiles();
-    }, ()=> setStatus("A conexão com o placar caiu. Recarregue a página.", true));
+      await S.db.doc("projetos/" + pid).delete();
+      go({page:"home"});
+    } catch(e){ setStatus("Não deu para apagar o projeto.", true); render(); }
   }
 
-  setInterval(()=>{ renderHeader(); if (S.viewWeek && S.viewWeek > currentWeek()) S.viewWeek = currentWeek(); }, 60000);
-  boot();
+  // ---------- render ----------
+  function render(){
+    // preserva o que está sendo digitado
+    const ae = document.activeElement, aid = ae && ae.id, aval = ae && "value" in ae ? ae.value : null;
+    const view = $("view"); view.replaceChildren();
+    const pg = S.view && S.view.page;
+    if (pg === "new") pageNew();
+    else if (pg === "project") pageProject();
+    else if (pg === "sub") pageSub();
+    else if (pg === "projects") pageProjects();
+    else if (pg === "mine") pageMine();
+    else if (pg === "rules") pageRules();
+    else pageHome();
+    renderMenu();
+    if (aid && $(aid) && aval != null && $(aid).tagName !== "BUTTON"){ $(aid).value = aval; try { $(aid).focus(); } catch(e){} }
+  }
+
+  $("brandBtn").addEventListener("click", () => go({page:"home"}));
+  let lastDay = todayKey();
+  setInterval(() => { if (todayKey() !== lastDay){ lastDay = todayKey(); render(); } }, 60000);
+
+  // ---------- conexão ----------
+  function listen(coll, key, sanitize){
+    S.db.collection(coll).onSnapshot((snap) => {
+      const out = {};
+      for (const d of snap.docs){ if (!d.exists) continue; const v = sanitize ? sanitize(d.id, d.data() || {}) : (d.data() || {}); if (v) out[d.id] = v; }
+      S[key] = out; S.loaded[key] = true;
+      if (key === "players" && S.myId){
+        const me = out[S.myId];
+        const cp = (o) => JSON.parse(JSON.stringify(o || {}));
+        if (me && !S.mine) S.mine = { nick: clean(me.nick,24), done: cp(me.done), proofs: cp(me.proofs), weeks: me.weeks ? cp(me.weeks) : undefined };
+        else if (me && S.mine && !S.pending && !S.writing && !S.uploading){ S.mine.done = cp(me.done); S.mine.proofs = cp(me.proofs); S.mine.nick = clean(me.nick,24) || S.mine.nick; }
+        if (!snap.metadata.fromCache) S.myLoaded = true;
+      }
+      if (key === "players" || key === "projects") refreshProfiles();
+      const all = S.loaded.players && S.loaded.projects && S.loaded.subs && S.loaded.tasks;
+      if (all && /Conectando/.test($("status").textContent)) setStatus(S.readOnly ? $("status").textContent : "");
+      render();
+    }, (e) => { if (e && e.code === "revoked") setStatus("O acesso a esta página mudou. Recarregue para continuar.", true); else setStatus("Conexão perdida com a liga. Recarregue a página.", true); });
+  }
+
+  (async function init(){
+    if (!window.claude || typeof window.claude.use !== "function"){ setStatus("Abra esta página pelo link do Claude para usar a liga.", true); render(); return; }
+    const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
+    if (!db){ setStatus("Abra esta página pelo link do Claude, logado na sua conta, para participar.", true); render(); return; }
+    S.db = db; S.user = user;
+    if (user){
+      try { S.isOwner = await user.isOwner(); } catch(e){}
+      try { S.myId = await user.id(); } catch(e){}
+    }
+    if (!S.myId){ S.readOnly = true; setStatus("Você está só assistindo: entre na sua conta Claude para marcar tarefas.", true); }
+    else setStatus("Conectando…");
+    listen("players", "players", (id, d) => ({ nick: clean(d.nick,24), done: d.done && typeof d.done === "object" ? d.done : {}, proofs: d.proofs && typeof d.proofs === "object" ? d.proofs : {}, weeks: d.weeks }));
+    claude.use("assets").then((a) => { S.assets = a; render(); }).catch(() => {});
+    listen("projetos", "projects", sanitizeProject);
+    listen("subprojetos", "subs", sanitizeSub);
+    listen("tarefas", "tasks", sanitizeTask);
+  })();
 })();
 </script>
 

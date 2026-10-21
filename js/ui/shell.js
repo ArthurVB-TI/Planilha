@@ -55,6 +55,8 @@ window.Liga = window.Liga || {};
       item({ ic: "list", label: "Minhas tarefas", on: pg === "mine", onclick: () => go({ page: "mine" }),
         extra: pend ? el("span", { class: "count", title: pend + " obrigatória(s) pendente(s)" }, String(pend)) : null }));
 
+    nav.append(item({ ic: "chart", label: "Gráficos", on: pg === "charts", onclick: () => go({ page: "charts" }) }));
+
     // Projetos, com os projetos (e as listRats do projeto aberto) por dentro
     const open = S.projectsOpen;
     const caret = el("button", {
@@ -72,14 +74,14 @@ window.Liga = window.Liga || {};
       navAnim = false;
       const list = L.ui.visibleProjects();
       for (const p of list) {
-        const here = (pg === "project" || pg === "sub") && v.pid === p.id;
+        const here = (pg === "project" || pg === "sub" || pg === "members") && v.pid === p.id;
         sub.append(item({ label: p.name, on: pg === "project" && here, title: p.name, onclick: () => go({ page: "project", pid: p.id }) }));
         if (here) {
           const subs = Object.values(S.subs).filter((s) => s.projectId === p.id).sort((a, b) => a.createdAt - b.createdAt);
-          if (subs.length) {
-            sub.append(el("div", { class: "nav-sub" }, subs.map((s) =>
+          sub.append(el("div", { class: "nav-sub" },
+            item({ ic: "users", label: "Integrantes", cls: "people-i", on: pg === "members", onclick: () => go({ page: "members", pid: p.id }) }),
+            subs.map((s) =>
               item({ label: s.name, title: s.name, on: pg === "sub" && v.sid === s.id, onclick: () => go({ page: "sub", pid: p.id, sid: s.id }) }))));
-          }
         }
       }
       if (!list.length && !S.isOwner) sub.append(el("div", { class: "empty-n" }, "Nenhum projeto"));

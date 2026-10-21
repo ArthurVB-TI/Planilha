@@ -7,6 +7,11 @@ window.Liga = window.Liga || {};
   const BAD = /[\u0000-\u001f\u007f​-‏‪-‮⁦-⁩﻿]/g;
   const clean = (s, max) => String(s ?? "").replace(BAD, " ").replace(/\s+/g, " ").trim().slice(0, max);
 
+  // igual ao clean, mas mantém as quebras de linha (texto de detalhes)
+  const cleanLong = (s, max) => String(s ?? "").replace(/\r\n?/g, "\n").split("\n")
+    .map((l) => l.replace(BAD, " ").replace(/\s+/g, " ").trim()).join("\n")
+    .replace(/\n{3,}/g, "\n\n").trim().slice(0, max);
+
   const fmtPts = (n) => (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(n).toLocaleString("pt-BR");
   const fmtTotal = (n) => (n < 0 ? "−" : "") + Math.abs(n).toLocaleString("pt-BR");
   const plural = (n, um, varios) => n + " " + (n === 1 ? um : varios);
@@ -18,5 +23,5 @@ window.Liga = window.Liga || {};
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* ignora */ } },
   };
 
-  L.text = { clean, fmtPts, fmtTotal, plural, firstName, store };
+  L.text = { clean, cleanLong, fmtPts, fmtTotal, plural, firstName, store };
 })(window.Liga);

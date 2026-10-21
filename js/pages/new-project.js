@@ -12,7 +12,7 @@ window.Liga.pages = window.Liga.pages || {};
       v.append(L.ui.pageHead("Novo projeto"), L.ui.empty("Só o dono da liga cria projetos."));
       return;
     }
-    if (!S.draft.newProject) S.draft.newProject = { name: "", desc: "", members: [S.myId] };
+    if (!S.draft.newProject) S.draft.newProject = { name: "", desc: "" };
     v.append(L.ui.pageHead("Novo projeto"), L.forms.newProjectForm());
   };
 })(window.Liga);

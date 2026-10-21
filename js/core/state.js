@@ -19,6 +19,8 @@ window.Liga = window.Liga || {};
     readOnly: false,
 
     players: {}, projects: {}, subs: {}, tasks: {},
+    invites: {}, invitesOn: false,  // links de convite (só o dono da liga lê)
+    invite: null, joining: false,   // código de convite recebido pelo endereço (#convite=...)
     loaded: { players: false, projects: false, subs: false, tasks: false },
 
     mine: null,             // cópia editável do meu documento players/<meu id>
@@ -39,6 +41,10 @@ window.Liga = window.Liga || {};
       editTask: null,
       editSub: null,
       editHelpers: null,
+      subForm: null,
+      charts: null,           // página de gráficos: { pid, sid, range, type, table }
+      req: null,              // regras de inscrição sendo editadas { sid, minObr, minTasks, maxTasks, maxDesvio }          // página de nova/editar listRat
+      mem: null,              // página de integrantes: busca, quem está sendo editado, aviso
       sub: "",
       task: newTaskDraft(),
       settings: {},

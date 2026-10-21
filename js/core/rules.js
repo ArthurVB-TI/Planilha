@@ -3,7 +3,7 @@
 window.Liga = window.Liga || {};
 (function (L) {
   "use strict";
-  const { clean } = L.text;
+  const { clean, cleanLong } = L.text;
   const { isKey } = L.dates;
 
   const DIFF = {
@@ -13,6 +13,18 @@ window.Liga = window.Liga || {};
   };
   const DIFF_KEYS = Object.keys(DIFF);
   const MAX_MARKS = 800;
+  // regras de inscrição padrão de uma listRat (dono e ajudantes mudam)
+  const DEFAULT_REQ = { minObr: 3, minTasks: 1, maxTasks: 10, maxDesvio: 2 };
+  const int = (v, lo, hi, def) => (Number.isFinite(+v) && v !== "" && v !== null ? Math.min(hi, Math.max(lo, Math.round(+v))) : def);
+  function normReq(r) {
+    r = r && typeof r === "object" ? r : {};
+    const minObr = int(r.minObr, 0, 30, DEFAULT_REQ.minObr);
+    const minTasks = int(r.minTasks, 0, 30, DEFAULT_REQ.minTasks);
+    const maxTasks = Math.max(minTasks, int(r.maxTasks, 1, 30, DEFAULT_REQ.maxTasks));
+    const d = Number(r.maxDesvio);
+    const maxDesvio = Number.isFinite(d) && d >= 0 ? Math.min(10000, Math.round(d * 100) / 100) : DEFAULT_REQ.maxDesvio;
+    return { minObr, minTasks, maxTasks, maxDesvio };
+  }
   const NICK_MAX = 20;
 
   /* ---------- contas ---------- */
@@ -46,7 +58,22 @@ window.Liga = window.Liga || {};
     if (!name || !isId(d.projectId)) return null;
     const owner = isId(d.owner) ? d.owner : "";
     const helpers = Array.isArray(d.helpers) ? [...new Set(d.helpers.filter(isId))].filter((h) => h !== owner).slice(0, 20) : [];
-    return { id, name, projectId: d.projectId, owner, helpers, createdAt: Number(d.createdAt) || 0 };
+    const start = isKey(d.start) ? d.start : "";
+    let end = isKey(d.end) ? d.end : "";
+    if (start && end && end < start) end = "";
+    // inscrições: listRat nova começa em "inscricoes"; antigas (sem status) já estão valendo
+    const status = d.status === "inscricoes" ? "inscricoes" : "ativa";
+    // quem participou (gravado quando a listRat começa); null = listRat antiga, valem todos os integrantes
+    const participants = Array.isArray(d.participants) ? [...new Set(d.participants.filter(isId))].slice(0, 100) : null;
+    const startedAt = isKey(d.startedAt) ? d.startedAt : "";
+    // dia em que cada participante entrou (quem é incluído depois só conta dali em diante)
+    const joined = {};
+    for (const k in obj(d.joined)) if (isId(k) && isKey(d.joined[k])) joined[k] = d.joined[k];
+    return {
+      id, name, projectId: d.projectId, owner, helpers, desc: cleanLong(d.desc, 500), start, end,
+      status, req: normReq(d.req), participants: status === "ativa" ? participants : null, startedAt, joined,
+      createdAt: Number(d.createdAt) || 0,
+    };
   }
 
   function task(id, d) {
@@ -60,13 +87,18 @@ window.Liga = window.Liga || {};
     return { id, title, subId: d.subId, assignee: d.assignee, kind, type, diff, startKey, createdAt: Number(d.createdAt) || 0 };
   }
 
+  function invite(id, d) {
+    if (!/^[a-f0-9]{32}$/.test(id) || !isId(d.projectId)) return null;
+    return { id, projectId: d.projectId, expiresAt: Number(d.expiresAt) || 0, createdAt: Number(d.createdAt) || 0 };
+  }
+
   function player(id, d) {
     return { nick: clean(d.nick, NICK_MAX), done: obj(d.done), proofs: obj(d.proofs), weeks: d.weeks };
   }
 
   L.rules = {
-    DIFF, DIFF_KEYS, MAX_MARKS, NICK_MAX, isPhotoId,
+    DIFF, DIFF_KEYS, MAX_MARKS, DEFAULT_REQ, normReq, NICK_MAX, isPhotoId,
     checkUsername, checkEmail, checkPassword,
-    sanitize: { project, sub, task, player },
+    sanitize: { project, sub, task, player, invite },
   };
 })(window.Liga);

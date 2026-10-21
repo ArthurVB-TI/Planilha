@@ -20,7 +20,7 @@ window.Liga = window.Liga || {};
     view.classList.toggle("enter", on);
     if (!on) return;
     [...view.children].forEach((c, i) => c.style.setProperty("--i", Math.min(i, 8)));
-    view.querySelectorAll(".tlist, .plist, ol.board, .subs, .members, .settings").forEach((list) =>
+    view.querySelectorAll(".tlist, .plist, ol.board, .subs, .members, .settings, .mlist, .cands").forEach((list) =>
       [...list.children].forEach((c, j) => c.style.setProperty("--j", Math.min(j, 10))));
   }
 

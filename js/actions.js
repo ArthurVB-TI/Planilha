@@ -27,6 +27,12 @@ window.Liga = window.Liga || {};
     recent_login: "Por segurança, saia e entre de novo antes de fazer isso.",
     email_not_verified: "Confirme seu e-mail antes de ativar a verificação em duas etapas.",
     not_enabled: "Isso não está ativado no Firebase deste site (veja o README).",
+    invite_invalid: "Esse link de convite não vale mais (venceu ou foi apagado). Peça um novo para o dono da liga.",
+    invite_expired: "Esse link de convite venceu. Peça um novo para o dono da liga.",
+    cant_start: "Ainda não dá para começar a listRat.",
+    too_many_tasks: "Passou do máximo de tarefas normais desta listRat.",
+    owner_needed: "Toda listRat precisa de um dono. Para tirar esta pessoa do comando, escolha outra como dona.",
+    unknown: "Isso não existe mais. Recarregue a página.",
     no_crypto: "Este navegador não tem suporte à criptografia necessária. Abra pelo localhost ou https.",
   };
 
@@ -170,8 +176,40 @@ window.Liga = window.Liga || {};
   }
 
   // quem cria a listRat vira o dono dela
-  const createSub = (pid, name) => db().set("subprojetos/" + db().newId("subprojetos"),
-    { projectId: pid, name, owner: S.myId, helpers: [], createdAt: Date.now() });
+  // info = { name, desc, start, end, req } (datas AAAA-MM-DD; fim vazio = sem data para acabar)
+  // toda listRat nova começa em inscrições
+  async function createSub(pid, info) {
+    const id = db().newId("subprojetos");
+    await db().set("subprojetos/" + id, {
+      projectId: pid, name: info.name, desc: info.desc || "", start: info.start || "", end: info.end || "",
+      status: "inscricoes", req: L.rules.normReq(info.req), participants: [], startedAt: "", joined: {},
+      owner: S.myId, helpers: [], createdAt: Date.now(),
+    });
+    return id;
+  }
+  const setSubReq = (sid, req) => db().update("subprojetos/" + sid, { req: L.rules.normReq(req) });
+
+  // começa a listRat: grava os participantes (quem completou as tarefas) e o dia do início
+  async function startSub(sid) {
+    const s = S.subs[sid];
+    if (!s || s.status !== "inscricoes") throw fail("unknown");
+    const sm = L.enroll.summary(s);
+    if (!sm.canStart) throw fail("cant_start");
+    const t = todayKey(), joined = {};
+    for (const id of sm.ready) joined[id] = t;
+    await db().update("subprojetos/" + sid, { status: "ativa", participants: sm.ready, startedAt: t, joined });
+    return sm.ready.length;
+  }
+  // inclui alguém depois que a listRat começou (o desvio padrão não impede a entrada)
+  async function addParticipant(sid, uid) {
+    const s = S.subs[sid];
+    if (!s) throw fail("unknown");
+    const list = [...new Set([...(s.participants || []), uid])].slice(0, 100);
+    const joined = Object.assign({}, s.joined, { [uid]: todayKey() });
+    await db().update("subprojetos/" + sid, { participants: list, joined });
+  }
+  const saveSub = (sid, info) => db().update("subprojetos/" + sid,
+    { name: info.name, desc: info.desc || "", start: info.start || "", end: info.end || "" });
   const renameSub = (sid, name) => db().update("subprojetos/" + sid, { name });
   const setSubHelpers = (sid, helpers) => db().update("subprojetos/" + sid, { helpers });
 
@@ -181,16 +219,114 @@ window.Liga = window.Liga || {};
     await db().removeMany(paths);
   }
 
-  const createTask = (p, s, d) => db().set("tarefas/" + db().newId("tarefas"), {
-    subId: s.id, projectId: p.id, title: d.title, assignee: d.assignee,
-    kind: d.kind, type: d.type, diff: d.diff, startKey: todayKey(), createdAt: Date.now(),
-  });
-  const saveTask = (id, d) => db().update("tarefas/" + id, { title: d.title, assignee: d.assignee, type: d.type, kind: d.kind, diff: d.diff });
+  // em inscrições, cada pessoa só pode ter até o máximo de tarefas normais
+  function checkMax(s, assignee, type, ignoreId) {
+    if (!s || s.status !== "inscricoes" || type !== "normal") return;
+    const n = Object.values(S.tasks).filter((t) => t.subId === s.id && t.assignee === assignee && t.type === "normal" && t.id !== ignoreId).length;
+    if (n >= s.req.maxTasks) throw fail("too_many_tasks");
+  }
+  async function createTask(p, s, d) {
+    checkMax(s, d.assignee, d.type);
+    await db().set("tarefas/" + db().newId("tarefas"), {
+      subId: s.id, projectId: p.id, title: d.title, assignee: d.assignee,
+      kind: d.kind, type: d.type, diff: d.diff, startKey: todayKey(), createdAt: Date.now(),
+    });
+  }
+  async function saveTask(id, d) {
+    checkMax(S.tasks[id] && S.subs[S.tasks[id].subId], d.assignee, d.type, id);
+    await db().update("tarefas/" + id, { title: d.title, assignee: d.assignee, type: d.type, kind: d.kind, diff: d.diff });
+  }
   const deleteTask = (id) => db().remove("tarefas/" + id);
 
+  /* ---------- integrantes (dono da liga) ---------- */
+
+  const fail = (code) => Object.assign(new Error(code), { code });
+  const subsOf = (pid) => Object.values(S.subs).filter((s) => s.projectId === pid);
+
+  async function addMembers(pid, ids) {
+    const p = S.projects[pid];
+    if (!p) throw fail("unknown");
+    await db().update("projetos/" + pid, { members: [...new Set([...p.members, ...ids])].slice(0, 50) });
+  }
+
+  // papel de alguém numa listRat: "" (nenhum), "ajudante" ou "dono".
+  // Quem era dono vira ajudante quando outra pessoa assume.
+  async function setSubRole(sid, uid, role) {
+    const s = S.subs[sid];
+    if (!s) throw fail("unknown");
+    const owner = L.perms.subOwner(s);
+    let helpers = s.helpers.filter((x) => x !== uid);
+    if (role === "dono") {
+      if (owner === uid) return;
+      if (owner) helpers = [...new Set([...helpers, owner])];
+      await db().update("subprojetos/" + sid, { owner: uid, helpers: helpers.slice(0, 20) });
+    } else {
+      if (owner === uid) throw fail("owner_needed");
+      if (role === "ajudante") helpers.push(uid);
+      await db().update("subprojetos/" + sid, { helpers: helpers.slice(0, 20) });
+    }
+  }
+
+  // passa todas as tarefas de alguém neste projeto para outra pessoa
+  async function moveTasks(pid, from, to) {
+    const list = L.score.tasksOfProject(pid).filter((t) => t.assignee === from);
+    for (const t of list) await db().update("tarefas/" + t.id, { assignee: to });
+    return list.length;
+  }
+
+  // tira do projeto: sai das listRats (as que era dono passam para "heir"),
+  // as tarefas vão para "moveTo" ou ficam guardadas sem contar
+  async function removeMember(pid, uid, moveTo) {
+    const p = S.projects[pid];
+    if (!p) throw fail("unknown");
+    const heir = moveTo || S.ownerId;
+    if (moveTo) await moveTasks(pid, uid, moveTo);
+    for (const s of subsOf(pid)) {
+      const owner = L.perms.subOwner(s);
+      if (owner === uid) {
+        await db().update("subprojetos/" + s.id, { owner: heir, helpers: s.helpers.filter((x) => x !== uid && x !== heir) });
+      } else if (s.helpers.includes(uid)) {
+        await db().update("subprojetos/" + s.id, { helpers: s.helpers.filter((x) => x !== uid) });
+      }
+    }
+    await db().update("projetos/" + pid, { members: p.members.filter((x) => x !== uid) });
+  }
+
+  /* ---------- convites (link temporário para entrar no projeto) ---------- */
+
+  function newToken() {
+    const a = new Uint8Array(16);
+    crypto.getRandomValues(a);
+    return [...a].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  async function createInvite(pid, ms) {
+    const token = newToken();
+    await db().set("convites/" + token, { projectId: pid, expiresAt: Date.now() + ms, createdBy: S.myId, createdAt: Date.now() });
+    return token;
+  }
+  const deleteInvite = (token) => db().remove("convites/" + token);
+  const inviteUrl = (token) => location.origin + location.pathname + "#convite=" + token;
+
+  // entra no projeto pelo convite; devolve { pid, name, already }
+  async function joinByInvite(token) {
+    if (!/^[a-f0-9]{32}$/.test(token)) throw fail("invite_invalid");
+    const inv = await db().get("convites/" + token);
+    if (!inv || typeof inv.projectId !== "string") throw fail("invite_invalid");
+    if (!(Number(inv.expiresAt) > Date.now())) throw fail("invite_expired");
+    const pid = inv.projectId;
+    const p = await db().get("projetos/" + pid);
+    if (!p) throw fail("invite_invalid");
+    const members = Array.isArray(p.members) ? p.members : [];
+    if (members.includes(S.myId)) return { pid, name: p.name, already: true };
+    await db().update("projetos/" + pid, { members: members.concat([S.myId]), joinedVia: token });
+    return { pid, name: p.name, already: false };
+  }
+
   L.actions = {
+    createInvite, deleteInvite, inviteUrl, joinByInvite, setSubReq, startSub, addParticipant,
+    addMembers, setSubRole, moveTasks, removeMember,
     errMsg, flush, scheduleSave, canMark, toggleMark, attachProof, join, setNick,
-    claimOwner, createProject, saveProject, deleteProject, createSub, renameSub, setSubHelpers, deleteSub,
+    claimOwner, createProject, saveProject, deleteProject, createSub, saveSub, renameSub, setSubHelpers, deleteSub,
     createTask, saveTask, deleteTask,
   };
 })(window.Liga);

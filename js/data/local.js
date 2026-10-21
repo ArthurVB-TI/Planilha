@@ -6,7 +6,7 @@
      start(onAuth)                chama onAuth(usuario | null) quando alguém entra ou sai
      watch(colecao, cb, onErr)    cb({ id: dados, ... }) a cada mudança; devolve função para parar
      watchDoc(caminho, cb, onErr)
-     newId(colecao)
+     get(caminho) -> dados | null   newId(colecao)
      set / update / remove / removeMany
      claimOwner(uid)
      photos.save(dataUrl, uid) -> id   photos.load(id) -> dataUrl   photos.remove(id)
@@ -233,6 +233,11 @@ window.Liga.data = window.Liga.data || {};
       listeners.add(fire);
       setTimeout(fire, 0);
       return () => listeners.delete(fire);
+    },
+
+    async get(path) {
+      const [c, id] = split(path);
+      return db[c] && db[c][id] ? clone(db[c][id]) : null;
     },
 
     newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 10); },

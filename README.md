@@ -22,13 +22,13 @@ css/
 js/
   config.js             ÚNICO arquivo para editar (configuração do Firebase)
   util/                 dom.js, text.js, dates.js, crypto.js (senha e códigos do modo local)
-  core/                 rules.js (dificuldades, regras de conta, validação), state.js, scoring.js, perms.js (quem pode o quê)
+  core/                 rules.js (dificuldades, regras de conta, validação), state.js, scoring.js, perms.js (quem pode o quê), enroll.js (inscrições e desvio padrão)
   data/
     local.js            contas e banco no localStorage (modo local)
     firebase.js         Firebase Authentication + Firestore
   actions.js            tudo que grava: marcar, criar/editar/apagar
-  ui/                   components.js, forms.js, photos.js, shell.js (menu e tema), fx.js (animações)
-  pages/                login, home, projects, project, sub (listRat), mine, rules, new-project, settings
+  ui/                   components.js, forms.js, photos.js, shell.js (menu e tema), fx.js (animações), enroll-panel.js (quadro das inscrições)
+  pages/                login, home, projects, project, members, sub-form (nova/editar listRat), sub (listRat), charts, mine, rules, new-project, settings
   main.js               inicialização: escolhe o banco, acompanha o login, desenha
 firestore.rules         regras de segurança para colar no Firebase
 ```
@@ -105,7 +105,12 @@ git push -u origin main
 - **Minhas tarefas**: todas as suas tarefas, por listRat.
 - **Projetos**: lista dos projetos — é por aqui que se entra num projeto. No menu, "Projetos" abre e mostra os projetos; o projeto aberto mostra as listRats dele.
 - **Projeto**: listRats, integrantes e placar do projeto. O dono edita e apaga.
-- **ListRat**: equipe (dono e ajudantes), nova tarefa e uma coluna por integrante.
+- **Integrantes** (botão "Adicionar e gerenciar" no projeto, ou "Integrantes" no menu): página só das pessoas do projeto. Ver a ficha de cada um (pontos, posição, tarefas, papéis), adicionar procurando pelo nome de usuário (nada é listado antes de digitar; quem não existe não aparece), editar o papel em cada listRat (nenhum, ajudante ou dono) e passar as tarefas para outra pessoa, e tirar do projeto (escolhendo se as tarefas ficam guardadas ou passam para alguém). Ao criar um projeto, o site já abre essa página.
+- **Link de convite** (na página Integrantes, só o dono da liga): cria um link que vale 1 hora, 1 dia ou 7 dias e já copia. Quem abre o link e entra na conta (ou cria uma) entra direto no projeto. Links vencidos param de funcionar e somem da lista. Só funciona entre aparelhos diferentes no modo Firebase (no modo local as contas ficam num navegador só).
+- **Nova listRat / Editar listRat** (botão "Nova listRat" no projeto, "Editar" na listRat): página com nome, quando começa, quando termina (ou "Sem data para acabar", com atalhos de 1 semana a 6 meses) e detalhes. As tarefas só valem dentro desse período: antes do início e depois do fim não ganham nem perdem pontos, e não aparecem no Início.
+- **Inscrições da listRat**: toda listRat nova começa em inscrições. Cada integrante preenche as próprias tarefas e só participa quem cumprir as regras (o dono e os ajudantes definem: mínimo de obrigatórias — padrão 3 —, mínimo e máximo de tarefas normais e o desvio padrão máximo — padrão 2). O quadro mostra quem está pronto, os pontos possíveis por semana de cada um (tarefas normais; diária vale os pontos × 7) e o desvio padrão desses pontos entre os prontos. O desvio não impede ninguém de entrar; só impede começar. Ao começar, os participantes ficam gravados na listRat (`participants`) e só eles pontuam; dá para incluir alguém depois, valendo a partir daquele dia. Também aparece na página de editar a listRat e no Início ("Inscrições abertas").
+- **ListRat**: período e detalhes no topo, inscrições/participantes, equipe (dono e ajudantes), nova tarefa e uma coluna por participante.
+- **Gráficos** (menu, ou botão "Gráficos" no projeto): escolhe o projeto, a listRat (ou todas) e o período (7, 30, 90 dias ou tudo) e o tipo: **Pontuação** (total acumulado de cada pessoa), **Calendário** (dias com tarefas feitas e obrigatórias perdidas), **Ações** (tarefas feitas por dia ou semana, empilhadas por pessoa) e **Por tarefa** (quanto de cada tarefa foi feito). Passe o mouse (ou toque) para ver os números; "ver como tabela" mostra os dados.
 - **Regras**: pontuação, foto de prova e tabela de dificuldades.
 - **Configurações**: dados da conta, trocar usuário, senha e e-mail, verificação em duas etapas, tema (escuro é o padrão) e sair.
 
@@ -152,8 +157,9 @@ Tarefas antigas marcadas como "Lendária" passam a valer como Difícil.
 |---|---|
 | `usernames/<usuario em minúsculas>` | uid, email |
 | `config/liga` | owner, createdAt |
-| `projetos/<id>` | name, desc, members[], createdAt |
-| `subprojetos/<id>` (listRats) | projectId, name, owner, helpers[], createdAt |
+| `projetos/<id>` | name, desc, members[], createdAt, joinedVia (último convite usado) |
+| `convites/<código>` | projectId, expiresAt, createdBy, createdAt |
+| `subprojetos/<id>` (listRats) | projectId, name, desc, start, end (AAAA-MM-DD ou vazio), status (inscricoes/ativa), req {minObr, minTasks, maxTasks, maxDesvio}, participants[], startedAt, joined {uid: dia}, owner, helpers[], createdAt |
 | `tarefas/<id>` | subId, projectId, title, assignee, kind (daily/weekly), type (normal/obrigatoria), diff (facil/media/dificil), startKey, createdAt |
 | `players/<uid>` | nick (= usuário), done, proofs, updatedAt |
 | `fotos/<id>` | uid, data (imagem em base64), createdAt |

@@ -75,12 +75,51 @@ window.Liga = window.Liga || {};
       el("button", { class: "btn ghost sm", type: "button", onclick: () => { S.confirm = null; rerender(); } }, "Cancelar"));
   }
 
+  /* ---------- datas e período da listRat ---------- */
+
+  // 20/10 (mesmo ano) ou 20/10/2027
+  function fmtDate(k) {
+    const d = parseKey(k);
+    if (!d) return "";
+    const base = shortDate(k);
+    return d.getFullYear() === new Date().getFullYear() ? base : base + "/" + d.getFullYear();
+  }
+
+  // situação da listRat: { state: "sem" | "antes" | "agora" | "fim", text }
+  function period(s) {
+    const t = todayKey();
+    const start = s && s.start, end = s && s.end;
+    const days = (a, b) => Math.round((parseKey(b) - parseKey(a)) / 86400000);
+    if (s && s.status === "inscricoes") {
+      return { state: "insc", text: "Inscrições abertas" + (start ? " · período de " + fmtDate(start) + (end ? " a " + fmtDate(end) : " em diante") : "") };
+    }
+    if (!start && !end) return { state: "sem", text: "" };
+    if (start && start > t) {
+      const n = days(t, start);
+      return { state: "antes", text: "Começa " + (n === 1 ? "amanhã" : "em " + fmtDate(start) + " (em " + n + " dias)") + (end ? " · termina em " + fmtDate(end) : "") };
+    }
+    if (end && end < t) return { state: "fim", text: "Terminou em " + fmtDate(end) };
+    if (end) {
+      const n = days(t, end);
+      return { state: "agora", text: (n === 0 ? "Termina hoje" : "Termina em " + fmtDate(end) + " · " + plural(n, "dia restante", "dias restantes")) };
+    }
+    return { state: "agora", text: "Desde " + fmtDate(start) + " · sem data para acabar" };
+  }
+
+  // selo curto para listas
+  function periodTag(s) {
+    const pr = period(s);
+    if (pr.state === "sem") return null;
+    const label = pr.state === "insc" ? "inscrições" : pr.state === "antes" ? "em breve" : pr.state === "fim" ? "encerrada" : "em andamento";
+    return el("span", { class: "ptag-s " + pr.state }, label);
+  }
+
   /* ---------- cartão de tarefa ---------- */
 
   function taskCard(task, opts) {
     opts = opts || {};
     const sub = S.subs[task.subId];
-    const canEdit = !!opts.admin && L.perms.canEditTasks(sub);
+    const canEdit = !!opts.admin && L.perms.canEditTask(task);
     if (canEdit && S.draft.editTask && S.draft.editTask.id === task.id) return L.forms.taskEditCard(task);
 
     const r = L.score.taskResult(task);
@@ -91,6 +130,8 @@ window.Liga = window.Liga || {};
     const doneNow = r.done.has(daily ? today : cw);
     const scoreVal = isObr ? -r.minus : r.plus;
     const D = DIFF[task.diff];
+    const sp = L.score.span(task);           // período em que a tarefa vale
+    const active = L.score.activeNow(task);
 
     const meta = el("div", { class: "tmeta" },
       isObr ? el("span", { class: "obr" }, "Obrigatória") : "Normal",
@@ -109,7 +150,7 @@ window.Liga = window.Liga || {};
       const btns = [];
       for (let i = 6; i >= 0; i--) {
         const k = addDays(today, -i);
-        const before = k < task.startKey;
+        const before = k < sp.from || (!!sp.end && k > sp.end);
         const on = r.done.has(k);
         const miss = isObr && !on && !before && k < today;
         const d = parseKey(k);
@@ -120,7 +161,7 @@ window.Liga = window.Liga || {};
           disabled: !mine || before,
           "aria-pressed": on ? "true" : "false",
           "aria-label": task.title + " — " + WD[d.getDay()] + " " + shortDate(k) + (on ? ", feita" : miss ? ", não feita" : ""),
-          title: before ? "Antes da tarefa existir" : isToday ? "Hoje" : WD[d.getDay()] + " " + shortDate(k),
+          title: before ? (k < sp.from ? "Fora do período (antes do início)" : "Fora do período (depois do fim)") : isToday ? "Hoje" : WD[d.getDay()] + " " + shortDate(k),
           onclick: () => L.actions.toggleMark(task, k),
         }, el("span", null, isToday ? "hoje" : WD[d.getDay()].toLowerCase()), el("b", null, on ? icon("check") : String(d.getDate()))));
       }
@@ -128,7 +169,7 @@ window.Liga = window.Liga || {};
     } else {
       const lw = addDays(cw, -7);
       const mk = (k, label) => {
-        if (k < weekOf(task.startKey)) return null;
+        if (k < weekOf(sp.from) || (sp.end && k > weekOf(sp.end))) return null;
         const on = r.done.has(k);
         const miss = isObr && !on && k < cw;
         return el("button", {
@@ -137,18 +178,20 @@ window.Liga = window.Liga || {};
           "aria-pressed": on ? "true" : "false", onclick: () => L.actions.toggleMark(task, k),
         }, on ? icon("check") : null, label);
       };
-      controls = el("div", { class: "days" }, mk(lw, "Semana passada"), mk(cw, "Esta semana"));
+      const wks = [mk(lw, "Semana passada"), mk(cw, "Esta semana")].filter(Boolean);
+      controls = el("div", { class: "days" }, wks.length ? wks : el("span", { class: "hint" }, "Fora do período da listRat."));
     }
 
     // linha de baixo: situação + ações do dono
     const unit = daily ? ["dia", "dias"] : ["semana", "semanas"];
     let hint;
+    const offTxt = sp.prep ? "Vale quando a listRat começar." : !active ? ((daily ? sp.from > today : weekOf(sp.from) > cw) ? "Começa em " + fmtDate(sp.from) + "." : "A listRat terminou.") : "";
     if (isObr) {
       const txt = (r.missed ? "Faltou " + plural(r.missed, unit[0], unit[1]) + ". " : "") +
-        (doneNow ? "" : daily ? "Hoje ainda não foi feita." : "Esta semana ainda não foi feita.");
-      hint = txt ? el("span", { class: "hint" + (doneNow ? "" : " warn") }, txt) : null;
+        (offTxt || (doneNow ? "" : daily ? "Hoje ainda não foi feita." : "Esta semana ainda não foi feita."));
+      hint = txt ? el("span", { class: "hint" + (doneNow || offTxt ? "" : " warn") }, txt) : null;
     } else {
-      hint = el("span", { class: "hint" }, "Feita " + plural(r.done.size, "vez", "vezes"));
+      hint = el("span", { class: "hint" }, "Feita " + plural(r.done.size, "vez", "vezes") + (offTxt ? ". " + offTxt : ""));
     }
 
     let admin = null;
@@ -169,7 +212,7 @@ window.Liga = window.Liga || {};
     }
 
     return el("div", { class: "task" + (isObr ? " obr" : "") + (L.fx.isFlashTask(task.id) ? " flash" : "") },
-      top, controls, L.photos.proofRow(task, r, mine),
+      top, controls, L.photos.proofRow(task, r, mine && active),
       (hint || admin) ? el("div", { class: "task-foot" }, hint || el("span"), admin) : null);
   }
 
@@ -231,5 +274,5 @@ window.Liga = window.Liga || {};
     }));
   }
 
-  L.ui = { nameOf, avatar, personChip, empty, stat, pageHead, crumbs, diffText, confirmRow, taskCard, board, legend, visibleProjects, projectList };
+  L.ui = { fmtDate, period, periodTag, nameOf, avatar, personChip, empty, stat, pageHead, crumbs, diffText, confirmRow, taskCard, board, legend, visibleProjects, projectList };
 })(window.Liga);

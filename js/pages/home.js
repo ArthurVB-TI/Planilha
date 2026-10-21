@@ -23,7 +23,7 @@ window.Liga.pages = window.Liga.pages || {};
     L.ui.crumbs([{ label: "Início" }]);
     const all = Object.values(S.tasks);
     const my = L.score.scoreFor(S.myId, all);
-    const mineTasks = L.score.myTasks().sort(byUrgency);
+    const mineTasks = L.score.myTasks().filter(L.score.activeNow).sort(byUrgency);   // fora do período da listRat não aparece aqui
     const pend = mineTasks.filter((t) => !L.score.doneNow(t));
     const done = mineTasks.filter((t) => L.score.doneNow(t));
 
@@ -48,6 +48,22 @@ window.Liga.pages = window.Liga.pages || {};
     if (S.mode === "firebase" && S.configLoaded && !S.ownerId) {
       v.append(el("div", { class: "status warn" }, "A liga ainda não tem dono. Se o site é seu, assuma em ",
         el("button", { class: "link", type: "button", onclick: () => L.app.go({ page: "settings" }) }, "Configurações"), "."));
+    }
+
+    // listRats em inscrições onde você ainda precisa preencher tarefas
+    const insc = Object.values(S.subs).filter((s) => s.status === "inscricoes" && L.perms.canFillOwn(s))
+      .map((s) => ({ s, st: L.enroll.personStatus(s, S.myId) }));
+    if (insc.length) {
+      v.append(el("section", { class: "panel insc-list" },
+        el("h2", null, "Inscrições abertas"),
+        el("div", { class: "subs" }, insc.map(({ s, st }) => {
+          const p = S.projects[s.projectId];
+          return el("button", { type: "button", class: "sub", onclick: () => L.app.go({ page: "sub", pid: s.projectId, sid: s.id }) },
+            el("div", null,
+              el("div", { class: "t" }, s.name, el("span", { class: "ptag-s " + (st.ready ? "agora" : "insc") }, st.ready ? "pronto" : "preencher")),
+              el("div", { class: "small muted" }, (p ? p.name + " · " : "") + (st.ready ? "Você já está pronto. Falta o dono começar." : st.text + "."))),
+            el("span", { class: "go" }, L.dom.icon("chevron")));
+        }))));
     }
 
     const grid = el("div", { class: "grid" });

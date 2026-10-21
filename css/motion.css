@@ -9,7 +9,7 @@
 
   /* ---------- entrada das telas ---------- */
   .enter > * { animation: rise .45s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i, 0) * 60ms); }
-  .enter :is(.tlist, .plist, ol.board, .subs, .members, .settings) > * {
+  .enter :is(.tlist, .plist, ol.board, .subs, .members, .settings, .mlist, .cands) > * {
     animation: rise .42s cubic-bezier(.2, .7, .2, 1) both;
     animation-delay: calc(140ms + var(--j, 0) * 45ms);
   }
@@ -21,7 +21,7 @@
   .auth-box { animation: rise .5s cubic-bezier(.2, .7, .2, 1) both; }
 
   /* ---------- toques e passagens do mouse ---------- */
-  .btn, .icon-btn, .day, .wk, .cam, .dopt, .seg button, .person, .nav-item, .link {
+  .btn, .icon-btn, .day, .wk, .cam, .dopt, .seg button, .person, .nav-item, .link, .chip {
     transition: transform .12s ease, background-color .15s, border-color .15s, color .15s, filter .15s;
   }
   .btn:active, .icon-btn:active, .cam:active, .dopt:active, .person:active,
@@ -48,6 +48,12 @@
   @keyframes draw { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
 
   .task.flash { animation: glow 1s ease-out; }
+  .inv.fresh { animation: glow 1.1s ease-out, rise .35s cubic-bezier(.2, .7, .2, 1) both; }
+  .mrow.fresh { animation: glow 1.1s ease-out, rise .4s cubic-bezier(.2, .7, .2, 1) both; }
+  .medit, .mremove { animation: rise .25s cubic-bezier(.2, .7, .2, 1) both; }
+  .cand { transition: border-color .15s; }
+  .chip:active { transform: scale(.95); }
+  .period-sum { transition: color .2s; }
   @keyframes glow {
     0% { box-shadow: 0 0 0 0 var(--accent); }
     30% { box-shadow: 0 0 0 3px var(--accent-soft); }

@@ -209,6 +209,10 @@ window.Liga.data = window.Liga.data || {};
         (e) => onErr && onErr(mapErr(e)));
     },
 
+    async get(path) {
+      const d = await wrap(F.getDoc(F.doc(fs, path)));
+      return d.exists() ? d.data() : null;
+    },
     newId(coll) { return F.doc(F.collection(fs, coll)).id; },
     set(path, data) { return wrap(F.setDoc(F.doc(fs, path), data)); },
     update(path, data) { return wrap(F.updateDoc(F.doc(fs, path), data)); },

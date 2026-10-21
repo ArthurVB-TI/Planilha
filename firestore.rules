@@ -9,8 +9,10 @@ rules_version = '2';
 // - o primeiro a "Assumir como dono" vira o dono (config/liga) e isso não muda mais;
 // - só o dono da liga cria/edita/apaga projetos;
 // - qualquer integrante de um projeto cria listRats nele (coleção subprojetos) e vira o dono delas;
-// - o dono da listRat renomeia, apaga e escolhe ajudantes; dono e ajudantes cuidam das tarefas;
+// - o dono da listRat edita (nome, detalhes, início e fim), apaga e escolhe ajudantes; dono e ajudantes cuidam das tarefas;
 // - o dono da liga pode mexer em tudo;
+// - quem tem um link de convite válido pode se colocar como integrante do projeto do convite;
+// - listRat nova fica em inscrições: cada integrante cria/edita/apaga as próprias tarefas dela;
 // - cada jogador só grava o próprio documento players/<seu uid>;
 // - cada jogador só cria e apaga as próprias fotos.
 
@@ -29,6 +31,12 @@ service cloud.firestore {
       let s = get(/databases/$(database)/documents/subprojetos/$(sid)).data;
       return signedIn()
         && (s.get('owner', '') == request.auth.uid || request.auth.uid in s.get('helpers', []));
+    }
+    // detalhes (até 500 letras) e datas de início/fim da listRat ("" = sem data)
+    function subInfoOk(d) {
+      return d.get('desc', '') is string && d.get('desc', '').size() <= 500
+        && d.get('start', '') is string && d.get('start', '').size() <= 10
+        && d.get('end', '') is string && d.get('end', '').size() <= 10;
     }
     function isOwner() {
       return signedIn()
@@ -64,31 +72,78 @@ service cloud.firestore {
         && (request.resource == null || (
           request.resource.data.name is string && request.resource.data.name.size() <= 60
           && request.resource.data.members is list && request.resource.data.members.size() <= 50));
+      // entrar pelo link de convite: só se acrescentar a si mesmo, com um convite válido deste projeto
+      allow update: if signedIn() && joinByInvite(id);
+    }
+
+    function joinByInvite(pid) {
+      let token = request.resource.data.get('joinedVia', '');
+      let inv = get(/databases/$(database)/documents/convites/$(token)).data;
+      return token is string && token.size() == 32
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'joinedVia'])
+        && !(request.auth.uid in resource.data.members)
+        && request.resource.data.members == resource.data.members.concat([request.auth.uid])
+        && request.resource.data.members.size() <= 50
+        && inv.projectId == pid
+        && inv.expiresAt > request.time.toMillis();
+    }
+
+    // links de convite: o código é o próprio id (32 letras aleatórias); só dá para ler sabendo o código
+    match /convites/{token} {
+      allow get: if signedIn();
+      allow list: if isOwner();
+      allow create: if isOwner()
+        && token.matches('^[a-f0-9]{32}$')
+        && request.resource.data.keys().hasOnly(['projectId', 'expiresAt', 'createdBy', 'createdAt'])
+        && request.resource.data.projectId is string
+        && request.resource.data.expiresAt is number;
+      allow update: if false;
+      allow delete: if isOwner();
     }
 
     match /subprojetos/{id} {
       allow read: if signedIn();
       allow create: if signedIn()
         && (isOwner() || isProjectMember(request.resource.data.projectId))
-        && request.resource.data.keys().hasOnly(['projectId', 'name', 'owner', 'helpers', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['projectId', 'name', 'desc', 'start', 'end', 'status', 'req', 'participants', 'startedAt', 'joined', 'owner', 'helpers', 'createdAt'])
         && request.resource.data.owner == request.auth.uid
         && request.resource.data.name is string && request.resource.data.name.size() <= 60
+        && subInfoOk(request.resource.data)
         && request.resource.data.helpers is list && request.resource.data.helpers.size() <= 20;
-      allow update: if isOwner()
+      allow update: if (isOwner() && subInfoOk(request.resource.data))
         || (signedIn()
           && resource.data.get('owner', '') == request.auth.uid
           && request.resource.data.owner == resource.data.owner
           && request.resource.data.projectId == resource.data.projectId
-          && request.resource.data.helpers is list && request.resource.data.helpers.size() <= 20);
+          && subInfoOk(request.resource.data)
+          && request.resource.data.helpers is list && request.resource.data.helpers.size() <= 20)
+        // ajudantes: só regras de inscrição, começar a listRat e participantes
+        || (signedIn()
+          && request.auth.uid in resource.data.get('helpers', [])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['req', 'status', 'participants', 'startedAt', 'joined']));
       allow delete: if isOwner() || (signedIn() && resource.data.get('owner', '') == request.auth.uid);
+    }
+
+    // em inscrições, cada integrante do projeto mexe nas próprias tarefas da listRat
+    function selfFill(sid, assignee) {
+      let s = get(/databases/$(database)/documents/subprojetos/$(sid)).data;
+      return signedIn()
+        && s.get('status', 'ativa') == 'inscricoes'
+        && assignee == request.auth.uid
+        && request.auth.uid in get(/databases/$(database)/documents/projetos/$(s.projectId)).data.members;
     }
 
     match /tarefas/{id} {
       allow read: if signedIn();
-      allow create: if isOwner() || canEditSub(request.resource.data.subId);
+      allow create: if isOwner() || canEditSub(request.resource.data.subId)
+        || selfFill(request.resource.data.subId, request.resource.data.assignee);
       allow update: if isOwner()
-        || (canEditSub(resource.data.subId) && request.resource.data.subId == resource.data.subId);
-      allow delete: if isOwner() || canEditSub(resource.data.subId);
+        || (canEditSub(resource.data.subId) && request.resource.data.subId == resource.data.subId)
+        || (selfFill(resource.data.subId, resource.data.assignee)
+          && request.resource.data.subId == resource.data.subId
+          && request.resource.data.assignee == resource.data.assignee);
+      allow delete: if isOwner() || canEditSub(resource.data.subId)
+        || selfFill(resource.data.subId, resource.data.assignee);
     }
 
     match /players/{uid} {

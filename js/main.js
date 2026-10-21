@@ -7,12 +7,16 @@ window.Liga = window.Liga || {};
   const { store } = L.text;
   const san = L.rules.sanitize;
 
-  const PAGES = ["home", "projects", "mine", "rules", "new", "project", "sub", "settings"];
+  const PAGES = ["home", "projects", "mine", "rules", "new", "project", "members", "subform", "sub", "charts", "settings"];
 
   /* ---------- navegação e avisos ---------- */
 
-  function setStatus(msg, warn) {
+  let statusTimer = 0;
+  // msg com { auto: true } some sozinha depois de alguns segundos
+  function setStatus(msg, warn, opts) {
     const s = $("status");
+    clearTimeout(statusTimer);
+    if (opts && opts.auto) statusTimer = setTimeout(() => { if (s.textContent === msg) setStatus(""); }, 7000);
     s.textContent = msg || "";
     s.classList.toggle("warn", !!warn);
     s.hidden = !msg;
@@ -25,6 +29,9 @@ window.Liga = window.Liga || {};
     S.draft.editTask = null;
     S.draft.editSub = null;
     S.draft.editHelpers = null;
+    S.draft.mem = null;
+    S.draft.subForm = null;
+    S.draft.req = null;
     store.set("liga.view", v);
     render();
     window.scrollTo({ top: 0 });
@@ -35,7 +42,7 @@ window.Liga = window.Liga || {};
     const loading = !S.loaded.projects || !S.loaded.subs;
     v.append(el("section", { class: "panel" },
       el("h2", null, loading ? "Carregando…" : "Não encontrado"),
-      el("p", { class: "muted" }, loading ? "Buscando os dados da liga." : "Esse projeto ou listRat não existe ou você não faz parte dele."),
+      el("p", { class: "muted" }, loading ? "Buscando os dados da liga." : "Esse projeto, listRat ou integrante não existe ou você não faz parte dele."),
       loading ? null : el("div", null, el("button", { class: "btn ghost", type: "button", onclick: () => go({ page: "projects" }) }, "Ver projetos"))));
   };
 
@@ -101,6 +108,7 @@ window.Liga = window.Liga || {};
       loaded: { players: false, projects: false, subs: false, tasks: false },
       mine: null, myLoaded: false, pending: false, writing: false,
       ownerId: null, configLoaded: false, isOwner: false, readOnly: false, photoCache: {},
+      invites: {}, invitesOn: false,
     });
     S.draft.settings = {};
     S.draft.newProject = null;
@@ -121,7 +129,42 @@ window.Liga = window.Liga || {};
   function checkLoaded() {
     const all = S.loaded.players && S.loaded.projects && S.loaded.subs && S.loaded.tasks;
     if (all && /Conectando/.test($("status").textContent)) setStatus("");
+    if (all && S.invite && S.myLoaded && !S.joining) useInvite();
   }
+
+  /* ---------- convite: #convite=<código> no endereço ---------- */
+
+  // guarda o código (mesmo antes de entrar na conta) e limpa o endereço
+  function readInvite() {
+    const m = /(?:^#|&)convite=([a-f0-9]{32})/.exec(location.hash || "");
+    if (m) {
+      try { sessionStorage.setItem("liga.invite", m[1]); } catch (e) { /* ignora */ }
+      try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* ignora */ }
+    }
+    let t = m ? m[1] : null;
+    if (!t) { try { t = sessionStorage.getItem("liga.invite"); } catch (e) { /* ignora */ } }
+    S.invite = t && /^[a-f0-9]{32}$/.test(t) ? t : null;
+  }
+  function dropInvite() {
+    S.invite = null;
+    try { sessionStorage.removeItem("liga.invite"); } catch (e) { /* ignora */ }
+  }
+  async function useInvite() {
+    S.joining = true;
+    const token = S.invite;
+    try {
+      const r = await L.actions.joinByInvite(token);
+      dropInvite();
+      go({ page: "project", pid: r.pid });
+      setStatus(r.already ? "Você já estava no projeto " + r.name + "." : "Você entrou no projeto " + r.name + ".", false, { auto: true });
+    } catch (e) {
+      dropInvite();
+      setStatus(L.actions.errMsg(e, "Não deu para usar o convite."), true);
+      render();
+    }
+    S.joining = false;
+  }
+  window.addEventListener("hashchange", () => { readInvite(); if (S.invite && S.myId) checkLoaded(); render(); });
 
   function listen(coll, key, sanitize) {
     S.unsubs.push(S.backend.watch(coll, (docs) => {
@@ -165,6 +208,8 @@ window.Liga = window.Liga || {};
       S.ownerId = d && typeof d.owner === "string" ? d.owner : null;
       S.isOwner = !!S.ownerId && S.ownerId === S.myId;
       S.configLoaded = true;
+      // só o dono da liga vê os links de convite
+      if (S.isOwner && !S.invitesOn) { S.invitesOn = true; listen("convites", "invites", san.invite); }
       render();
     }, onListenError));
     listen("players", "players", san.player);
@@ -179,6 +224,7 @@ window.Liga = window.Liga || {};
   async function init() {
     L.photos.setup();
     L.shell.setup();
+    readInvite();
 
     const cfg = window.LIGA_CONFIG || {};
     const useFirebase = cfg.firebase && typeof cfg.firebase === "object" && cfg.firebase.apiKey;

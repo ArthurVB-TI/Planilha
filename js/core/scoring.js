@@ -17,15 +17,40 @@ window.Liga = window.Liga || {};
     return Array.isArray(arr) ? arr : [];
   }
 
-  // só valem datas entre a criação da tarefa e hoje (ou segundas-feiras, nas semanais)
+  /* Período em que a tarefa vale: do dia em que foi criada (ou do início da listRat,
+     o que vier depois) até o fim da listRat (se tiver). Fora dele não ganha nem perde ponto. */
+  const NEVER = "9999-12-31";
+  function span(task) {
+    const s = S.subs[task.subId];
+    // em inscrições nada vale ainda
+    if (s && s.status === "inscricoes") return { from: NEVER, end: null, prep: true };
+    let from = task.startKey;
+    if (s && s.start && s.start > from) from = s.start;
+    if (s && s.startedAt && s.startedAt > from) from = s.startedAt;
+    const j = s && s.joined && s.joined[task.assignee];
+    if (j && j > from) from = j;
+    return { from, end: (s && s.end) || null, prep: false };
+  }
+  const minKey = (a, b) => (b && b < a ? b : a);
+
+  // a tarefa está valendo hoje (diárias) / nesta semana (semanais)?
+  function activeNow(task) {
+    const { from, end } = span(task);
+    if (task.kind === "daily") { const t = todayKey(); return t >= from && (!end || t <= end); }
+    const cw = curWeek();
+    return cw >= weekOf(from) && (!end || cw <= weekOf(end));
+  }
+
+  // só valem datas dentro do período (e até hoje); nas semanais, segundas-feiras
   function validMarks(task, raw) {
     const set = new Set();
+    const { from, end } = span(task);
     if (task.kind === "daily") {
-      const t = todayKey();
-      for (const k of raw) if (isKey(k) && k >= task.startKey && k <= t) set.add(k);
+      const last = minKey(todayKey(), end);
+      for (const k of raw) if (isKey(k) && k >= from && k <= last) set.add(k);
     } else {
-      const sw = weekOf(task.startKey), cw = curWeek();
-      for (const k of raw) if (isKey(k) && k === weekOf(k) && k >= sw && k <= cw) set.add(k);
+      const sw = weekOf(from), last = minKey(curWeek(), end && weekOf(end));
+      for (const k of raw) if (isKey(k) && k === weekOf(k) && k >= sw && k <= last) set.add(k);
     }
     return set;
   }
@@ -37,12 +62,13 @@ window.Liga = window.Liga || {};
     if (task.type === "normal") return { done, plus: D.pts * done.size, minus: 0, missed: 0 };
 
     let missed = 0;
+    const sp = span(task);
     if (task.kind === "daily") {
-      const end = addDays(todayKey(), -1);
-      for (let k = task.startKey, i = 0; k <= end && i < 4000; k = addDays(k, 1), i++) if (!done.has(k)) missed++;
+      const end = minKey(addDays(todayKey(), -1), sp.end);
+      for (let k = sp.from, i = 0; k <= end && i < 4000; k = addDays(k, 1), i++) if (!done.has(k)) missed++;
     } else {
-      const end = addDays(curWeek(), -7);
-      for (let k = weekOf(task.startKey), i = 0; k <= end && i < 600; k = addDays(k, 7), i++) if (!done.has(k)) missed++;
+      const end = minKey(addDays(curWeek(), -7), sp.end && weekOf(sp.end));
+      for (let k = weekOf(sp.from), i = 0; k <= end && i < 600; k = addDays(k, 7), i++) if (!done.has(k)) missed++;
     }
     return { done, plus: 0, minus: D.pen * missed, missed };
   }
@@ -55,10 +81,18 @@ window.Liga = window.Liga || {};
   }
 
   // a tarefa só conta se o responsável ainda é integrante do projeto
+  // e, nas listRats com inscrição, se ele entrou como participante
   function counts(task) {
     const sub = S.subs[task.subId];
     const p = sub && S.projects[sub.projectId];
-    return !!p && p.members.includes(task.assignee);
+    if (!p || !p.members.includes(task.assignee)) return false;
+    return isParticipant(sub, task.assignee);
+  }
+  // participantes: os gravados quando a listRat começou (listRat antiga = todos os integrantes)
+  function isParticipant(sub, uid) {
+    if (!sub) return false;
+    if (sub.status === "inscricoes") return true;
+    return !sub.participants || sub.participants.includes(uid);
   }
 
   function scoreFor(pid, tasks) {
@@ -73,7 +107,7 @@ window.Liga = window.Liga || {};
   }
 
   const myTasks = () => Object.values(S.tasks).filter((t) => t.assignee === S.myId && counts(t));
-  const pendingMandatory = () => myTasks().filter((t) => t.type === "obrigatoria" && !doneNow(t)).length;
+  const pendingMandatory = () => myTasks().filter((t) => t.type === "obrigatoria" && activeNow(t) && !doneNow(t)).length;
 
-  L.score = { playerDoc, marksOf, validMarks, taskResult, periodKey, doneNow, tasksOfProject, counts, scoreFor, myTasks, pendingMandatory };
+  L.score = { span, activeNow, isParticipant, playerDoc, marksOf, validMarks, taskResult, periodKey, doneNow, tasksOfProject, counts, scoreFor, myTasks, pendingMandatory };
 })(window.Liga);

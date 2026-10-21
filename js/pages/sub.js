@@ -55,7 +55,7 @@ window.Liga.pages = window.Liga.pages || {};
           ? el("button", { class: "link", type: "button", onclick: () => { S.draft.editHelpers = { sid: s.id, helpers: [...s.helpers] }; rerender(); } }, "escolher ajudantes")
           : null),
       ownerRow, helpersRow,
-      el("p", { class: "hint" }, "O dono e os ajudantes criam, editam e apagam as tarefas desta listRat. Só o dono renomeia, apaga e escolhe os ajudantes."));
+      el("p", { class: "hint" }, "O dono e os ajudantes criam, editam e apagam as tarefas desta listRat. Só o dono edita a listRat (nome, datas e detalhes), apaga e escolhe os ajudantes."));
   }
 
   /* ---------- renomear e apagar (dono da listRat) ---------- */
@@ -83,7 +83,7 @@ window.Liga.pages = window.Liga.pages || {};
             catch (e) { L.app.setStatus(L.actions.errMsg(e, "Não deu para apagar a listRat."), true); rerender(); }
           })
         : el("div", { class: "admin" },
-            es ? null : el("button", { class: "link", type: "button", onclick: () => { S.draft.editSub = { name: s.name }; rerender(); } }, "renomear"),
+            el("button", { class: "link", type: "button", onclick: () => go({ page: "subform", pid: p.id, sid: s.id }) }, "editar nome, datas e detalhes"),
             el("button", { class: "link danger", type: "button", onclick: () => { S.confirm = "s:" + s.id; rerender(); } }, "apagar listRat")));
   }
 
@@ -100,15 +100,32 @@ window.Liga.pages = window.Liga.pages || {};
     const role = P.roleIn(s, S.myId);
     const stasks = Object.values(S.tasks).filter((t) => t.subId === s.id).sort(byType);
     v.append(L.ui.pageHead(s.name, "ListRat de " + p.name + (role ? " · você é " + role : ""),
-      el("div", { class: "stats" },
-        L.ui.stat("Tarefas", String(stasks.length)),
-        L.ui.stat("Obrigatórias", String(stasks.filter((t) => t.type === "obrigatoria").length)))));
+      el("div", { class: "row", style: "align-items:center" },
+        el("div", { class: "stats" },
+          L.ui.stat("Tarefas", String(stasks.length)),
+          L.ui.stat("Obrigatórias", String(stasks.filter((t) => t.type === "obrigatoria").length))),
+        P.canManageSub(s) ? el("button", { class: "btn ghost", type: "button", onclick: () => go({ page: "subform", pid: p.id, sid: s.id }) }, "Editar") : null)));
 
+    // período e detalhes
+    const pr = L.ui.period(s);
+    const showPeriod = pr.text && pr.state !== "insc";   // em inscrições o quadro de inscrições já explica
+    if (showPeriod || s.desc) {
+      v.append(el("section", { class: "panel about" },
+        showPeriod ? el("div", { class: "about-period" }, L.ui.periodTag(s), el("span", null, pr.text),
+          s.start && s.end ? el("span", { class: "muted" }, "(" + L.ui.fmtDate(s.start) + " a " + L.ui.fmtDate(s.end) + ")") : null) : null,
+        pr.state === "fim" ? el("p", { class: "hint" }, "As tarefas desta listRat não valem mais pontos; o que foi feito continua no placar.") : null,
+        pr.state === "antes" ? el("p", { class: "hint" }, "As tarefas começam a valer no dia do início.") : null,
+        s.desc ? el("p", { class: "about-desc", text: s.desc }) : null));
+    }
+
+    const ep = L.enrollUI.panel(s, p);
+    if (ep) v.append(ep);
     v.append(team(s, p));
-    if (P.canEditTasks(s)) v.append(L.forms.taskForm(p, s));
+    if (P.canEditTasks(s) || P.canFillOwn(s)) v.append(L.forms.taskForm(p, s));
 
     const cols = el("div", { class: "members" });
-    const order = [...p.members].sort((a, b) => (a === S.myId ? -1 : b === S.myId ? 1 : 0));
+    const inList = (id) => L.score.isParticipant(s, id);
+    const order = p.members.filter(inList).sort((a, b) => (a === S.myId ? -1 : b === S.myId ? 1 : 0));
     for (const id of order) {
       const mt = stasks.filter((t) => t.assignee === id);
       const sc = L.score.scoreFor(id, mt);
@@ -122,10 +139,10 @@ window.Liga.pages = window.Liga.pages || {};
           el("div", { class: "pts" + (sc.total < 0 ? " neg" : "") }, fmtTotal(sc.total))),
         mt.length ? el("div", { class: "tlist" }, mt.map((t) => L.ui.taskCard(t, { admin: true }))) : L.ui.empty("Sem tarefas.")));
     }
-    const orphan = stasks.filter((t) => !p.members.includes(t.assignee));
+    const orphan = stasks.filter((t) => !p.members.includes(t.assignee) || !inList(t.assignee));
     if (P.canEditTasks(s) && orphan.length) {
       cols.append(el("section", { class: "mcol" },
-        el("div", { class: "mhead" }, el("div", null, el("div", { class: "n" }, "Fora do projeto"), el("div", { class: "small muted" }, "Não contam no placar."))),
+        el("div", { class: "mhead" }, el("div", null, el("div", { class: "n" }, "Fora da listRat"), el("div", { class: "small muted" }, "Não participam ou saíram do projeto. Não contam no placar."))),
         el("div", { class: "tlist" }, orphan.map((t) => L.ui.taskCard(t, { admin: true, where: L.ui.nameOf(t.assignee) })))));
     }
     v.append(p.members.length ? cols : L.ui.empty("Este projeto não tem integrantes."));

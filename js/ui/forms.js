@@ -5,7 +5,7 @@ window.Liga = window.Liga || {};
   "use strict";
   const S = L.S;
   const { el, $ } = L.dom;
-  const { clean } = L.text;
+  const { clean, plural } = L.text;
   const { DIFF, DIFF_KEYS, NICK_MAX } = L.rules;
 
   const rerender = () => L.app.render();
@@ -53,9 +53,6 @@ window.Liga = window.Liga || {};
         input({ id: prefix + "Name", maxlength: "60", required: true, placeholder: "Semestre 2026.2" }, d, "name")),
       el("div", { class: "field" }, el("label", { for: prefix + "Desc" }, "Descrição"),
         textarea({ id: prefix + "Desc", maxlength: "200" }, d, "desc")),
-      el("div", { class: "field" }, el("span", { class: "lbl" }, "Integrantes"),
-        memberPicker(d.members, (m) => { d.members = m; rerender(); }),
-        el("p", { class: "hint" }, "Aparece aqui quem já criou conta no site.")),
     ];
   }
 
@@ -67,15 +64,16 @@ window.Liga = window.Liga || {};
       if (!name) return setErr("pErr", "Dê um nome ao projeto.");
       $("pSubmit").disabled = true;
       try {
-        const id = await L.actions.createProject({ name, desc, members: d.members });
+        const id = await L.actions.createProject({ name, desc, members: [S.myId] });
         S.draft.newProject = null;
-        L.app.go({ page: "project", pid: id });
+        L.pages.openMembers(id, "Projeto criado. Agora adicione quem vai participar.");
       } catch (e) {
         setErr("pErr", errMsg(e, "Não deu para criar o projeto."));
         $("pSubmit").disabled = false;
       }
     } },
       projectFields(d, "p"),
+      el("p", { class: "hint" }, "Você entra no projeto. Depois de criar, abre a página de integrantes para chamar o resto do pessoal."),
       el("div", { class: "row" },
         el("button", { class: "btn", type: "submit", id: "pSubmit" }, "Criar projeto"),
         el("button", { class: "btn ghost", type: "button", onclick: () => { S.draft.newProject = null; L.app.go({ page: "projects" }); } }, "Cancelar")),
@@ -90,7 +88,7 @@ window.Liga = window.Liga || {};
       if (!name) return setErr("epErr", "Dê um nome ao projeto.");
       $("epSave").disabled = true;
       try {
-        await L.actions.saveProject(p.id, { name, desc, members: d.members });
+        await L.actions.saveProject(p.id, { name, desc });
         S.draft.editProject = null;
         rerender();
       } catch (e) {
@@ -100,7 +98,7 @@ window.Liga = window.Liga || {};
     } },
       el("h2", null, "Editar projeto"),
       projectFields(d, "ep"),
-      el("p", { class: "hint" }, "Quem sair do projeto para de pontuar nele; as tarefas ficam guardadas."),
+      el("p", { class: "hint" }, "Integrantes ficam na página Integrantes do projeto."),
       el("div", { class: "row" },
         el("button", { class: "btn", type: "submit", id: "epSave" }, "Salvar"),
         el("button", { class: "btn ghost", type: "button", onclick: () => { S.draft.editProject = null; rerender(); } }, "Cancelar")),
@@ -114,19 +112,28 @@ window.Liga = window.Liga || {};
     if (!p.members.length) {
       return el("section", { class: "panel" }, el("h2", null, "Nova tarefa"),
         el("p", { class: "muted" }, "O projeto não tem integrantes. Adicione alguém (você, por exemplo) para criar tarefas."),
-        el("div", null, el("button", { class: "btn ghost", type: "button", onclick: () => {
-          L.app.go({ page: "project", pid: p.id });
-          S.draft.editProject = { name: p.name, desc: p.desc, members: [...p.members] };
-          rerender();
-        } }, "Adicionar integrantes")));
+        el("div", null, el("button", { class: "btn ghost", type: "button", onclick: () => L.app.go({ page: "members", pid: p.id }) }, "Adicionar integrantes")));
     }
-    if (!p.members.includes(d.assignee)) d.assignee = p.members.includes(S.myId) ? S.myId : p.members[0];
+    // em inscrições, quem não é dono nem ajudante só cria tarefas para si
+    const selfOnly = !L.perms.canEditTasks(s);
+    const people = selfOnly ? [S.myId] : p.members;
+    if (!people.includes(d.assignee)) d.assignee = people.includes(S.myId) ? S.myId : people[0];
+    const insc = s.status === "inscricoes";
+    let quota = null;
+    if (insc) {
+      const st = L.enroll.personStatus(s, d.assignee);
+      quota = el("p", { class: "hint" + (st.ready ? "" : " warn") },
+        (d.assignee === S.myId ? "Você tem " : L.ui.nameOf(d.assignee) + " tem ") +
+        plural(st.obr, "obrigatória", "obrigatórias") + " (mín. " + s.req.minObr + ") e " +
+        plural(st.normal, "normal", "normais") + " (" + s.req.minTasks + " a " + s.req.maxTasks + "). " +
+        (st.ready ? "Pronto para participar." : st.text + "."));
+    }
 
     return el("form", { class: "f panel", id: "taskForm", onsubmit: async (ev) => {
       ev.preventDefault();
       const title = clean(d.title, 80);
       if (!title) return setErr("tErr", "Escreva o nome da tarefa.");
-      if (!p.members.includes(d.assignee)) return setErr("tErr", "Escolha quem vai fazer.");
+      if (!people.includes(d.assignee)) return setErr("tErr", "Escolha quem vai fazer.");
       setErr("tErr", "");
       $("tSubmit").disabled = true;
       try {
@@ -139,13 +146,13 @@ window.Liga = window.Liga || {};
       }
       if ($("tSubmit")) $("tSubmit").disabled = false;
     } },
-      el("h2", null, "Nova tarefa"),
+      el("h2", null, insc && selfOnly ? "Suas tarefas" : "Nova tarefa"),
       el("div", { class: "row" },
         el("div", { class: "field grow" }, el("label", { for: "tTitle" }, "Tarefa"),
           input({ id: "tTitle", maxlength: "80", required: true, placeholder: "Ler 20 páginas" }, d, "title")),
-        el("div", { class: "field", style: "flex:0 1 200px" }, el("label", { for: "tWho" }, "Quem faz"),
-          el("select", { id: "tWho", value: d.assignee, onchange: (e) => { d.assignee = e.target.value; } },
-            p.members.map((id) => el("option", { value: id }, L.ui.nameOf(id) + (id === S.myId ? " (você)" : "")))))),
+        selfOnly ? null : el("div", { class: "field", style: "flex:0 1 200px" }, el("label", { for: "tWho" }, "Quem faz"),
+          el("select", { id: "tWho", value: d.assignee, onchange: (e) => { d.assignee = e.target.value; rerender(); } },
+            people.map((id) => el("option", { value: id }, L.ui.nameOf(id) + (id === S.myId ? " (você)" : "")))))),
       el("div", { class: "row" },
         el("div", { class: "field" }, el("span", { class: "lbl" }, "Tipo"), seg(d, "type", [["normal", "Normal"], ["obrigatoria", "Obrigatória"]])),
         el("div", { class: "field" }, el("span", { class: "lbl" }, "Frequência"), seg(d, "kind", [["daily", "Diária"], ["weekly", "Semanal"]]))),
@@ -153,6 +160,7 @@ window.Liga = window.Liga || {};
       el("p", { class: "hint" }, d.type === "normal"
         ? "Ganha os pontos a cada " + (d.kind === "daily" ? "dia" : "semana") + " em que for feita."
         : "Não dá pontos. Perde os pontos a cada " + (d.kind === "daily" ? "dia" : "semana") + " sem fazer."),
+      quota,
       el("div", { class: "row" }, el("button", { class: "btn", type: "submit", id: "tSubmit" }, "Criar tarefa")),
       el("div", { class: "err", id: "tErr" }));
   }
@@ -160,7 +168,7 @@ window.Liga = window.Liga || {};
   function taskEditCard(task) {
     const d = S.draft.editTask;
     const sub = S.subs[task.subId], p = sub && S.projects[sub.projectId];
-    const people = p ? [...new Set([...p.members, task.assignee])] : [task.assignee];
+    const people = p && L.perms.canEditTasks(sub) ? [...new Set([...p.members, task.assignee])] : [task.assignee];
     return el("form", { class: "task f", id: "editTaskForm", onsubmit: async (ev) => {
       ev.preventDefault();
       const title = clean(d.title, 80);

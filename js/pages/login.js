@@ -73,11 +73,13 @@ window.Liga.pages = window.Liga.pages || {};
 
   L.pages.login = function (v) {
     const d = S.draft.auth;
+    if (S.invite && !d.touched) { d.tab = "signup"; d.touched = true; }   // quem chega por convite geralmente ainda não tem conta
     const tab = (id, label) => el("button", { type: "button", class: d.tab === id ? "on" : "",
       onclick: () => { d.tab = id; d.err = ""; d.mfa = null; rerender(); } }, label);
 
     v.append(el("div", { class: "auth" }, el("div", { class: "auth-box" },
       el("div", { class: "brand" }, el("span", { class: "mark", "aria-hidden": "true" }), el("span", null, "Liga das Tarefas")),
+      S.invite ? el("div", { class: "notice invite-note" }, el("b", null, "Você recebeu um convite."), " Entre ou crie sua conta e você já entra no projeto.") : null,
       el("section", { class: "panel" },
         d.mfa ? el("h2", null, "Verificação em duas etapas") : el("div", { class: "tabs" }, tab("login", "Entrar"), tab("signup", "Criar conta")),
         d.tab === "signup" && !d.mfa ? signupForm(d) : loginForm(d),

@@ -18,7 +18,7 @@ window.Liga.pages = window.Liga.pages || {};
           el("p", null, "Dá para marcar até 6 dias para trás.")),
         el("section", { class: "panel" },
           el("h2", null, "Quem faz o quê"),
-          el("p", null, "Dono da liga: cria, edita e apaga projetos e escolhe os integrantes. Pode mexer em tudo."),
+          el("p", null, "Qualquer pessoa cria projetos e vira o dono do projeto. O dono edita e apaga o projeto, adiciona e tira integrantes, cria links de convite, pode passar o projeto para outro integrante e mexe em todas as listRats dele."),
           el("p", null, "Qualquer integrante de um projeto pode criar uma listRat nele e vira o dono dela."),
           el("p", null, "Dono da listRat: renomeia, apaga e escolhe os ajudantes. Dono e ajudantes criam, editam e apagam as tarefas da listRat."),
           el("p", null, "Cada pessoa só marca as próprias tarefas.")),

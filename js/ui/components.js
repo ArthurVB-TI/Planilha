@@ -255,19 +255,19 @@ window.Liga = window.Liga || {};
 
   function visibleProjects() {
     return Object.values(S.projects)
-      .filter((p) => S.isOwner || p.members.includes(S.myId))
+      .filter((p) => L.perms.canSeeProject(p))
       .sort((a, b) => a.createdAt - b.createdAt);
   }
 
   function projectList() {
     const list = visibleProjects();
-    if (!list.length) return empty(S.isOwner ? "Nenhum projeto ainda." : "Você ainda não está em nenhum projeto.");
+    if (!list.length) return empty("Você ainda não está em nenhum projeto. Crie um em \"Novo projeto\" ou abra um link de convite.");
     return el("div", { class: "plist" }, list.map((p) => {
       const subsN = Object.values(S.subs).filter((s) => s.projectId === p.id).length;
       const member = p.members.includes(S.myId);
       const sc = member ? L.score.scoreFor(S.myId, L.score.tasksOfProject(p.id)) : null;
       return el("button", { type: "button", class: "prow", onclick: () => go({ page: "project", pid: p.id }) },
-        el("div", { class: "t", text: p.name }),
+        el("div", { class: "t" }, p.name, L.perms.isProjectOwner(p) ? el("span", { class: "role" }, "dono") : null),
         p.desc ? el("div", { class: "d", text: p.desc }) : null,
         el("div", { class: "m" }, plural(p.members.length, "integrante", "integrantes") + " · " + plural(subsN, "listRat", "listRats")),
         sc ? el("div", { class: "score" }, fmtTotal(sc.total), el("small", null, "seus pontos")) : null);

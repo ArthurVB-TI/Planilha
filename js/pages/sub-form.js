@@ -71,7 +71,7 @@ window.Liga.pages = window.Liga.pages || {};
 
     v.append(L.ui.pageHead(editing ? "Editar listRat" : "Nova listRat", editing ? s.name + " · " + p.name : "Em " + p.name));
     if (!allowed) {
-      v.append(L.ui.empty(editing ? "Só o dono da listRat (ou o dono da liga) edita." : "Só quem é integrante do projeto cria listRats."));
+      v.append(L.ui.empty(editing ? "Só o dono da listRat (ou o dono do projeto) edita." : "Só quem é integrante do projeto cria listRats."));
       return;
     }
 

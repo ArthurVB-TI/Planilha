@@ -107,7 +107,7 @@ window.Liga = window.Liga || {};
       players: {}, projects: {}, subs: {}, tasks: {},
       loaded: { players: false, projects: false, subs: false, tasks: false },
       mine: null, myLoaded: false, pending: false, writing: false,
-      ownerId: null, configLoaded: false, isOwner: false, readOnly: false, photoCache: {},
+      ownerId: null, configLoaded: false, readOnly: false, photoCache: {},
       invites: {}, invitesOn: false,
     });
     S.draft.settings = {};
@@ -166,8 +166,11 @@ window.Liga = window.Liga || {};
   }
   window.addEventListener("hashchange", () => { readInvite(); if (S.invite && S.myId) checkLoaded(); render(); });
 
-  function listen(coll, key, sanitize) {
-    S.unsubs.push(S.backend.watch(coll, (docs) => {
+  function listen(coll, key, sanitize, where) {
+    const watch = where
+      ? (cb, err) => S.backend.watchWhere(coll, where[0], where[1], cb, err)
+      : (cb, err) => S.backend.watch(coll, cb, err);
+    S.unsubs.push(watch((docs) => {
       const out = {};
       for (const id in docs) {
         const v = sanitize(id, docs[id] || {});
@@ -204,14 +207,13 @@ window.Liga = window.Liga || {};
 
     S.draft.auth = S.newAuthDraft();
     setStatus("Conectando…");
+    // "dono da liga" não existe mais; config/liga só serve de dono para projetos antigos sem dono gravado
     S.unsubs.push(S.backend.watchDoc("config/liga", (d) => {
       S.ownerId = d && typeof d.owner === "string" ? d.owner : null;
-      S.isOwner = !!S.ownerId && S.ownerId === S.myId;
       S.configLoaded = true;
-      // só o dono da liga vê os links de convite
-      if (S.isOwner && !S.invitesOn) { S.invitesOn = true; listen("convites", "invites", san.invite); }
       render();
-    }, onListenError));
+    }, () => { S.configLoaded = true; }));
+    listen("convites", "invites", san.invite, ["createdBy", user.id]);   // só os links que eu criei
     listen("players", "players", san.player);
     listen("projetos", "projects", san.project);
     listen("subprojetos", "subs", san.sub);

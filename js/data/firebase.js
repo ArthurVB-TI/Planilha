@@ -203,6 +203,12 @@ window.Liga.data = window.Liga.data || {};
         (snap) => { const out = {}; snap.forEach((d) => { out[d.id] = d.data(); }); cb(out); },
         (e) => onErr && onErr(mapErr(e)));
     },
+    // só os documentos com campo == valor (ex.: convites criados por mim)
+    watchWhere(coll, field, value, cb, onErr) {
+      return F.onSnapshot(F.query(F.collection(fs, coll), F.where(field, "==", value)),
+        (snap) => { const out = {}; snap.forEach((d) => { out[d.id] = d.data(); }); cb(out); },
+        (e) => onErr && onErr(mapErr(e)));
+    },
     watchDoc(path, cb, onErr) {
       return F.onSnapshot(F.doc(fs, path),
         (d) => cb(d.exists() ? d.data() : null),
@@ -217,11 +223,11 @@ window.Liga.data = window.Liga.data || {};
     set(path, data) { return wrap(F.setDoc(F.doc(fs, path), data)); },
     update(path, data) { return wrap(F.updateDoc(F.doc(fs, path), data)); },
     remove(path) { return wrap(F.deleteDoc(F.doc(fs, path))); },
+    // apaga um por um (em grupos de 20 ao mesmo tempo): em lote, as regras do Firestore
+    // contam as consultas de permissão de todos os documentos juntos e podem recusar
     async removeMany(paths) {
-      for (let i = 0; i < paths.length; i += 450) {
-        const batch = F.writeBatch(fs);
-        for (const p of paths.slice(i, i + 450)) batch.delete(F.doc(fs, p));
-        await wrap(batch.commit());
+      for (let i = 0; i < paths.length; i += 20) {
+        await Promise.all(paths.slice(i, i + 20).map((p) => wrap(F.deleteDoc(F.doc(fs, p)))));
       }
     },
     claimOwner(uid) { return wrap(F.setDoc(F.doc(fs, "config/liga"), { owner: uid, createdAt: Date.now() })); },

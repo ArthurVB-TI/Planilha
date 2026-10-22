@@ -50,7 +50,8 @@ window.Liga = window.Liga || {};
     const name = clean(d.name, 60);
     if (!name) return null;
     const members = Array.isArray(d.members) ? [...new Set(d.members.filter(isId))].slice(0, 50) : [];
-    return { id, name, desc: clean(d.desc, 200), members, createdAt: Number(d.createdAt) || 0 };
+    const owner = isId(d.owner) ? d.owner : "";
+    return { id, name, desc: clean(d.desc, 200), members, owner, createdAt: Number(d.createdAt) || 0 };
   }
 
   function sub(id, d) {

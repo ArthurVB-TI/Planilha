@@ -6,12 +6,13 @@ rules_version = '2';
 // Resumo:
 // - "usernames" só pode ser consultado por nome exato (para entrar com o usuário); ninguém lista;
 // - o resto só quem está logado lê;
-// - o primeiro a "Assumir como dono" vira o dono (config/liga) e isso não muda mais;
-// - só o dono da liga cria/edita/apaga projetos;
+// - qualquer pessoa logada cria projetos e vira o DONO DO PROJETO (campo owner);
+// - o dono do projeto edita, apaga, escolhe os integrantes e pode passar o projeto para outro integrante;
+// - o dono do projeto pode mexer em todas as listRats e tarefas do projeto;
 // - qualquer integrante de um projeto cria listRats nele (coleção subprojetos) e vira o dono delas;
 // - o dono da listRat edita (nome, detalhes, início e fim), apaga e escolhe ajudantes; dono e ajudantes cuidam das tarefas;
-// - o dono da liga pode mexer em tudo;
 // - quem tem um link de convite válido pode se colocar como integrante do projeto do convite;
+// - só o dono do projeto cria links de convite; cada um só vê os links que criou;
 // - listRat nova fica em inscrições: cada integrante cria/edita/apaga as próprias tarefas dela;
 // - cada jogador só grava o próprio documento players/<seu uid>;
 // - cada jogador só cria e apaga as próprias fotos.
@@ -22,15 +23,22 @@ service cloud.firestore {
     function signedIn() {
       return request.auth != null;
     }
-    function isProjectMember(pid) {
-      return signedIn()
-        && request.auth.uid in get(/databases/$(database)/documents/projetos/$(pid)).data.members;
+    function project(pid) {
+      return get(/databases/$(database)/documents/projetos/$(pid)).data;
     }
-    // dono ou ajudante da listRat (listRats antigas sem dono só o dono da liga mexe)
+    function isProjectMember(pid) {
+      return signedIn() && request.auth.uid in project(pid).members;
+    }
+    function isProjectOwner(pid) {
+      return signedIn() && project(pid).get('owner', '') == request.auth.uid;
+    }
+    // dono ou ajudante da listRat, ou dono do projeto dela
     function canEditSub(sid) {
       let s = get(/databases/$(database)/documents/subprojetos/$(sid)).data;
       return signedIn()
-        && (s.get('owner', '') == request.auth.uid || request.auth.uid in s.get('helpers', []));
+        && (s.get('owner', '') == request.auth.uid
+          || request.auth.uid in s.get('helpers', [])
+          || isProjectOwner(s.projectId));
     }
     // detalhes (até 500 letras) e datas de início/fim da listRat ("" = sem data)
     function subInfoOk(d) {
@@ -38,10 +46,13 @@ service cloud.firestore {
         && d.get('start', '') is string && d.get('start', '').size() <= 10
         && d.get('end', '') is string && d.get('end', '').size() <= 10;
     }
-    function isOwner() {
-      return signedIn()
-        && exists(/databases/$(database)/documents/config/liga)
-        && get(/databases/$(database)/documents/config/liga).data.owner == request.auth.uid;
+    // formato de um projeto: o dono precisa ser integrante
+    function projectOk(d) {
+      return d.keys().hasOnly(['name', 'desc', 'members', 'owner', 'createdAt', 'joinedVia'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 60
+        && d.get('desc', '') is string && d.get('desc', '').size() <= 200
+        && d.members is list && d.members.size() <= 50
+        && d.owner is string && d.owner in d.members;
     }
 
     match /usernames/{name} {
@@ -58,20 +69,23 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
+    // antigo "dono da liga": não é mais usado (só lido para projetos antigos sem dono)
     match /config/liga {
       allow read: if signedIn();
-      allow create: if signedIn()
-        && request.resource.data.keys().hasOnly(['owner', 'createdAt'])
-        && request.resource.data.owner == request.auth.uid;
-      allow update, delete: if false;
+      allow write: if false;
     }
 
     match /projetos/{id} {
       allow read: if signedIn();
-      allow write: if isOwner()
-        && (request.resource == null || (
-          request.resource.data.name is string && request.resource.data.name.size() <= 60
-          && request.resource.data.members is list && request.resource.data.members.size() <= 50));
+      // qualquer um cria; quem cria é o dono
+      allow create: if signedIn()
+        && projectOk(request.resource.data)
+        && request.resource.data.owner == request.auth.uid;
+      // o dono edita (inclusive passar o projeto para outro integrante) e apaga
+      allow update: if signedIn()
+        && resource.data.get('owner', '') == request.auth.uid
+        && projectOk(request.resource.data);
+      allow delete: if signedIn() && resource.data.get('owner', '') == request.auth.uid;
       // entrar pelo link de convite: só se acrescentar a si mesmo, com um convite válido deste projeto
       allow update: if signedIn() && joinByInvite(id);
     }
@@ -91,26 +105,32 @@ service cloud.firestore {
     // links de convite: o código é o próprio id (32 letras aleatórias); só dá para ler sabendo o código
     match /convites/{token} {
       allow get: if signedIn();
-      allow list: if isOwner();
-      allow create: if isOwner()
+      allow list: if signedIn() && resource.data.createdBy == request.auth.uid;
+      allow create: if signedIn()
         && token.matches('^[a-f0-9]{32}$')
         && request.resource.data.keys().hasOnly(['projectId', 'expiresAt', 'createdBy', 'createdAt'])
+        && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.projectId is string
-        && request.resource.data.expiresAt is number;
+        && request.resource.data.expiresAt is number
+        && isProjectOwner(request.resource.data.projectId);
       allow update: if false;
-      allow delete: if isOwner();
+      allow delete: if signedIn() && resource.data.createdBy == request.auth.uid;
     }
 
     match /subprojetos/{id} {
       allow read: if signedIn();
       allow create: if signedIn()
-        && (isOwner() || isProjectMember(request.resource.data.projectId))
+        && (isProjectMember(request.resource.data.projectId) || isProjectOwner(request.resource.data.projectId))
         && request.resource.data.keys().hasOnly(['projectId', 'name', 'desc', 'start', 'end', 'status', 'req', 'participants', 'startedAt', 'joined', 'owner', 'helpers', 'createdAt'])
         && request.resource.data.owner == request.auth.uid
         && request.resource.data.name is string && request.resource.data.name.size() <= 60
         && subInfoOk(request.resource.data)
         && request.resource.data.helpers is list && request.resource.data.helpers.size() <= 20;
-      allow update: if (isOwner() && subInfoOk(request.resource.data))
+      // dono do projeto: tudo (sem trocar a listRat de projeto)
+      allow update: if (isProjectOwner(resource.data.projectId)
+          && request.resource.data.projectId == resource.data.projectId
+          && subInfoOk(request.resource.data))
+        // dono da listRat
         || (signedIn()
           && resource.data.get('owner', '') == request.auth.uid
           && request.resource.data.owner == resource.data.owner
@@ -121,7 +141,8 @@ service cloud.firestore {
         || (signedIn()
           && request.auth.uid in resource.data.get('helpers', [])
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['req', 'status', 'participants', 'startedAt', 'joined']));
-      allow delete: if isOwner() || (signedIn() && resource.data.get('owner', '') == request.auth.uid);
+      allow delete: if (signedIn() && resource.data.get('owner', '') == request.auth.uid)
+        || isProjectOwner(resource.data.projectId);
     }
 
     // em inscrições, cada integrante do projeto mexe nas próprias tarefas da listRat
@@ -130,19 +151,18 @@ service cloud.firestore {
       return signedIn()
         && s.get('status', 'ativa') == 'inscricoes'
         && assignee == request.auth.uid
-        && request.auth.uid in get(/databases/$(database)/documents/projetos/$(s.projectId)).data.members;
+        && request.auth.uid in project(s.projectId).members;
     }
 
     match /tarefas/{id} {
       allow read: if signedIn();
-      allow create: if isOwner() || canEditSub(request.resource.data.subId)
+      allow create: if canEditSub(request.resource.data.subId)
         || selfFill(request.resource.data.subId, request.resource.data.assignee);
-      allow update: if isOwner()
-        || (canEditSub(resource.data.subId) && request.resource.data.subId == resource.data.subId)
+      allow update: if (canEditSub(resource.data.subId) && request.resource.data.subId == resource.data.subId)
         || (selfFill(resource.data.subId, resource.data.assignee)
           && request.resource.data.subId == resource.data.subId
           && request.resource.data.assignee == resource.data.assignee);
-      allow delete: if isOwner() || canEditSub(resource.data.subId)
+      allow delete: if canEditSub(resource.data.subId)
         || selfFill(resource.data.subId, resource.data.assignee);
     }
 
@@ -155,7 +175,7 @@ service cloud.firestore {
         && request.resource.data.nick.size() <= 20
         && request.resource.data.done is map
         && request.resource.data.proofs is map;
-      allow delete: if signedIn() && (request.auth.uid == uid || isOwner());
+      allow delete: if signedIn() && request.auth.uid == uid;
     }
 
     match /fotos/{id} {

@@ -13,13 +13,12 @@ window.Liga = window.Liga || {};
     authReady: false,       // já sabemos se tem alguém logado?
     user: null,             // { id, name, email, emailVerified, createdAt, mfa }
     myId: null,
-    ownerId: null,          // dono da liga (documento config/liga)
+    ownerId: null,          // antigo "dono da liga" (config/liga): só vale como dono de projetos antigos sem dono
     configLoaded: false,
-    isOwner: false,
     readOnly: false,
 
     players: {}, projects: {}, subs: {}, tasks: {},
-    invites: {}, invitesOn: false,  // links de convite (só o dono da liga lê)
+    invites: {}, invitesOn: false,  // links de convite que eu criei
     invite: null, joining: false,   // código de convite recebido pelo endereço (#convite=...)
     loaded: { players: false, projects: false, subs: false, tasks: false },
 

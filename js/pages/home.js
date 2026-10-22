@@ -45,9 +45,11 @@ window.Liga.pages = window.Liga.pages || {};
       L.fx.progress(done.length, mineTasks.length, meter);
     }
 
-    if (S.mode === "firebase" && S.configLoaded && !S.ownerId) {
-      v.append(el("div", { class: "status warn" }, "A liga ainda não tem dono. Se o site é seu, assuma em ",
-        el("button", { class: "link", type: "button", onclick: () => L.app.go({ page: "settings" }) }, "Configurações"), "."));
+    if (!L.ui.visibleProjects().length) {
+      v.append(el("section", { class: "panel" },
+        el("h2", null, "Comece por um projeto"),
+        el("p", { class: "muted small" }, "Crie um projeto (você vira o dono dele) e chame seus amigos com um link de convite. Se alguém já te mandou um link, é só abrir."),
+        el("div", null, el("button", { class: "btn", type: "button", onclick: () => L.app.go({ page: "new" }) }, "Novo projeto"))));
     }
 
     // listRats em inscrições onde você ainda precisa preencher tarefas

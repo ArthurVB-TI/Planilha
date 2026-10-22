@@ -5,6 +5,7 @@
    Interface de um "backend":
      start(onAuth)                chama onAuth(usuario | null) quando alguém entra ou sai
      watch(colecao, cb, onErr)    cb({ id: dados, ... }) a cada mudança; devolve função para parar
+     watchWhere(colecao, campo, valor, cb, onErr)  igual, só com os documentos em que campo == valor
      watchDoc(caminho, cb, onErr)
      get(caminho) -> dados | null   newId(colecao)
      set / update / remove / removeMany
@@ -223,6 +224,16 @@ window.Liga.data = window.Liga.data || {};
 
     watch(coll, cb) {
       const fire = () => cb(clone(db[coll] || {}));
+      listeners.add(fire);
+      setTimeout(fire, 0);
+      return () => listeners.delete(fire);
+    },
+    watchWhere(coll, field, value, cb) {
+      const fire = () => {
+        const all = db[coll] || {}, out = {};
+        for (const id in all) if (all[id] && all[id][field] === value) out[id] = clone(all[id]);
+        cb(out);
+      };
       listeners.add(fire);
       setTimeout(fire, 0);
       return () => listeners.delete(fire);

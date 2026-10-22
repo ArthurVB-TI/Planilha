@@ -28,9 +28,9 @@ window.Liga.pages = window.Liga.pages || {};
           S.draft.charts = Object.assign(S.draft.charts || { range: "30", type: "pontos", table: false }, { pid: p.id, sid: "" });
           go({ page: "charts" });
         } }, icon("chart"), "Gráficos"),
-        S.isOwner && !S.draft.editProject ? el("button", { class: "btn ghost", type: "button", onclick: () => startEdit(p) }, "Editar") : null));
+        L.perms.isProjectOwner(p) && !S.draft.editProject ? el("button", { class: "btn ghost", type: "button", onclick: () => startEdit(p) }, "Editar") : null));
     v.append(head);
-    if (S.isOwner && S.draft.editProject) v.append(L.forms.projectEditForm(p));
+    if (L.perms.isProjectOwner(p) && S.draft.editProject) v.append(L.forms.projectEditForm(p));
 
     const grid = el("div", { class: "grid" });
     const left = el("div", { class: "stack" }), right = el("div", { class: "stack" });
@@ -74,14 +74,14 @@ window.Liga.pages = window.Liga.pages || {};
       ? el("div", { class: "people" }, p.members.map((id) =>
           el("button", { type: "button", class: "person", title: "Ver " + L.ui.nameOf(id), onclick: () => go({ page: "members", pid: p.id, uid: id }) },
             L.ui.avatar(id), el("span", { text: L.ui.nameOf(id) }))))
-      : L.ui.empty(S.isOwner ? "Ninguém ainda. Adicione quem vai participar." : "Sem integrantes."));
-    mp.append(el("div", null, el("button", { class: S.isOwner ? "btn" : "btn ghost", type: "button", onclick: openMembers },
-      icon("users"), S.isOwner ? "Adicionar e gerenciar" : "Ver integrantes")));
+      : L.ui.empty(L.perms.isProjectOwner(p) ? "Ninguém ainda. Adicione quem vai participar." : "Sem integrantes."));
+    mp.append(el("div", null, el("button", { class: L.perms.isProjectOwner(p) ? "btn" : "btn ghost", type: "button", onclick: openMembers },
+      icon("users"), L.perms.isProjectOwner(p) ? "Adicionar e gerenciar" : "Ver integrantes")));
     left.append(mp);
 
     right.append(el("section", { class: "panel" }, el("h2", null, "Placar do projeto"), L.ui.board(p.members, ptasks, "p" + p.id)));
 
-    if (S.isOwner) {
+    if (L.perms.isProjectOwner(p)) {
       right.append(el("section", { class: "panel" },
         el("h3", null, "Apagar projeto"),
         el("p", { class: "muted small" }, "Apaga o projeto, as listRats e as tarefas dele."),

@@ -1,4 +1,4 @@
-/* pages/new-project.js — Novo projeto (só o dono) */
+/* pages/new-project.js — Novo projeto (qualquer pessoa; quem cria vira o dono do projeto) */
 window.Liga = window.Liga || {};
 window.Liga.pages = window.Liga.pages || {};
 (function (L) {
@@ -8,10 +8,6 @@ window.Liga.pages = window.Liga.pages || {};
 
   L.pages.new = function (v) {
     L.ui.crumbs([{ label: "Projetos", go: () => L.app.go({ page: "projects" }) }, { label: "Novo projeto" }]);
-    if (!S.isOwner) {
-      v.append(L.ui.pageHead("Novo projeto"), L.ui.empty("Só o dono da liga cria projetos."));
-      return;
-    }
     if (!S.draft.newProject) S.draft.newProject = { name: "", desc: "" };
     v.append(L.ui.pageHead("Novo projeto"), L.forms.newProjectForm());
   };

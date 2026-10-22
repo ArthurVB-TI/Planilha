@@ -2,7 +2,7 @@
    Lista: ver, editar (papel em cada listRat, passar tarefas) e tirar.
    Lado direito: procurar e adicionar quem já tem conta.
    Com S.view.uid abre a ficha de uma pessoa no projeto.
-   Só o dono da liga adiciona, edita e tira; os outros integrantes só veem. */
+   Só o dono do projeto adiciona, edita, tira e passa o projeto; os outros integrantes só veem. */
 window.Liga = window.Liga || {};
 window.Liga.pages = window.Liga.pages || {};
 (function (L) {
@@ -89,11 +89,30 @@ window.Liga.pages = window.Liga.pages || {};
     }
 
     return el("div", { class: "medit" },
+      P.projOwner(p) !== id ? transferPanel(p, id, true) : null,
       el("div", { class: "lbl" }, "Papel nas listRats"),
       roles,
       el("p", { class: "hint" }, "Dono e ajudantes criam e editam as tarefas da listRat. Quem era dono vira ajudante quando outra pessoa assume."),
       move,
       move ? el("p", { class: "hint" }, "As marcações antigas ficam com quem fez; a pessoa nova começa do zero nessas tarefas.") : null);
+  }
+
+  /* ---------- passar o projeto para outra pessoa ---------- */
+  function transferPanel(p, id, inline) {
+    const asking = S.confirm === "own:" + id;
+    const body = asking
+      ? el("div", { class: "row", style: "align-items:center" },
+          el("span", { class: "small" }, "Passar o projeto para ", el("b", { text: L.ui.nameOf(id) }), "? Você continua como integrante, mas só o novo dono gerencia."),
+          el("button", { class: "btn sm", type: "button", onclick: async () => {
+            S.confirm = null;
+            try { await L.actions.transferProject(p.id, id); note(L.ui.nameOf(id) + " agora é o dono do projeto."); draft().edit = null; }
+            catch (e) { err(e, "Não deu para passar o projeto."); }
+            rerender();
+          } }, "Passar"),
+          el("button", { class: "btn ghost sm", type: "button", onclick: () => { S.confirm = null; rerender(); } }, "Cancelar"))
+      : el("div", null, el("button", { class: inline ? "link" : "btn ghost sm", type: "button", onclick: () => { S.confirm = "own:" + id; rerender(); } },
+          inline ? "tornar dono do projeto" : "Tornar " + L.ui.nameOf(id) + " dono do projeto"));
+    return inline ? body : el("section", { class: "panel" }, el("h3", null, "Dono do projeto"), body);
   }
 
   /* ---------- tirar do projeto ---------- */
@@ -102,7 +121,7 @@ window.Liga.pages = window.Liga.pages || {};
     const sm = summary(p, id);
     const others = p.members.filter((x) => x !== id);
     if (d.moveTo && !others.includes(d.moveTo)) d.moveTo = "";
-    const heir = d.moveTo || S.ownerId;
+    const heir = d.moveTo || P.projOwner(p);
 
     return el("div", { class: "mremove" },
       el("p", null, "Tirar ", el("b", { text: L.ui.nameOf(id) }), " do projeto?"),
@@ -143,7 +162,7 @@ window.Liga.pages = window.Liga.pages || {};
       el("button", { class: "btn ghost sm", type: "button", onclick: () => go({ page: "members", pid: p.id, uid: id }) }, "Ver"),
       admin ? el("button", { class: "btn ghost sm" + (editing ? " on" : ""), type: "button", "aria-expanded": editing ? "true" : "false",
         onclick: () => { d.edit = editing ? null : id; S.confirm = null; rerender(); } }, editing ? "Fechar" : "Editar") : null,
-      admin ? el("button", { class: "btn ghost sm danger-t", type: "button",
+      admin && P.projOwner(p) !== id ? el("button", { class: "btn ghost sm danger-t", type: "button",
         onclick: () => { S.confirm = removing ? null : "m:" + id; d.edit = null; d.moveTo = ""; rerender(); } }, "Tirar") : null);
 
     return el("div", { class: "mrow" + (editing || removing ? " open" : "") + (fresh ? " fresh" : "") },
@@ -151,7 +170,7 @@ window.Liga.pages = window.Liga.pages || {};
         L.ui.avatar(id),
         el("div", { class: "mi" },
           el("div", { class: "pname" }, el("span", { text: L.ui.nameOf(id) }), you(id),
-            id === S.ownerId ? el("span", { class: "badge" }, "dono da liga") : null),
+            P.projOwner(p) === id ? el("span", { class: "badge" }, "dono do projeto") : null),
           el("div", { class: "small muted", text: rolesLine(sm) })),
         el("div", { class: "pts" + (sm.score.total < 0 ? " neg" : "") }, fmtTotal(sm.score.total)),
         acts),
@@ -288,7 +307,7 @@ window.Liga.pages = window.Liga.pages || {};
 
   /* ---------- ficha de uma pessoa ---------- */
   function detail(v, p, id) {
-    const admin = S.isOwner;
+    const admin = P.isProjectOwner(p);
     const inProject = p.members.includes(id);
     L.ui.crumbs([
       { label: "Projetos", go: () => go({ page: "projects" }) },
@@ -307,7 +326,7 @@ window.Liga.pages = window.Liga.pages || {};
       el("div", { class: "who" }, L.ui.avatar(id, true),
         el("div", { style: "min-width:0" },
           el("h1", { class: "pname" }, el("span", { text: L.ui.nameOf(id) }), you(id)),
-          el("div", { class: "sub-t" }, inProject ? "Integrante de " + p.name + (id === S.ownerId ? " · dono da liga" : "") : "Fora do projeto " + p.name))),
+          el("div", { class: "sub-t" }, inProject ? "Integrante de " + p.name + (P.projOwner(p) === id ? " · dono do projeto" : "") : "Fora do projeto " + p.name))),
       el("div", { class: "stats" },
         L.ui.stat("Pontos aqui", fmtTotal(sm.score.total), sm.score.total < 0 ? "neg" : ""),
         L.ui.stat("Posição", pos ? pos + "º de " + p.members.length : "—"),
@@ -347,7 +366,8 @@ window.Liga.pages = window.Liga.pages || {};
     }
     right.append(rp);
 
-    if (admin) {
+    if (admin && inProject && P.projOwner(p) !== id) right.append(transferPanel(p, id));
+    if (admin && P.projOwner(p) !== id) {
       right.append(el("section", { class: "panel" },
         el("h3", null, inProject ? "Tirar do projeto" : "Voltar para o projeto"),
         inProject
@@ -369,7 +389,7 @@ window.Liga.pages = window.Liga.pages || {};
     const d = draft();
     if (S.view.uid) return detail(v, p, S.view.uid);
 
-    const admin = S.isOwner;
+    const admin = P.isProjectOwner(p);
     L.ui.crumbs([
       { label: "Projetos", go: () => go({ page: "projects" }) },
       { label: p.name, go: () => go({ page: "project", pid: p.id }) },
@@ -401,7 +421,7 @@ window.Liga.pages = window.Liga.pages || {};
 
     if (admin) right.append(invitePanel(p), addPanel(p));
     else right.append(el("section", { class: "panel" }, el("h2", null, "Quem gerencia"),
-      el("p", { class: "muted small" }, "Só o dono da liga (" + L.ui.nameOf(S.ownerId) + ") adiciona, edita e tira integrantes.")));
+      el("p", { class: "muted small" }, "Só o dono do projeto (" + L.ui.nameOf(P.projOwner(p)) + ") adiciona, edita e tira integrantes.")));
 
   };
 

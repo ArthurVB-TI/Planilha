@@ -6,7 +6,7 @@ Site estático (HTML + CSS + JavaScript puro, sem build). Para usar é preciso e
 
 | Modo | Quando | Onde ficam contas e dados |
 |---|---|---|
-| **Local** | `js/config.js` com `firebase: null` (padrão) | Só no navegador que abriu o site. Dá para criar várias contas para testar. A primeira conta criada vira a dona da liga. |
+| **Local** | `js/config.js` com `firebase: null` (padrão) | Só no navegador que abriu o site. Dá para criar várias contas para testar. |
 | **Firebase** | `js/config.js` com a configuração do seu projeto Firebase | Online. É o modo para jogar com os amigos. |
 
 ## Estrutura
@@ -66,7 +66,7 @@ Abrir o `index.html` com dois cliques também funciona no modo local, mas pelo s
    };
    ```
    Esses valores não são senha: podem ir para o GitHub. Quem protege os dados são as regras do passo 4.
-7. Abra o site, crie sua conta, vá em **Configurações** e clique em **Assumir como dono**. Faça isso antes de mandar o link para alguém: o primeiro que assumir vira o dono, e isso não muda mais.
+7. Abra o site e crie sua conta. Qualquer pessoa cria projetos e vira o dono do projeto que criou; para chamar os amigos, use o link de convite na página Integrantes do projeto.
 
 ### Verificação em duas etapas no Firebase (opcional)
 
@@ -106,7 +106,7 @@ git push -u origin main
 - **Projetos**: lista dos projetos — é por aqui que se entra num projeto. No menu, "Projetos" abre e mostra os projetos; o projeto aberto mostra as listRats dele.
 - **Projeto**: listRats, integrantes e placar do projeto. O dono edita e apaga.
 - **Integrantes** (botão "Adicionar e gerenciar" no projeto, ou "Integrantes" no menu): página só das pessoas do projeto. Ver a ficha de cada um (pontos, posição, tarefas, papéis), adicionar procurando pelo nome de usuário (nada é listado antes de digitar; quem não existe não aparece), editar o papel em cada listRat (nenhum, ajudante ou dono) e passar as tarefas para outra pessoa, e tirar do projeto (escolhendo se as tarefas ficam guardadas ou passam para alguém). Ao criar um projeto, o site já abre essa página.
-- **Link de convite** (na página Integrantes, só o dono da liga): cria um link que vale 1 hora, 1 dia ou 7 dias e já copia. Quem abre o link e entra na conta (ou cria uma) entra direto no projeto. Links vencidos param de funcionar e somem da lista. Só funciona entre aparelhos diferentes no modo Firebase (no modo local as contas ficam num navegador só).
+- **Link de convite** (na página Integrantes, só o dono do projeto): cria um link que vale 1 hora, 1 dia ou 7 dias e já copia. Quem abre o link e entra na conta (ou cria uma) entra direto no projeto. Links vencidos param de funcionar e somem da lista. Só funciona entre aparelhos diferentes no modo Firebase (no modo local as contas ficam num navegador só).
 - **Nova listRat / Editar listRat** (botão "Nova listRat" no projeto, "Editar" na listRat): página com nome, quando começa, quando termina (ou "Sem data para acabar", com atalhos de 1 semana a 6 meses) e detalhes. As tarefas só valem dentro desse período: antes do início e depois do fim não ganham nem perdem pontos, e não aparecem no Início.
 - **Inscrições da listRat**: toda listRat nova começa em inscrições. Cada integrante preenche as próprias tarefas e só participa quem cumprir as regras (o dono e os ajudantes definem: mínimo de obrigatórias — padrão 3 —, mínimo e máximo de tarefas normais e o desvio padrão máximo — padrão 2). O quadro mostra quem está pronto, os pontos possíveis por semana de cada um (tarefas normais; diária vale os pontos × 7) e o desvio padrão desses pontos entre os prontos. O desvio não impede ninguém de entrar; só impede começar. Ao começar, os participantes ficam gravados na listRat (`participants`) e só eles pontuam; dá para incluir alguém depois, valendo a partir daquele dia. Também aparece na página de editar a listRat e no Início ("Inscrições abertas").
 - **ListRat**: período e detalhes no topo, inscrições/participantes, equipe (dono e ajudantes), nova tarefa e uma coluna por participante.
@@ -120,12 +120,13 @@ O menu lateral abre e fecha pelo botão no topo; no celular ele vira uma gaveta.
 
 | Quem | Pode |
 |---|---|
-| Dono da liga | Criar, editar e apagar projetos e escolher integrantes. Mexer em tudo. |
+| Qualquer pessoa com conta | Criar projetos (vira o dono do projeto). |
+| Dono do projeto | Editar e apagar o projeto, adicionar e tirar integrantes, criar links de convite, passar o projeto para outro integrante e mexer em todas as listRats e tarefas dele. |
 | Integrante do projeto | Criar listRats no projeto (vira o dono delas) e marcar as próprias tarefas. |
 | Dono da listRat | Renomear e apagar a listRat, escolher os ajudantes (entre os integrantes) e cuidar das tarefas dela. |
 | Ajudante da listRat | Criar, editar e apagar as tarefas da listRat. |
 
-ListRats antigas, criadas antes de existir dono, ficam com o dono da liga.
+ListRats antigas, criadas antes de existir dono, ficam com o dono do projeto.
 
 ## Pontuação
 
@@ -144,7 +145,7 @@ Tarefas antigas marcadas como "Lendária" passam a valer como Difícil.
 
 ## Segurança
 
-- Só quem está logado vê alguma coisa. O site só mostra um projeto para quem é integrante dele (no banco, qualquer conta logada consegue ler os dados da liga).
+- Só quem está logado vê alguma coisa. O site só mostra um projeto para quem é integrante dele (no banco, qualquer conta logada consegue ler os dados do site).
 - As permissões da tabela "Quem pode o quê" são garantidas pelas regras do Firestore, não só pelo site.
 - Cada jogador grava só o próprio documento (`players/<uid>`) e só apaga as próprias fotos.
 - Pontos nunca são gravados: são recalculados das tarefas e marcações válidas.
@@ -156,8 +157,8 @@ Tarefas antigas marcadas como "Lendária" passam a valer como Difícil.
 | Coleção | Campos |
 |---|---|
 | `usernames/<usuario em minúsculas>` | uid, email |
-| `config/liga` | owner, createdAt |
-| `projetos/<id>` | name, desc, members[], createdAt, joinedVia (último convite usado) |
+| `config/liga` | owner (antigo "dono da liga"; não é mais usado) |
+| `projetos/<id>` | name, desc, members[], owner (dono do projeto), createdAt, joinedVia (último convite usado) |
 | `convites/<código>` | projectId, expiresAt, createdBy, createdAt |
 | `subprojetos/<id>` (listRats) | projectId, name, desc, start, end (AAAA-MM-DD ou vazio), status (inscricoes/ativa), req {minObr, minTasks, maxTasks, maxDesvio}, participants[], startedAt, joined {uid: dia}, owner, helpers[], createdAt |
 | `tarefas/<id>` | subId, projectId, title, assignee, kind (daily/weekly), type (normal/obrigatoria), diff (facil/media/dificil), startKey, createdAt |

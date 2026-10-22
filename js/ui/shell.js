@@ -84,8 +84,7 @@ window.Liga = window.Liga || {};
               item({ label: s.name, title: s.name, on: pg === "sub" && v.sid === s.id, onclick: () => go({ page: "sub", pid: p.id, sid: s.id }) }))));
         }
       }
-      if (!list.length && !S.isOwner) sub.append(el("div", { class: "empty-n" }, "Nenhum projeto"));
-      if (S.isOwner) sub.append(item({ label: "+ Novo projeto", cls: "add", on: pg === "new", onclick: () => go({ page: "new" }) }));
+      sub.append(item({ label: "+ Novo projeto", cls: "add", on: pg === "new", onclick: () => go({ page: "new" }) }));
       nav.append(sub);
     }
 
@@ -102,7 +101,7 @@ window.Liga = window.Liga || {};
         L.ui.avatar(S.myId),
         el("div", null,
           el("div", { class: "n", text: L.ui.nameOf(S.myId) }),
-          el("div", { class: "s", text: S.isOwner ? "dono da liga" : "jogador" }))));
+          el("div", { class: "s", text: (() => { const n = L.ui.visibleProjects().length; return n ? n + (n === 1 ? " projeto" : " projetos") : "sem projetos"; })() }))));
   }
 
   /* ---------- tema (padrão: escuro) ---------- */

@@ -10,7 +10,7 @@ window.Liga.pages = window.Liga.pages || {};
     L.ui.crumbs([{ label: "Projetos" }]);
     const n = L.ui.visibleProjects().length;
     v.append(L.ui.pageHead("Projetos", n ? n + (n === 1 ? " projeto" : " projetos") : "",
-      S.isOwner ? el("button", { class: "btn", type: "button", onclick: () => L.app.go({ page: "new" }) }, "Novo projeto") : null));
+      el("button", { class: "btn", type: "button", onclick: () => L.app.go({ page: "new" }) }, "Novo projeto")));
     v.append(L.ui.projectList());
   };
 })(window.Liga);

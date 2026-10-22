@@ -62,7 +62,11 @@ window.Liga.pages = window.Liga.pages || {};
       el("dt", null, "E-mail"), el("dd", null, el("span", { text: u.email || "—" }),
         auth().verifiesEmail ? el("span", { class: "badge " + (u.emailVerified ? "ok" : "warn") }, u.emailVerified ? "confirmado" : "não confirmado") : null),
       el("dt", null, "Conta criada"), el("dd", null, created),
-      el("dt", null, "Papel"), el("dd", null, S.isOwner ? "Dono da liga" : "Jogador"),
+      el("dt", null, "Projetos"), el("dd", null, (() => {
+        const mine = L.ui.visibleProjects();
+        const own = mine.filter((p) => L.perms.isProjectOwner(p)).length;
+        return mine.length ? mine.length + (mine.length === 1 ? " projeto" : " projetos") + (own ? " (dono de " + own + ")" : "") : "Nenhum ainda";
+      })()),
       el("dt", null, "Duas etapas"), el("dd", null, u.mfa ? "Ativada" : "Desativada"),
       el("dt", null, "Onde ficam os dados"), el("dd", null, S.mode === "local" ? "Só neste navegador (modo local)" : "Online (Firebase)"));
 
@@ -229,13 +233,6 @@ window.Liga.pages = window.Liga.pages || {};
               onclick: () => { L.shell.setTheme(val); rerender(); } }, label)))));
   }
 
-  function league() {
-    if (!(S.mode === "firebase" && S.configLoaded && !S.ownerId)) return null;
-    return section("Liga", "A liga ainda não tem dono. O dono cria projetos, listRats e tarefas. Só dá para assumir uma vez.",
-      el("div", null, el("button", { class: "btn", type: "button", onclick: () => run("own", () => L.actions.claimOwner(), "Agora você é o dono da liga.") }, "Assumir como dono")),
-      msg("own"));
-  }
-
   function signOut() {
     return section("Sair", null,
       el("div", null, el("button", { class: "btn ghost", type: "button", onclick: () => auth().signOut() }, "Sair da conta")));
@@ -246,6 +243,6 @@ window.Liga.pages = window.Liga.pages || {};
     const d = draft();
     v.append(L.ui.pageHead("Configurações"));
     v.append(el("div", { class: "settings" },
-      account(d), password(d), email(d), twoFactor(d), appearance(), league(), signOut()));
+      account(d), password(d), email(d), twoFactor(d), appearance(), signOut()));
   };
 })(window.Liga);

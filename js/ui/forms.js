@@ -64,7 +64,7 @@ window.Liga = window.Liga || {};
       if (!name) return setErr("pErr", "Dê um nome ao projeto.");
       $("pSubmit").disabled = true;
       try {
-        const id = await L.actions.createProject({ name, desc, members: [S.myId] });
+        const id = await L.actions.createProject({ name, desc });
         S.draft.newProject = null;
         L.pages.openMembers(id, "Projeto criado. Agora adicione quem vai participar.");
       } catch (e) {
@@ -73,7 +73,7 @@ window.Liga = window.Liga || {};
       }
     } },
       projectFields(d, "p"),
-      el("p", { class: "hint" }, "Você entra no projeto. Depois de criar, abre a página de integrantes para chamar o resto do pessoal."),
+      el("p", { class: "hint" }, "Você vira o dono do projeto. Depois de criar, abre a página de integrantes para chamar o pessoal (por link de convite ou pelo nome de usuário)."),
       el("div", { class: "row" },
         el("button", { class: "btn", type: "submit", id: "pSubmit" }, "Criar projeto"),
         el("button", { class: "btn ghost", type: "button", onclick: () => { S.draft.newProject = null; L.app.go({ page: "projects" }); } }, "Cancelar")),

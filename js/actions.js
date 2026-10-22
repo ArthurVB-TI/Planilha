@@ -27,10 +27,11 @@ window.Liga = window.Liga || {};
     recent_login: "Por segurança, saia e entre de novo antes de fazer isso.",
     email_not_verified: "Confirme seu e-mail antes de ativar a verificação em duas etapas.",
     not_enabled: "Isso não está ativado no Firebase deste site (veja o README).",
-    invite_invalid: "Esse link de convite não vale mais (venceu ou foi apagado). Peça um novo para o dono da liga.",
-    invite_expired: "Esse link de convite venceu. Peça um novo para o dono da liga.",
+    invite_invalid: "Esse link de convite não vale mais (venceu ou foi apagado). Peça um novo para o dono do projeto.",
+    invite_expired: "Esse link de convite venceu. Peça um novo para o dono do projeto.",
     cant_start: "Ainda não dá para começar a listRat.",
     too_many_tasks: "Passou do máximo de tarefas normais desta listRat.",
+    owner_stays: "O dono do projeto não pode sair. Passe o projeto para outra pessoa antes.",
     owner_needed: "Toda listRat precisa de um dono. Para tirar esta pessoa do comando, escolha outra como dona.",
     unknown: "Isso não existe mais. Recarregue a página.",
     no_crypto: "Este navegador não tem suporte à criptografia necessária. Abra pelo localhost ou https.",
@@ -155,24 +156,28 @@ window.Liga = window.Liga || {};
     scheduleSave();
   }
 
-  /* ---------- projetos (dono da liga), listRats (integrantes) e tarefas ---------- */
+  /* ---------- projetos (qualquer um cria e vira dono), listRats (integrantes) e tarefas ---------- */
 
-  const claimOwner = () => db().claimOwner(S.myId);
-
-  async function createProject({ name, desc, members }) {
+  // qualquer pessoa cria projeto e vira o dono dele
+  async function createProject({ name, desc }) {
     const id = db().newId("projetos");
-    await db().set("projetos/" + id, { name, desc, members, createdAt: Date.now() });
+    await db().set("projetos/" + id, { name, desc, members: [S.myId], owner: S.myId, createdAt: Date.now() });
     return id;
+  }
+  // passa o projeto para outro integrante (quem passa continua como integrante)
+  async function transferProject(pid, uid) {
+    const p = S.projects[pid];
+    if (!p || !p.members.includes(uid)) throw fail("unknown");
+    await db().update("projetos/" + pid, { owner: uid });
   }
   const saveProject = (pid, data) => db().update("projetos/" + pid, data);
 
   async function deleteProject(pid) {
     const subs = Object.values(S.subs).filter((s) => s.projectId === pid).map((s) => s.id);
-    const paths = [];
-    for (const t of Object.values(S.tasks)) if (subs.includes(t.subId)) paths.push("tarefas/" + t.id);
-    for (const sid of subs) paths.push("subprojetos/" + sid);
-    paths.push("projetos/" + pid);
-    await db().removeMany(paths);
+    // em etapas: tarefas, depois listRats, depois o projeto (as regras conferem a listRat/projeto de cada tarefa)
+    await db().removeMany(Object.values(S.tasks).filter((t) => subs.includes(t.subId)).map((t) => "tarefas/" + t.id));
+    await db().removeMany(subs.map((sid) => "subprojetos/" + sid));
+    await db().removeMany(["projetos/" + pid]);
   }
 
   // quem cria a listRat vira o dono dela
@@ -214,9 +219,8 @@ window.Liga = window.Liga || {};
   const setSubHelpers = (sid, helpers) => db().update("subprojetos/" + sid, { helpers });
 
   async function deleteSub(sid) {
-    const paths = Object.values(S.tasks).filter((t) => t.subId === sid).map((t) => "tarefas/" + t.id);
-    paths.push("subprojetos/" + sid);
-    await db().removeMany(paths);
+    await db().removeMany(Object.values(S.tasks).filter((t) => t.subId === sid).map((t) => "tarefas/" + t.id));
+    await db().removeMany(["subprojetos/" + sid]);
   }
 
   // em inscrições, cada pessoa só pode ter até o máximo de tarefas normais
@@ -238,7 +242,7 @@ window.Liga = window.Liga || {};
   }
   const deleteTask = (id) => db().remove("tarefas/" + id);
 
-  /* ---------- integrantes (dono da liga) ---------- */
+  /* ---------- integrantes (dono do projeto) ---------- */
 
   const fail = (code) => Object.assign(new Error(code), { code });
   const subsOf = (pid) => Object.values(S.subs).filter((s) => s.projectId === pid);
@@ -279,7 +283,8 @@ window.Liga = window.Liga || {};
   async function removeMember(pid, uid, moveTo) {
     const p = S.projects[pid];
     if (!p) throw fail("unknown");
-    const heir = moveTo || S.ownerId;
+    if (L.perms.projOwner(p) === uid) throw fail("owner_stays");
+    const heir = moveTo || L.perms.projOwner(p);
     if (moveTo) await moveTasks(pid, uid, moveTo);
     for (const s of subsOf(pid)) {
       const owner = L.perms.subOwner(s);
@@ -326,7 +331,7 @@ window.Liga = window.Liga || {};
     createInvite, deleteInvite, inviteUrl, joinByInvite, setSubReq, startSub, addParticipant,
     addMembers, setSubRole, moveTasks, removeMember,
     errMsg, flush, scheduleSave, canMark, toggleMark, attachProof, join, setNick,
-    claimOwner, createProject, saveProject, deleteProject, createSub, saveSub, renameSub, setSubHelpers, deleteSub,
+    createProject, transferProject, saveProject, deleteProject, createSub, saveSub, renameSub, setSubHelpers, deleteSub,
     createTask, saveTask, deleteTask,
   };
 })(window.Liga);

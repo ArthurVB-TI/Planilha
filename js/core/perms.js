@@ -16,6 +16,9 @@ window.Liga = window.Liga || {};
   const projOwner = (p) => (p && (p.owner || S.ownerId || p.members[0])) || "";
   const isProjectOwner = (p) => !!p && !!S.myId && projOwner(p) === S.myId;
   const isMember = (p) => !!p && p.members.includes(S.myId);
+  // cargo "ajudante do projeto" — as permissões dele ainda vão ser definidas
+  const isProjectHelper = (p) => !!p && p.helpers.includes(S.myId);
+  const projRole = (p, uid) => (!p ? "" : projOwner(p) === uid ? "dono" : p.helpers.includes(uid) ? "ajudante" : "");
   const canSeeProject = (p) => isMember(p) || isProjectOwner(p);
   const canCreateSub = (p) => isMember(p) || isProjectOwner(p);
   const projOf = (s) => s && S.projects[s.projectId];
@@ -36,5 +39,5 @@ window.Liga = window.Liga || {};
     return "";
   }
 
-  L.perms = { projOwner, isProjectOwner, isMember, canSeeProject, canCreateSub, subOwner, canManageSub, isHelper, canEditTasks, canFillOwn, canEditTask, canRunSub, roleIn };
+  L.perms = { projOwner, isProjectOwner, isProjectHelper, projRole, isMember, canSeeProject, canCreateSub, subOwner, canManageSub, isHelper, canEditTasks, canFillOwn, canEditTask, canRunSub, roleIn };
 })(window.Liga);

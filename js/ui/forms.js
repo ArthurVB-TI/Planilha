@@ -66,7 +66,7 @@ window.Liga = window.Liga || {};
       try {
         const id = await L.actions.createProject({ name, desc });
         S.draft.newProject = null;
-        L.pages.openMembers(id, "Projeto criado. Agora adicione quem vai participar.");
+        L.pages.openMembers(id, "Projeto criado. Agora convide quem vai participar.");
       } catch (e) {
         setErr("pErr", errMsg(e, "Não deu para criar o projeto."));
         $("pSubmit").disabled = false;
@@ -125,7 +125,7 @@ window.Liga = window.Liga || {};
       quota = el("p", { class: "hint" + (st.ready ? "" : " warn") },
         (d.assignee === S.myId ? "Você tem " : L.ui.nameOf(d.assignee) + " tem ") +
         plural(st.obr, "obrigatória", "obrigatórias") + " (mín. " + s.req.minObr + ") e " +
-        plural(st.normal, "normal", "normais") + " (" + s.req.minTasks + " a " + s.req.maxTasks + "). " +
+        plural(st.normal, "normal", "normais") + " (" + (s.req.maxTasks ? s.req.minTasks + " a " + s.req.maxTasks : "mín. " + s.req.minTasks) + "). " +
         (st.ready ? "Pronto para participar." : st.text + "."));
     }
 

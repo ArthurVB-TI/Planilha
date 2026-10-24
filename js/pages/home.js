@@ -92,9 +92,13 @@ window.Liga.pages = window.Liga.pages || {};
         el("div", { class: "tlist" }, done.map((t) => L.ui.taskCard(t, { where: where(t) })))));
     }
 
-    const ids = Object.keys(S.players).filter((id) => clean(S.players[id].nick, NICK_MAX));
+    // placar geral: só você e seus amigos
+    const friends = L.social.friends();
+    const ids = [S.myId, ...friends];
     right.append(el("section", { class: "panel" },
-      el("div", { class: "panel-head" }, el("h2", null, "Placar geral")),
-      L.ui.board(ids, all, "geral")));
+      el("div", { class: "panel-head" }, el("h2", null, "Placar dos amigos"),
+        el("button", { class: "link purple", type: "button", onclick: () => L.app.go({ page: "friends" }) }, friends.length ? "Amigos" : "Adicionar amigos")),
+      L.ui.board(ids, all, "geral"),
+      friends.length ? null : el("p", { class: "hint" }, "Só aparecem aqui você e seus amigos. Adicione amigos pelo nome de usuário.")));
   };
 })(window.Liga);

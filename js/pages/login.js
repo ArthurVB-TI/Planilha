@@ -55,19 +55,26 @@ window.Liga.pages = window.Liga.pages || {};
     return el("form", { class: "f", id: "signupForm", onsubmit: (ev) => {
       ev.preventDefault();
       const username = d.username.trim(), email = d.email.trim();
-      const problem = R.checkUsername(username) || R.checkEmail(email) || R.checkPassword(d.password, d.password2);
+      const problem = R.checkUsername(username) || (email ? R.checkEmail(email) : "") || R.checkPassword(d.password, d.password2);
       if (problem) { d.err = problem; return rerender(); }
       run(d, async () => {
-        await S.backend.auth.signUp({ username, email, password: d.password });
+        const r = (await S.backend.auth.signUp({ username, email, password: d.password })) || {};
         S.draft.auth = S.newAuthDraft();
         L.app.refreshUser();
+        if (r.pendingEmail) {
+          L.text.store.set("listrats.pendingEmail", r.pendingEmail);
+          L.app.setStatus("Conta criada. Enviamos um link para " + r.pendingEmail + ": o e-mail só entra na conta depois que você abrir o link.", false);
+        } else if (r.emailError) {
+          L.app.setStatus("Conta criada, mas não deu para mandar o link para esse e-mail. Tente de novo em Configurações.", true);
+        }
       });
     } },
       field("aUser", "Usuário", { autocomplete: "username", autocapitalize: "none", spellcheck: "false", maxlength: "20" }, d, "username"),
-      field("aEmail", "E-mail", { type: "email", autocomplete: "email" }, d, "email"),
       field("aNew", "Senha", { type: "password", autocomplete: "new-password" }, d, "password"),
       field("aNew2", "Repita a senha", { type: "password", autocomplete: "new-password" }, d, "password2"),
-      el("p", { class: "hint" }, "O usuário é o nome que aparece no placar. Senha com pelo menos 8 caracteres."),
+      field("aEmail", "E-mail (opcional)", { type: "email", autocomplete: "email", placeholder: "pode deixar em branco" }, d, "email"),
+      el("p", { class: "hint" }, "O usuário é o nome que aparece no placar. Senha com pelo menos 8 caracteres. " +
+        "Se colocar um e-mail, mandamos um link: ele só passa a valer depois que você abrir o link (assim só entra e-mail que existe). Dá para pôr ou trocar o e-mail depois em Configurações."),
       el("button", { class: "btn block", type: "submit", disabled: d.busy }, d.busy ? "Criando…" : "Criar conta"));
   }
 
@@ -78,7 +85,7 @@ window.Liga.pages = window.Liga.pages || {};
       onclick: () => { d.tab = id; d.err = ""; d.mfa = null; rerender(); } }, label);
 
     v.append(el("div", { class: "auth" }, el("div", { class: "auth-box" },
-      el("div", { class: "brand" }, el("span", { class: "mark", "aria-hidden": "true" }), el("span", null, "Liga das Tarefas")),
+      el("div", { class: "brand" }, el("img", { class: "mark", src: "assets/icon.svg", alt: "", width: "34", height: "34" }), el("span", null, "listRats")),
       S.invite ? el("div", { class: "notice invite-note" }, el("b", null, "Você recebeu um convite."), " Entre ou crie sua conta e você já entra no projeto.") : null,
       el("section", { class: "panel" },
         d.mfa ? el("h2", null, "Verificação em duas etapas") : el("div", { class: "tabs" }, tab("login", "Entrar"), tab("signup", "Criar conta")),

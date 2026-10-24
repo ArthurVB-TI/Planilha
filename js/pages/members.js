@@ -170,7 +170,7 @@ window.Liga.pages = window.Liga.pages || {};
         L.ui.avatar(id),
         el("div", { class: "mi" },
           el("div", { class: "pname" }, el("span", { text: L.ui.nameOf(id) }), you(id),
-            P.projOwner(p) === id ? el("span", { class: "badge" }, "dono do projeto") : null),
+            P.projOwner(p) === id ? el("span", { class: "badge" }, "dono do projeto") : p.helpers.includes(id) ? el("span", { class: "badge" }, "ajudante") : null),
           el("div", { class: "small muted", text: rolesLine(sm) })),
         el("div", { class: "pts" + (sm.score.total < 0 ? " neg" : "") }, fmtTotal(sm.score.total)),
         acts),
@@ -196,20 +196,22 @@ window.Liga.pages = window.Liga.pages || {};
     const q = clean(d.q, 20).toLowerCase();
     const found = search(p, q);
 
+    // ninguém entra direto: a pessoa recebe um convite e aceita na página de notificações
+    const sent = (id) => Object.values(S.sentReqs).find((r) => r.projectId === p.id && r.to === id);
     const add = async (id) => {
       try {
-        await L.actions.addMembers(p.id, [id]);
-        d.fresh = [id];
-        d.freshUntil = Date.now() + 1200;
+        await L.actions.sendProjectInvite(p.id, id);
         d.q = "";
-        note(L.ui.nameOf(id) + " entrou no projeto.");
-      } catch (e) { err(e, "Não deu para adicionar."); }
+        note("Convite enviado para " + L.ui.nameOf(id) + ". A pessoa entra quando aceitar nas notificações.");
+      } catch (e) { err(e, "Não deu para mandar o convite."); }
       rerender();
       const i = $("mSearch"); if (i) i.focus({ preventScroll: true });
     };
+    const pendingHere = Object.values(S.sentReqs).filter((r) => r.projectId === p.id).sort((a, b) => b.createdAt - a.createdAt);
 
     return el("section", { class: "panel", id: "addPanel" },
-      el("h2", null, "Adicionar"),
+      el("h2", null, "Convidar pelo nome de usuário"),
+      el("p", { class: "muted small" }, "Ninguém entra direto: a pessoa recebe o convite nas notificações e decide se entra."),
       el("form", { class: "field", role: "search", onsubmit: (ev) => {
         ev.preventDefault();
         // Enter adiciona quando o nome digitado é exatamente o de alguém fora do projeto
@@ -227,12 +229,25 @@ window.Liga.pages = window.Liga.pages || {};
               el("div", { class: "pname" }, el("span", { text: L.ui.nameOf(id) }), you(id)),
               inside
                 ? el("span", { class: "small muted" }, "já está no projeto")
-                : el("button", { class: "btn sm", type: "button", onclick: () => add(id) }, icon("plus"), "Adicionar"));
+                : sent(id)
+                  ? el("span", { class: "small muted" }, "convite enviado")
+                  : el("button", { class: "btn sm", type: "button", onclick: () => add(id) }, icon("plus"), "Convidar"));
           }))
+        : null,
+      pendingHere.length
+        ? el("div", { class: "f" },
+            el("span", { class: "lbl" }, "Aguardando resposta"),
+            el("div", { class: "cands" }, pendingHere.map((r) => el("div", { class: "cand" },
+              L.ui.avatar(r.to),
+              el("div", { class: "pname" }, el("span", { text: L.ui.nameOf(r.to) }), el("span", { class: "small muted" }, L.ui.ago(r.createdAt))),
+              el("button", { class: "link danger", type: "button", onclick: async () => {
+                try { await L.actions.cancelProjectInvite(r); note("Convite para " + L.ui.nameOf(r.to) + " cancelado."); } catch (e) { err(e, "Não deu para cancelar."); }
+                rerender();
+              } }, "Cancelar")))))
         : null,
       el("p", { class: "hint" }, q.length < MIN_Q
         ? "Digite pelo menos " + MIN_Q + " letras do usuário. A pessoa precisa ter criado conta no site."
-        : "A pessoa precisa ter criado conta no site. Mande o link para ela se cadastrar."));
+        : "A pessoa precisa ter criado conta no site. Quem ainda não tem conta pode entrar pelo link de convite."));
   }
 
   /* ---------- link de convite ---------- */
@@ -315,6 +330,7 @@ window.Liga.pages = window.Liga.pages || {};
       { label: "Integrantes", go: () => go({ page: "members", pid: p.id }) },
       { label: L.ui.nameOf(id) },
     ]);
+    v.append(el("div", null, el("button", { class: "link", type: "button", onclick: () => go({ page: "members", pid: p.id }) }, "← Voltar para integrantes")));
     if (draft().note) v.append(el("div", { class: "notice", role: "status" }, draft().note));
     const sm = summary(p, id);
     const ptasks = L.score.tasksOfProject(p.id);
@@ -354,7 +370,7 @@ window.Liga.pages = window.Liga.pages || {};
     // papéis
     const rp = el("section", { class: "panel" },
       el("div", { class: "panel-head" }, el("h2", null, "ListRats"),
-        admin && inProject && !(draft().edit === id) ? el("button", { class: "link", type: "button", onclick: () => { draft().edit = id; S.confirm = null; rerender(); } }, "editar papéis") : null));
+        admin && inProject && !(draft().edit === id) ? el("button", { class: "link purple", type: "button", onclick: () => { draft().edit = id; S.confirm = null; rerender(); } }, "editar papéis") : null));
     if (admin && inProject && draft().edit === id) {
       rp.append(editor(p, id), el("div", null, el("button", { class: "btn sm", type: "button", onclick: () => { draft().edit = null; rerender(); } }, "Pronto")));
     } else if (!sm.owns.length && !sm.helps.length) {
@@ -369,16 +385,16 @@ window.Liga.pages = window.Liga.pages || {};
     if (admin && inProject && P.projOwner(p) !== id) right.append(transferPanel(p, id));
     if (admin && P.projOwner(p) !== id) {
       right.append(el("section", { class: "panel" },
-        el("h3", null, inProject ? "Tirar do projeto" : "Voltar para o projeto"),
+        el("h3", null, inProject ? "Tirar do projeto" : "Chamar de volta"),
         inProject
           ? (S.confirm === "m:" + id
               ? removeBox(p, id)
               : el("div", null, el("button", { class: "btn ghost sm", type: "button", onclick: () => { S.confirm = "m:" + id; draft().moveTo = ""; rerender(); } }, "Tirar " + L.ui.nameOf(id))))
           : el("div", null, el("button", { class: "btn sm", type: "button", onclick: async () => {
-              try { await L.actions.addMembers(p.id, [id]); note(L.ui.nameOf(id) + " voltou para o projeto."); }
-              catch (e) { err(e, "Não deu para adicionar."); }
+              try { await L.actions.sendProjectInvite(p.id, id); note("Convite enviado para " + L.ui.nameOf(id) + "."); }
+              catch (e) { err(e, "Não deu para mandar o convite."); }
               rerender();
-            } }, "Adicionar de volta"))));
+            } }, "Convidar de novo"))));
     }
   }
 
@@ -390,20 +406,15 @@ window.Liga.pages = window.Liga.pages || {};
     if (S.view.uid) return detail(v, p, S.view.uid);
 
     const admin = P.isProjectOwner(p);
-    L.ui.crumbs([
-      { label: "Projetos", go: () => go({ page: "projects" }) },
-      { label: p.name, go: () => go({ page: "project", pid: p.id }) },
-      { label: "Integrantes" },
-    ]);
-
-    v.append(L.ui.pageHead("Integrantes", p.name + " · " + plural(p.members.length, "pessoa", "pessoas"),
-      el("div", { class: "row" },
-        el("button", { class: "btn ghost", type: "button", onclick: () => go({ page: "project", pid: p.id }) }, "Voltar ao projeto"),
-        admin ? el("button", { class: "btn only-narrow", type: "button", onclick: () => {
+    L.pages.projectHeader(v, p, "integrantes");
+    if (admin) {
+      v.append(el("div", { class: "row only-narrow-row" },
+        el("button", { class: "btn purple", type: "button", onclick: () => {
           const a = $("addPanel"); if (!a) return;
           a.scrollIntoView({ behavior: "smooth", block: "start" });
           const q = $("mSearch"); if (q) q.focus({ preventScroll: true });
-        } }, icon("plus"), "Adicionar") : null)));
+        } }, icon("plus"), "Convidar pessoas")));
+    }
 
     if (d.note) v.append(el("div", { class: "notice", role: "status" }, d.note));
 
@@ -419,7 +430,7 @@ window.Liga.pages = window.Liga.pages || {};
         ? el("div", { class: "mlist" }, order.map((id) => memberRow(p, id, admin)))
         : L.ui.empty(admin ? "Ninguém ainda. Adicione as pessoas ao lado." : "Ninguém ainda.")));
 
-    if (admin) right.append(invitePanel(p), addPanel(p));
+    if (admin) right.append(addPanel(p), invitePanel(p));
     else right.append(el("section", { class: "panel" }, el("h2", null, "Quem gerencia"),
       el("p", { class: "muted small" }, "Só o dono do projeto (" + L.ui.nameOf(P.projOwner(p)) + ") adiciona, edita e tira integrantes.")));
 

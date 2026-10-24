@@ -23,7 +23,7 @@ window.Liga = window.Liga || {};
     const missing = [];
     if (obr < req.minObr) missing.push(plural(req.minObr - obr, "obrigatória", "obrigatórias"));
     if (normal < req.minTasks) missing.push(plural(req.minTasks - normal, "tarefa normal", "tarefas normais"));
-    const over = normal > req.maxTasks ? normal - req.maxTasks : 0;
+    const over = req.maxTasks && normal > req.maxTasks ? normal - req.maxTasks : 0;
     const ready = !missing.length && !over;
     let text = ready ? "Pronto" : "";
     if (missing.length) text = "Falta " + missing.join(" e ");

@@ -16,7 +16,8 @@ window.Liga = window.Liga || {};
   function reqText(r) {
     const parts = [];
     if (r.minObr) parts.push("pelo menos " + plural(r.minObr, "tarefa obrigatória", "tarefas obrigatórias"));
-    parts.push(r.minTasks === r.maxTasks
+    if (!r.maxTasks) parts.push("pelo menos " + plural(r.minTasks, "tarefa normal", "tarefas normais"));
+    else parts.push(r.minTasks === r.maxTasks
       ? plural(r.minTasks, "tarefa normal", "tarefas normais")
       : "de " + r.minTasks + " a " + r.maxTasks + " tarefas normais");
     return parts.join(" e ");
@@ -26,13 +27,13 @@ window.Liga = window.Liga || {};
   function reqEditor(s) {
     const d = S.draft.req && S.draft.req.sid === s.id ? S.draft.req : null;
     if (!d) {
-      return el("div", null, el("button", { class: "link", type: "button", onclick: () => {
+      return el("div", null, el("button", { class: "link purple", type: "button", onclick: () => {
         S.draft.req = Object.assign({ sid: s.id }, s.req);
         rerender();
-      } }, "mudar regras"));
+      } }, "Mudar regras"));
     }
     const num = (key, label, attrs) => el("div", { class: "field nfield" }, el("label", { for: "rq-" + key }, label),
-      el("input", Object.assign({ id: "rq-" + key, type: "number", inputmode: "decimal", value: String(d[key]),
+      el("input", Object.assign({ id: "rq-" + key, type: "number", inputmode: "decimal", value: key === "maxTasks" && !+d[key] ? "" : String(d[key]),
         oninput: (e) => { d[key] = e.target.value; } }, attrs)));
     return el("form", { class: "f req-form", onsubmit: async (ev) => {
       ev.preventDefault();
@@ -43,8 +44,8 @@ window.Liga = window.Liga || {};
       el("div", { class: "req-grid" },
         num("minObr", "Mín. obrigatórias", { min: "0", max: "30", step: "1" }),
         num("minTasks", "Mín. normais", { min: "0", max: "30", step: "1" }),
-        num("maxTasks", "Máx. normais", { min: "1", max: "30", step: "1" }),
-        num("maxDesvio", "Desvio máximo", { min: "0", step: "0.5" })),
+        num("maxTasks", "Máx. normais (opcional)", { min: "0", max: "30", step: "1", placeholder: "sem máximo" }),
+        num("maxDesvio", "Desvio máximo", { min: "0", max: "500", step: "1" })),
       el("p", { class: "hint" }, "O desvio é medido nos pontos possíveis por semana das tarefas normais de quem está pronto. Obrigatórias não entram na conta."),
       el("div", { class: "row" },
         el("button", { class: "btn sm", type: "submit" }, "Salvar regras"),
@@ -70,7 +71,7 @@ window.Liga = window.Liga || {};
               el("span", { class: "who", role: "cell" }, L.ui.avatar(x.uid), el("span", { class: "n", text: L.ui.nameOf(x.uid) }),
                 x.uid === S.myId ? el("span", { class: "you" }, "você") : null),
               el("span", { class: "r num" + (x.obr < r.minObr ? " low" : ""), role: "cell" }, x.obr + "/" + r.minObr),
-              el("span", { class: "r num" + (x.normal < r.minTasks || x.normal > r.maxTasks ? " low" : ""), role: "cell" }, String(x.normal)),
+              el("span", { class: "r num" + (x.normal < r.minTasks || (r.maxTasks && x.normal > r.maxTasks) ? " low" : ""), role: "cell" }, String(x.normal)),
               el("span", { class: "ebar", role: "cell" },
                 el("span", { class: "track" }, el("span", { class: "fill" + (x.ready ? "" : " off"), style: "width:" + Math.round((x.pts / max) * 100) + "%" })),
                 el("b", { class: "num" }, String(x.pts))),

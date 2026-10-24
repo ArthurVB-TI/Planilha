@@ -75,6 +75,52 @@ window.Liga = window.Liga || {};
       el("button", { class: "btn ghost sm", type: "button", onclick: () => { S.confirm = null; rerender(); } }, "Cancelar"));
   }
 
+  /* ---------- cabeçalho de sub-páginas (projeto e listRat) ---------- */
+
+  // hero({ kicker, title, sub, badges[], stats[], actions }) + abas [{ key, label, go, count, hidden }]
+  function subHeader(o, tabs, active) {
+    const hero = el("section", { class: "hero" },
+      el("div", { class: "hero-main" },
+        o.kicker ? el("div", { class: "hero-kicker" }, o.kicker) : null,
+        el("h1", { class: "hero-title" }, el("span", { text: o.title }), (o.badges || []).filter(Boolean)),
+        o.sub ? el("p", { class: "hero-sub", text: o.sub }) : null),
+      (o.stats && o.stats.length) || o.actions
+        ? el("div", { class: "hero-side" }, o.stats && o.stats.length ? el("div", { class: "stats" }, o.stats) : null, o.actions || null)
+        : null);
+    const shown = tabs.filter((t) => t && !t.hidden);
+    if (!shown.length) { hero.classList.add("solo"); return el("div", { class: "subhead" }, hero); }
+    const bar = el("nav", { class: "tabsbar", "aria-label": "Seções" }, shown.map((t) =>
+      el("button", {
+        type: "button", class: "tabbtn" + (t.key === active ? " on" : "") + (t.tone ? " " + t.tone : ""),
+        "aria-current": t.key === active ? "page" : null, onclick: t.go,
+      }, t.ic ? icon(t.ic) : null, el("span", null, t.label), t.count ? el("span", { class: "tcount" }, String(t.count)) : null)));
+    return el("div", { class: "subhead" }, hero, bar);
+  }
+
+  // "agora", "há 5 min", "há 3 h", "há 2 dias"
+  function ago(ms) {
+    const s = Math.max(0, (Date.now() - ms) / 1000);
+    if (s < 60) return "agora";
+    if (s < 3600) return "há " + Math.floor(s / 60) + " min";
+    if (s < 86400) return "há " + Math.floor(s / 3600) + " h";
+    const dd = Math.floor(s / 86400);
+    return "há " + dd + (dd === 1 ? " dia" : " dias");
+  }
+
+  // caixinha de título para cada sub-página
+  function block(title, desc, ...kids) {
+    return el("section", { class: "panel block" },
+      el("header", { class: "block-head" }, el("h2", null, title), desc ? el("p", { class: "muted small" }, desc) : null),
+      kids);
+  }
+
+  /* ---------- janela de confirmação (sobre a tela) ---------- */
+  function modal(title, body, actions) {
+    return el("div", { class: "modal-back", role: "presentation" },
+      el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": title },
+        el("h2", null, title), body, el("div", { class: "row modal-actions" }, actions)));
+  }
+
   /* ---------- datas e período da listRat ---------- */
 
   // 20/10 (mesmo ano) ou 20/10/2027
@@ -274,5 +320,5 @@ window.Liga = window.Liga || {};
     }));
   }
 
-  L.ui = { fmtDate, period, periodTag, nameOf, avatar, personChip, empty, stat, pageHead, crumbs, diffText, confirmRow, taskCard, board, legend, visibleProjects, projectList };
+  L.ui = { subHeader, block, modal, ago, fmtDate, period, periodTag, nameOf, avatar, personChip, empty, stat, pageHead, crumbs, diffText, confirmRow, taskCard, board, legend, visibleProjects, projectList };
 })(window.Liga);

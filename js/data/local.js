@@ -103,13 +103,13 @@ window.Liga.data = window.Liga.data || {};
   function current() {
     const m = me();
     if (!m) return null;
-    return { id: m.uid, name: m.a.username, email: m.a.email, emailVerified: true, createdAt: m.a.createdAt, mfa: !!m.a.totp };
+    return { id: m.uid, name: m.a.username, email: m.a.email || "", emailVerified: !!m.a.email, createdAt: m.a.createdAt, mfa: !!m.a.totp };
   }
   function findByLogin(login) {
     const all = accounts(), l = login.trim().toLowerCase();
     for (const uid in all) {
       const a = all[uid];
-      if (a.username.toLowerCase() === l || a.email.toLowerCase() === l) return { uid, a };
+      if (a.username.toLowerCase() === l || (a.email && a.email.toLowerCase() === l)) return { uid, a };
     }
     return null;
   }
@@ -134,11 +134,11 @@ window.Liga.data = window.Liga.data || {};
       const all = accounts();
       for (const uid in all) {
         if (all[uid].username.toLowerCase() === username.toLowerCase()) throw fail("username_taken");
-        if (all[uid].email.toLowerCase() === email.toLowerCase()) throw fail("email_taken");
+        if (email && all[uid].email && all[uid].email.toLowerCase() === email.toLowerCase()) throw fail("email_taken");
       }
       const uid = "u" + local.newId();
       const { salt, hash } = await C.hashPassword(password);
-      saveAccount(uid, { username, email, salt, hash, totp: null, createdAt: Date.now() });
+      saveAccount(uid, { username, email: email || "", salt, hash, totp: null, createdAt: Date.now() });
       // a primeira conta criada neste navegador vira a dona da liga (feito em setSession/adoptLegacy)
       setSession(uid);
     },
@@ -228,10 +228,11 @@ window.Liga.data = window.Liga.data || {};
       setTimeout(fire, 0);
       return () => listeners.delete(fire);
     },
-    watchWhere(coll, field, value, cb) {
+    watchWhere(coll, field, value, cb, onErr, op) {
       const fire = () => {
         const all = db[coll] || {}, out = {};
-        for (const id in all) if (all[id] && all[id][field] === value) out[id] = clone(all[id]);
+        const hit = (v) => (op === "array-contains" ? Array.isArray(v) && v.includes(value) : v === value);
+        for (const id in all) if (all[id] && hit(all[id][field])) out[id] = clone(all[id]);
         cb(out);
       };
       listeners.add(fire);

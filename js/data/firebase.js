@@ -39,6 +39,11 @@ window.Liga.data = window.Liga.data || {};
   }
   const wrap = (p) => p.catch((e) => { throw mapErr(e); });
   const unameKey = (u) => String(u || "").toLowerCase();
+  // conta criada sem e-mail: o Firebase exige um, então usamos um endereço interno que nunca recebe nada
+  // (domínio reservado example.com). O e-mail de verdade só entra depois que a pessoa confirma pelo link.
+  const NO_MAIL = "@sem-email.listrats.example.com";
+  const isPlaceholder = (e) => !e || String(e).toLowerCase().endsWith(NO_MAIL);
+  const placeholderEmail = () => "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10) + NO_MAIL;
 
   function current() {
     const u = auth && auth.currentUser;
@@ -46,8 +51,8 @@ window.Liga.data = window.Liga.data || {};
     return {
       id: u.uid,
       name: u.displayName || "",
-      email: u.email || "",
-      emailVerified: !!u.emailVerified,
+      email: isPlaceholder(u.email) ? "" : u.email,
+      emailVerified: !isPlaceholder(u.email) && !!u.emailVerified,
       createdAt: Date.parse(u.metadata && u.metadata.creationTime) || 0,
       mfa: A.multiFactor(u).enrolledFactors.length > 0,
     };
@@ -75,29 +80,47 @@ window.Liga.data = window.Liga.data || {};
     verifiesEmail: true,
     current,
 
+    // e-mail é opcional: a conta nasce com o endereço interno e, se a pessoa informou um e-mail,
+    // mandamos um link de confirmação — ele só vira o e-mail da conta quando o link for aberto (então só vale e-mail que existe)
     async signUp({ username, email, password }) {
       const ref = F.doc(fs, "usernames", unameKey(username));
       if ((await wrap(F.getDoc(ref))).exists()) throw fail("username_taken");
-      const cred = await wrap(A.createUserWithEmailAndPassword(auth, email, password));
+      const temp = placeholderEmail();
+      const cred = await wrap(A.createUserWithEmailAndPassword(auth, temp, password));
       try {
-        await F.setDoc(ref, { uid: cred.user.uid, email });
+        await F.setDoc(ref, { uid: cred.user.uid, email: temp });
       } catch (e) {
         await cred.user.delete().catch(() => {});
         throw fail("username_taken", e);
       }
       await wrap(A.updateProfile(cred.user, { displayName: username }));
-      A.sendEmailVerification(cred.user).catch(() => {});
+      if (email) {
+        try {
+          await A.verifyBeforeUpdateEmail(cred.user, email);
+          await F.setDoc(ref, { uid: cred.user.uid, email: temp, pending: email }).catch(() => {});
+          return { pendingEmail: email };
+        }
+        catch (e) { return { emailError: mapErr(e).code }; }
+      }
+      return {};
     },
 
     async signIn(login, password) {
-      let email = login.trim();
-      if (!email.includes("@")) {
+      let email = login.trim(), pending = "";
+      if (!email.includes("@") || isPlaceholder(email)) {
         const d = await wrap(F.getDoc(F.doc(fs, "usernames", unameKey(email))));
         if (!d.exists()) throw fail("bad_login");
         email = d.data().email;
+        pending = d.data().pending || "";
       }
       try {
-        await A.signInWithEmailAndPassword(auth, email, password);
+        try {
+          await A.signInWithEmailAndPassword(auth, email, password);
+        } catch (e1) {
+          // a pessoa confirmou o e-mail novo pelo link: a conta agora usa o e-mail pendente
+          if (!pending || String(e1.code).includes("multi-factor-auth-required")) throw e1;
+          await A.signInWithEmailAndPassword(auth, pending, password);
+        }
         return {};
       } catch (e) {
         if (!String(e.code).includes("multi-factor-auth-required")) {
@@ -126,7 +149,9 @@ window.Liga.data = window.Liga.data || {};
       }
       if ((await wrap(F.getDoc(newRef))).exists()) throw fail("username_taken");
       const batch = F.writeBatch(fs);
-      batch.set(newRef, { uid: u.uid, email: u.email });
+      const old = oldKey ? await F.getDoc(F.doc(fs, "usernames", oldKey)).catch(() => null) : null;
+      const pend = old && old.exists() && old.data().pending;
+      batch.set(newRef, pend ? { uid: u.uid, email: u.email, pending: pend } : { uid: u.uid, email: u.email });
       if (oldKey) batch.delete(F.doc(fs, "usernames", oldKey));
       await wrap(batch.commit());
       await wrap(A.updateProfile(u, { displayName: username }));
@@ -139,20 +164,25 @@ window.Liga.data = window.Liga.data || {};
 
     async changeEmail(email, password, code) {
       await reauth(password, code);
-      await wrap(A.verifyBeforeUpdateEmail(auth.currentUser, email));
+      const u = auth.currentUser;
+      await wrap(A.verifyBeforeUpdateEmail(u, email));
+      if (u.displayName) await F.setDoc(F.doc(fs, "usernames", unameKey(u.displayName)), { uid: u.uid, email: u.email, pending: email }).catch(() => {});
       return { pending: true };
     },
 
-    sendVerification() { return wrap(A.sendEmailVerification(auth.currentUser)); },
+    sendVerification() {
+      if (isPlaceholder(auth.currentUser.email)) return Promise.reject(fail("no_email"));
+      return wrap(A.sendEmailVerification(auth.currentUser));
+    },
     async reload() { await wrap(auth.currentUser.reload()); await syncUsername(); },
 
     async mfaStart(password, code) {
       const u = auth.currentUser;
-      if (!u.emailVerified) throw fail("email_not_verified");
+      if (isPlaceholder(u.email) || !u.emailVerified) throw fail("email_not_verified");
       await reauth(password, code);
       const session = await wrap(A.multiFactor(u).getSession());
       pendingSecret = await wrap(A.TotpMultiFactorGenerator.generateSecret(session));
-      return { secret: pendingSecret.secretKey, uri: pendingSecret.generateQrCodeUrl(u.displayName || u.email, "Liga das Tarefas") };
+      return { secret: pendingSecret.secretKey, uri: pendingSecret.generateQrCodeUrl(u.displayName || u.email, "listRats") };
     },
     async mfaConfirm(code) {
       if (!pendingSecret) throw fail("bad_code");
@@ -174,7 +204,10 @@ window.Liga.data = window.Liga.data || {};
     const ref = F.doc(fs, "usernames", unameKey(u.displayName));
     try {
       const d = await F.getDoc(ref);
-      if (d.exists() && d.data().uid === u.uid && d.data().email !== u.email) await F.setDoc(ref, { uid: u.uid, email: u.email });
+      if (!d.exists() || d.data().uid !== u.uid) return;
+      const x = d.data();
+      // e-mail novo confirmado: grava o novo e esquece o pendente
+      if (x.email !== u.email) await F.setDoc(ref, x.pending && x.pending.toLowerCase() !== String(u.email).toLowerCase() ? { uid: u.uid, email: u.email, pending: x.pending } : { uid: u.uid, email: u.email });
     } catch (e) { /* ignora */ }
   }
 
@@ -204,8 +237,8 @@ window.Liga.data = window.Liga.data || {};
         (e) => onErr && onErr(mapErr(e)));
     },
     // só os documentos com campo == valor (ex.: convites criados por mim)
-    watchWhere(coll, field, value, cb, onErr) {
-      return F.onSnapshot(F.query(F.collection(fs, coll), F.where(field, "==", value)),
+    watchWhere(coll, field, value, cb, onErr, op) {
+      return F.onSnapshot(F.query(F.collection(fs, coll), F.where(field, op || "==", value)),
         (snap) => { const out = {}; snap.forEach((d) => { out[d.id] = d.data(); }); cb(out); },
         (e) => onErr && onErr(mapErr(e)));
     },

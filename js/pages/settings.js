@@ -59,8 +59,8 @@ window.Liga.pages = window.Liga.pages || {};
     const created = u.createdAt ? new Date(u.createdAt).toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" }) : "—";
     const info = el("dl", { class: "info" },
       el("dt", null, "Usuário"), el("dd", { text: u.name || "—" }),
-      el("dt", null, "E-mail"), el("dd", null, el("span", { text: u.email || "—" }),
-        auth().verifiesEmail ? el("span", { class: "badge " + (u.emailVerified ? "ok" : "warn") }, u.emailVerified ? "confirmado" : "não confirmado") : null),
+      el("dt", null, "E-mail"), el("dd", null, el("span", { text: u.email || "sem e-mail" }),
+        auth().verifiesEmail && u.email ? el("span", { class: "badge " + (u.emailVerified ? "ok" : "warn") }, u.emailVerified ? "confirmado" : "não confirmado") : null),
       el("dt", null, "Conta criada"), el("dd", null, created),
       el("dt", null, "Projetos"), el("dd", null, (() => {
         const mine = L.ui.visibleProjects();
@@ -111,14 +111,27 @@ window.Liga.pages = window.Liga.pages || {};
   /* ---------- e-mail ---------- */
   function email(d) {
     const u = S.user;
-    const verify = auth().verifiesEmail && !u.emailVerified
+    const pend = L.text.store.get("listrats.pendingEmail");
+    const pending = pend && pend !== u.email
+      ? el("div", { class: "row", style: "align-items:center" },
+          el("span", { class: "small muted" }, "Esperando você abrir o link enviado para " + pend + "."),
+          el("button", { class: "btn ghost sm", type: "button", onclick: () => run("em", async () => {
+            await auth().reload(); L.app.refreshUser();
+            if (S.user.email === pend) { L.text.store.set("listrats.pendingEmail", ""); return "E-mail confirmado."; }
+            return "Ainda não confirmado. Depois de abrir o link, talvez seja preciso entrar de novo.";
+          }) }, "Já abri o link"))
+      : null;
+    if (pend && pend === u.email) L.text.store.set("listrats.pendingEmail", "");
+    const verify = auth().verifiesEmail && u.email && !u.emailVerified
       ? el("div", { class: "row", style: "align-items:center" },
           el("span", { class: "small muted" }, "Seu e-mail ainda não foi confirmado."),
           el("button", { class: "btn ghost sm", type: "button", onclick: () => run("em", () => auth().sendVerification(), "Link de confirmação enviado para " + u.email + ".") }, "Reenviar link"),
           el("button", { class: "btn ghost sm", type: "button", onclick: () => run("em", async () => { await auth().reload(); L.app.refreshUser(); return S.user.emailVerified ? "E-mail confirmado." : "Ainda não confirmado."; }) }, "Já confirmei"))
       : null;
-    return section("E-mail", "Usado para entrar e para recuperar a conta.",
-      verify,
+    return section("E-mail", u.email
+        ? "Usado para entrar e para recuperar a conta." + (auth().verifiesEmail ? " Para trocar, mandamos um link para o e-mail novo: ele só muda depois que você abrir o link." : "")
+        : "Sua conta ainda não tem e-mail. Ele é opcional, mas sem ele não dá para recuperar a conta." + (auth().verifiesEmail ? " Mandamos um link para confirmar que o e-mail existe." : ""),
+      pending, verify,
       el("form", { class: "f", id: "emForm", onsubmit: (ev) => {
         ev.preventDefault();
         const e = (d.emNew || "").trim();
@@ -127,14 +140,15 @@ window.Liga.pages = window.Liga.pages || {};
         run("em", async () => {
           const r = await auth().changeEmail(e, d.emPw, (d.emCode || "").replace(/\s/g, ""));
           d.emNew = d.emPw = d.emCode = "";
+          if (r && r.pending) L.text.store.set("listrats.pendingEmail", e);
           L.app.refreshUser();
-          return r && r.pending ? "Enviamos um link para " + e + ". O e-mail muda quando você abrir o link." : "E-mail alterado.";
+          return r && r.pending ? "Enviamos um link para " + e + ". O e-mail só entra na conta quando você abrir o link." : "E-mail salvo.";
         });
       } },
-        input("sEmNew", "Novo e-mail", d, "emNew", { type: "email", autocomplete: "email" }),
+        input("sEmNew", u.email ? "Novo e-mail" : "E-mail", d, "emNew", { type: "email", autocomplete: "email" }),
         pw("sEmPw", "Senha atual", d, "emPw"),
         code("sEmCode", d, "emCode"),
-        el("div", null, el("button", { class: "btn ghost", type: "submit", disabled: !!d.busy.em }, "Trocar e-mail"))),
+        el("div", null, el("button", { class: "btn " + (u.email ? "ghost" : "purple"), type: "submit", disabled: !!d.busy.em }, u.email ? "Trocar e-mail" : "Adicionar e-mail"))),
       msg("em"));
   }
 
@@ -207,7 +221,7 @@ window.Liga.pages = window.Liga.pages || {};
 
     return section("Verificação em duas etapas", desc,
       el("p", null, el("span", { class: "badge" }, "desativada")),
-      auth().verifiesEmail && !u.emailVerified ? el("p", { class: "hint" }, "Confirme seu e-mail antes de ativar.") : null,
+      auth().verifiesEmail && !u.emailVerified ? el("p", { class: "hint" }, u.email ? "Confirme seu e-mail antes de ativar." : "Adicione e confirme um e-mail antes de ativar.") : null,
       el("form", { class: "f", id: "mfaStartForm", onsubmit: (ev) => {
         ev.preventDefault();
         run("mfa", async () => {

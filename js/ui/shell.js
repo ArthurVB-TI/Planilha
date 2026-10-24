@@ -55,7 +55,12 @@ window.Liga = window.Liga || {};
       item({ ic: "list", label: "Minhas tarefas", on: pg === "mine", onclick: () => go({ page: "mine" }),
         extra: pend ? el("span", { class: "count", title: pend + " obrigatória(s) pendente(s)" }, String(pend)) : null }));
 
-    nav.append(item({ ic: "chart", label: "Gráficos", on: pg === "charts", onclick: () => go({ page: "charts" }) }));
+    const nUnread = L.social ? L.social.unread() : 0;
+    nav.append(
+      item({ ic: "bell", label: "Notificações", on: pg === "inbox", onclick: () => go({ page: "inbox" }),
+        extra: nUnread ? el("span", { class: "count purple", title: nUnread + " não lida(s)" }, String(nUnread)) : null }),
+      item({ ic: "heart", label: "Amigos", on: pg === "friends", onclick: () => go({ page: "friends" }) }),
+      item({ ic: "chart", label: "Gráficos", on: pg === "charts", onclick: () => go({ page: "charts" }) }));
 
     // Projetos, com os projetos (e as listRats do projeto aberto) por dentro
     const open = S.projectsOpen;

@@ -67,7 +67,7 @@ window.Liga = window.Liga || {};
     return false;
   }
   const totpUri = (account, secret) =>
-    "otpauth://totp/" + encodeURIComponent("Liga das Tarefas:" + account) + "?secret=" + secret + "&issuer=" + encodeURIComponent("Liga das Tarefas");
+    "otpauth://totp/" + encodeURIComponent("listRats:" + account) + "?secret=" + secret + "&issuer=" + encodeURIComponent("listRats");
 
   L.crypto = { hashPassword, checkPassword, newTotpSecret, verifyTotp, totpNow, totpUri };
 })(window.Liga);

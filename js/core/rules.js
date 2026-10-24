@@ -14,15 +14,18 @@ window.Liga = window.Liga || {};
   const DIFF_KEYS = Object.keys(DIFF);
   const MAX_MARKS = 800;
   // regras de inscrição padrão de uma listRat (dono e ajudantes mudam)
-  const DEFAULT_REQ = { minObr: 3, minTasks: 1, maxTasks: 10, maxDesvio: 2 };
+  // maxTasks 0 = sem máximo. Desvio recomendado: 35 (duas pessoas a 1 tarefa fácil diária de diferença = 70 pts/semana)
+  const DEFAULT_REQ = { minObr: 3, minTasks: 1, maxTasks: 0, maxDesvio: 35 };
+  const RECOMMENDED_DESVIO = 35;
   const int = (v, lo, hi, def) => (Number.isFinite(+v) && v !== "" && v !== null ? Math.min(hi, Math.max(lo, Math.round(+v))) : def);
   function normReq(r) {
     r = r && typeof r === "object" ? r : {};
     const minObr = int(r.minObr, 0, 30, DEFAULT_REQ.minObr);
     const minTasks = int(r.minTasks, 0, 30, DEFAULT_REQ.minTasks);
-    const maxTasks = Math.max(minTasks, int(r.maxTasks, 1, 30, DEFAULT_REQ.maxTasks));
+    let maxTasks = int(r.maxTasks, 0, 30, DEFAULT_REQ.maxTasks);
+    if (maxTasks && maxTasks < minTasks) maxTasks = minTasks;
     const d = Number(r.maxDesvio);
-    const maxDesvio = Number.isFinite(d) && d >= 0 ? Math.min(10000, Math.round(d * 100) / 100) : DEFAULT_REQ.maxDesvio;
+    const maxDesvio = r.maxDesvio !== "" && r.maxDesvio != null && Number.isFinite(d) && d >= 0 ? Math.min(10000, Math.round(d * 100) / 100) : DEFAULT_REQ.maxDesvio;
     return { minObr, minTasks, maxTasks, maxDesvio };
   }
   const NICK_MAX = 20;
@@ -51,7 +54,9 @@ window.Liga = window.Liga || {};
     if (!name) return null;
     const members = Array.isArray(d.members) ? [...new Set(d.members.filter(isId))].slice(0, 50) : [];
     const owner = isId(d.owner) ? d.owner : "";
-    return { id, name, desc: clean(d.desc, 200), members, owner, createdAt: Number(d.createdAt) || 0 };
+    // cargo "ajudante do projeto" (só integrantes)
+    const helpers = Array.isArray(d.helpers) ? [...new Set(d.helpers.filter((h) => isId(h) && members.includes(h) && h !== owner))].slice(0, 50) : [];
+    return { id, name, desc: clean(d.desc, 200), members, owner, helpers, createdAt: Number(d.createdAt) || 0 };
   }
 
   function sub(id, d) {
@@ -93,13 +98,35 @@ window.Liga = window.Liga || {};
     return { id, projectId: d.projectId, expiresAt: Number(d.expiresAt) || 0, createdAt: Number(d.createdAt) || 0 };
   }
 
+  // amizade entre duas contas: id = "<menor uid>_<maior uid>"
+  function friendship(id, d) {
+    const users = Array.isArray(d.users) ? d.users.filter(isId) : [];
+    if (users.length !== 2 || !isId(d.from) || !isId(d.to)) return null;
+    const status = d.status === "accepted" ? "accepted" : "pending";
+    return { id, users, from: d.from, to: d.to, status, createdAt: Number(d.createdAt) || 0, acceptedAt: Number(d.acceptedAt) || 0 };
+  }
+  // convite para entrar num projeto: id = "<projeto>_<pessoa>"
+  function request(id, d) {
+    if (!isId(d.projectId) || !isId(d.from) || !isId(d.to)) return null;
+    return { id, projectId: d.projectId, projectName: clean(d.projectName, 60) || "projeto", from: d.from, to: d.to, createdAt: Number(d.createdAt) || 0 };
+  }
+  const NOTIF_CATS = ["projetos", "amizades", "site"];
+  function notif(id, d) {
+    if (!isId(d.to)) return null;
+    return {
+      id, to: d.to, from: isId(d.from) ? d.from : "", cat: NOTIF_CATS.includes(d.cat) ? d.cat : "site",
+      kind: clean(d.kind, 30), text: clean(d.text, 200), projectId: isId(d.projectId) ? d.projectId : "", sid: isId(d.sid) ? d.sid : "",
+      createdAt: Number(d.createdAt) || 0, read: d.read === true,
+    };
+  }
+
   function player(id, d) {
     return { nick: clean(d.nick, NICK_MAX), done: obj(d.done), proofs: obj(d.proofs), weeks: d.weeks };
   }
 
   L.rules = {
-    DIFF, DIFF_KEYS, MAX_MARKS, DEFAULT_REQ, normReq, NICK_MAX, isPhotoId,
+    DIFF, DIFF_KEYS, MAX_MARKS, DEFAULT_REQ, RECOMMENDED_DESVIO, normReq, NICK_MAX, isPhotoId,
     checkUsername, checkEmail, checkPassword,
-    sanitize: { project, sub, task, player, invite },
+    sanitize: { project, sub, task, player, invite, friendship, request, notif },
   };
 })(window.Liga);

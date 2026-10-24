@@ -25,6 +25,7 @@ window.Liga = window.Liga || {};
   function go(v) {
     S.view = v;
     S.confirm = null;
+    S.sheet = null;
     S.draft.editProject = null;
     S.draft.editTask = null;
     S.draft.editSub = null;
@@ -66,7 +67,9 @@ window.Liga = window.Liga || {};
       const page = PAGES.includes(S.view && S.view.page) ? S.view.page : "home";
       L.pages[page](v);
     }
+    if (S.myId && S.sheet) { const sh = L.tasksUI.sheet(); if (sh) v.append(sh); }
     if (S.myId && S.invitePrompt) v.append(invitePromptBox());
+    if (S.backend && S.backend.isTest) v.prepend(testBar());
     L.shell.renderMenu();
     L.shell.renderUserBox();
     L.fx.enter(v, S.myId ? JSON.stringify(S.view) : "login");
@@ -110,6 +113,7 @@ window.Liga = window.Liga || {};
       mine: null, myLoaded: false, pending: false, writing: false,
       ownerId: null, configLoaded: false, readOnly: false, photoCache: {},
       invites: {}, invitesOn: false, friendships: {}, reqs: {}, sentReqs: {}, notifs: {}, invitePrompt: null,
+      justs: {}, contests: {}, sheet: null,
     });
     S.draft.settings = {};
     S.draft.newProject = null;
@@ -200,6 +204,16 @@ window.Liga = window.Liga || {};
         } }, ip.busy ? "Entrando…" : "Entrar no projeto"),
       ]);
   }
+  /* ---------- modo de teste (?teste no endereço): dados de exemplo só neste navegador ---------- */
+  function testBar() {
+    return el("div", { class: "testbar" },
+      el("b", null, "Modo de teste"),
+      el("span", null, "Dados de exemplo só neste navegador. Entre como voce, ana, bruno ou carla (senha teste1234)."),
+      el("div", { class: "row", style: "gap:6px" },
+        el("button", { class: "btn ghost sm", type: "button", onclick: async () => { await L.demo.reset(); location.reload(); } }, "Recriar dados"),
+        el("button", { class: "btn ghost sm", type: "button", onclick: () => { location.href = location.pathname; } }, "Sair do teste")));
+  }
+
   window.addEventListener("hashchange", () => { readInvite(); if (S.invite && S.myId) checkLoaded(); render(); });
 
   function listen(coll, key, sanitize, where) {
@@ -219,11 +233,12 @@ window.Liga = window.Liga || {};
         const me = out[S.myId];
         const cp = (o) => JSON.parse(JSON.stringify(o || {}));
         if (me && !S.mine) {
-          S.mine = { nick: me.nick, done: cp(me.done), proofs: cp(me.proofs), weeks: me.weeks ? cp(me.weeks) : undefined };
+          S.mine = { nick: me.nick, done: cp(me.done), proofs: cp(me.proofs), notes: cp(me.notes), weeks: me.weeks ? cp(me.weeks) : undefined };
         } else if (me && S.mine && !S.pending && !S.writing && !S.uploading) {
           // atualização vinda de outro aparelho
           S.mine.done = cp(me.done);
           S.mine.proofs = cp(me.proofs);
+          S.mine.notes = cp(me.notes);
           S.mine.nick = me.nick || S.mine.nick;
         }
         S.myLoaded = true;
@@ -258,6 +273,8 @@ window.Liga = window.Liga || {};
     listen("projetos", "projects", san.project);
     listen("subprojetos", "subs", san.sub);
     listen("tarefas", "tasks", san.task);
+    listen("justificativas", "justs", san.justification);
+    listen("contestacoes", "contests", san.contest);
     render();
   }
 
@@ -269,10 +286,14 @@ window.Liga = window.Liga || {};
     readInvite();
 
     const cfg = window.LIGA_CONFIG || {};
-    const useFirebase = cfg.firebase && typeof cfg.firebase === "object" && cfg.firebase.apiKey;
+    const testing = L.data.local.isTest;
+    const useFirebase = !testing && cfg.firebase && typeof cfg.firebase === "object" && cfg.firebase.apiKey;
     S.backend = useFirebase ? L.data.firebase : L.data.local;
     S.mode = S.backend.mode;
     render();
+    if (testing) {
+      try { await L.demo.ensure(); } catch (e) { console.error(e); setStatus("Não deu para criar os dados de teste.", true); }
+    }
 
     try {
       await S.backend.start(onAuth);

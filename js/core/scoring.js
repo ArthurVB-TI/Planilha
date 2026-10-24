@@ -55,11 +55,17 @@ window.Liga = window.Liga || {};
     return set;
   }
 
-  // resultado de uma tarefa para quem é responsável por ela
-  function taskResult(task) {
-    const done = validMarks(task, marksOf(task.assignee, task.id));
+  // resultado de uma tarefa para quem é responsável por ela.
+  // Conta como feito: o que a pessoa marcou + justificativas aceitas pelo dono/ajudante.
+  // Tarefa que perdeu a contestação fica sem nenhum dia feito (opts.raw ignora a contestação).
+  function taskResult(task, opts) {
+    const R = L.review;
+    const raw = R ? marksOf(task.assignee, task.id).concat(R.acceptedKeys(task)) : marksOf(task.assignee, task.id);
+    let done = validMarks(task, raw);
+    const voided = !(opts && opts.raw) && !!R && R.taskLost(task);
+    if (voided) done = new Set();
     const D = DIFF[task.diff];
-    if (task.type === "normal") return { done, plus: D.pts * done.size, minus: 0, missed: 0 };
+    if (task.type === "normal") return { done, plus: D.pts * done.size, minus: 0, missed: 0, voided };
 
     let missed = 0;
     const sp = span(task);
@@ -70,7 +76,7 @@ window.Liga = window.Liga || {};
       const end = minKey(addDays(curWeek(), -7), sp.end && weekOf(sp.end));
       for (let k = weekOf(sp.from), i = 0; k <= end && i < 600; k = addDays(k, 7), i++) if (!done.has(k)) missed++;
     }
-    return { done, plus: 0, minus: D.pen * missed, missed };
+    return { done, plus: 0, minus: D.pen * missed, missed, voided };
   }
 
   const periodKey = (task) => (task.kind === "daily" ? todayKey() : curWeek());

@@ -52,6 +52,25 @@ window.Liga.pages = window.Liga.pages || {};
         el("div", null, el("button", { class: "btn", type: "button", onclick: () => L.app.go({ page: "new" }) }, "Novo projeto"))));
     }
 
+    // listRats no dia de contestação (ou com justificativas para você julgar)
+    for (const s of Object.values(S.subs)) {
+      const p = S.projects[s.projectId];
+      if (!p || !p.members.includes(S.myId) || !L.score.isParticipant(s, S.myId)) continue;
+      const ph = L.review.phase(s);
+      const pendJ = L.perms.canRunSub(s) ? L.review.pendingFor(s).filter((j) => j.uid !== S.myId).length : 0;
+      if (ph !== "contestacao" && !pendJ) continue;
+      const contra = L.review.contestsOf(s).filter((c) => c.accused === S.myId && c.status === "aberta").length;
+      v.append(el("button", { type: "button", class: "banner " + (ph === "contestacao" ? "hot" : ""),
+        onclick: () => L.app.go({ page: "sub", pid: p.id, sid: s.id, tab: ph === "contestacao" ? "resultado" : "gerenciar" }) },
+        L.dom.icon(ph === "contestacao" ? "flag" : "help"),
+        el("div", null,
+          el("b", null, ph === "contestacao" ? "Dia de contestação em " + s.name : plural(pendJ, "justificativa esperando", "justificativas esperando") + " em " + s.name),
+          el("span", null, ph === "contestacao"
+            ? (contra ? "Contestaram " + plural(contra, "tarefa sua", "tarefas suas") + ": mande a prova até o fim do dia. " : "") + "Você pode contestar " + L.review.left(s) + " de " + L.review.MAX_CONTESTS + "."
+            : "Aceite ou recuse em Gerenciar.")),
+        el("span", { class: "go" }, L.dom.icon("chevron"))));
+    }
+
     // listRats em inscrições onde você ainda precisa preencher tarefas
     const insc = Object.values(S.subs).filter((s) => s.status === "inscricoes" && L.perms.canFillOwn(s))
       .map((s) => ({ s, st: L.enroll.personStatus(s, S.myId) }));

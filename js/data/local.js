@@ -23,10 +23,13 @@ window.Liga.data = window.Liga.data || {};
   "use strict";
   const C = L.crypto;
 
-  const KEY = "liga.local.v1";
-  const ACC = "liga.local.accounts";
-  const SES = "liga.local.session";
-  const PHOTO = "liga.local.foto.";
+  // ?teste no endereço: modo de teste, com tudo guardado separado (não mistura com o modo local normal)
+  const TEST = /[?&]teste(?:[=&]|$)/.test(location.search);
+  const PRE = TEST ? "listrats.teste." : "liga.local.";
+  const KEY = PRE + (TEST ? "db" : "v1");
+  const ACC = PRE + "accounts";
+  const SES = PRE + "session";
+  const PHOTO = PRE + "foto.";
   const clone = (o) => JSON.parse(JSON.stringify(o ?? null));
   const fail = (code) => Object.assign(new Error(code), { code });
 
@@ -213,7 +216,20 @@ window.Liga.data = window.Liga.data || {};
 
   const local = {
     mode: "local",
+    isTest: TEST,
     auth,
+    // apaga tudo do modo de teste (usado em "Recriar dados")
+    wipe() {
+      if (!TEST) return;
+      try {
+        for (const k of Object.keys(localStorage)) if (k.startsWith(PRE)) localStorage.removeItem(k);
+      } catch (e) { /* ignora */ }
+      db = {};
+    },
+    // grava vários documentos de uma vez (dados de teste)
+    async setMany(docs) {
+      commit((d) => { for (const [path, data] of docs) { const [c, id] = split(path); d[c] = d[c] || {}; d[c][id] = clone(data); } });
+    },
 
     async start(onAuth) {
       authCb = onAuth;

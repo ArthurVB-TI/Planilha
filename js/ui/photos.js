@@ -55,18 +55,47 @@ window.Liga = window.Liga || {};
   }
 
   function startPhoto(task, key) {
-    if (S.uploading || !L.actions.canMark(task)) return;
+    if (S.uploading || !L.actions.canChangeDay(task, key)) return;
     S.camTarget = { taskId: task.id, key };
     const inp = $("camInput");
     inp.value = "";
     inp.click();
   }
+  // escolhe uma foto para outra coisa (justificativa, prova de contestação): cb(idDaFoto)
+  function pick(tag, cb) {
+    if (S.uploading) return;
+    S.camTarget = { tag, cb };
+    const inp = $("camInput");
+    inp.value = "";
+    inp.click();
+  }
+  const uploadErr = (e) => {
+    const c = e && e.code;
+    L.app.setStatus(
+      c === "too_large" ? "A foto é grande demais. Tente outra." :
+      c === "unsupported_type" ? "Esse formato de imagem não é aceito. Use JPG ou PNG." :
+      c === "quota_exceeded" ? "O espaço de fotos acabou." :
+      L.actions.errMsg(e, "Não deu para enviar a foto. Tente de novo."), true);
+  };
 
   async function onFile(ev) {
     const file = ev.target.files && ev.target.files[0];
     const tgt = S.camTarget;
     S.camTarget = null;
     if (!file || !tgt) return;
+    if (tgt.cb) {
+      S.uploading = tgt.tag;
+      L.app.render();
+      try {
+        const data = await prepare(file);
+        const id = await S.backend.photos.save(data, S.myId);
+        S.photoCache[id] = data;
+        await tgt.cb(id);
+      } catch (e) { uploadErr(e); }
+      S.uploading = null;
+      L.app.render();
+      return;
+    }
     const task = S.tasks[tgt.taskId];
     if (!task) return;
     S.uploading = tgt.taskId + "|" + tgt.key;
@@ -77,14 +106,7 @@ window.Liga = window.Liga || {};
       S.photoCache[id] = data;
       L.actions.attachProof(task, tgt.key, id);
       L.app.setStatus("");
-    } catch (e) {
-      const c = e && e.code;
-      L.app.setStatus(
-        c === "too_large" ? "A foto é grande demais. Tente outra." :
-        c === "unsupported_type" ? "Esse formato de imagem não é aceito. Use JPG ou PNG." :
-        c === "quota_exceeded" ? "O espaço de fotos acabou." :
-        L.actions.errMsg(e, "Não deu para enviar a foto. Tente de novo."), true);
-    }
+    } catch (e) { uploadErr(e); }
     S.uploading = null;
     L.app.render();
   }
@@ -142,8 +164,12 @@ window.Liga = window.Liga || {};
 
   function setup() {
     $("camInput").addEventListener("change", onFile);
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("lightbox").hidden) closePhoto(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (!$("lightbox").hidden) closePhoto();
+      else if (S.sheet) { S.sheet = null; L.app.render(); }
+    });
   }
 
-  L.photos = { proofRow, openPhoto, setup };
+  L.photos = { proofRow, openPhoto, setup, startPhoto, pick, proofsOf, loadInto };
 })(window.Liga);

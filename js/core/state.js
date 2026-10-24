@@ -22,6 +22,8 @@ window.Liga = window.Liga || {};
     friendships: {},                // amizades (pedidos e aceitas) em que eu estou
     reqs: {}, sentReqs: {},         // convites para projetos: recebidos e enviados
     notifs: {},                     // minhas notificações
+    justs: {}, contests: {},        // justificativas e contestações (review.js)
+    sheet: null,                    // painel da tarefa aberto (ui/tasks.js)
     invitePrompt: null,             // janela "Você quer entrar no projeto X?" (link de convite)
     invite: null, joining: false,   // código de convite recebido pelo endereço (#convite=...)
     loaded: { players: false, projects: false, subs: false, tasks: false },

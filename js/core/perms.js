@@ -3,9 +3,11 @@
    - Dono do projeto: edita e apaga o projeto, adiciona/tira integrantes, cria links de convite,
      passa o projeto para outro integrante e pode mexer em todas as listRats do projeto.
    - Integrante de um projeto: cria listRats nesse projeto (vira o dono da listRat).
-   - Dono da listRat: edita, apaga, escolhe ajudantes e cuida das tarefas dela.
-   - Ajudante da listRat: cria, edita e apaga tarefas dela, muda as regras de inscrição e começa a listRat.
-   - Em inscrições, cada integrante cria, edita e apaga as próprias tarefas.
+   - Dono da listRat: edita, apaga e escolhe ajudantes.
+   - Dono e ajudantes da listRat: mudam as regras de inscrição, começam a listRat e aceitam/recusam
+     justificativas e provas de contestação.
+   - Tarefas: cada pessoa só mexe nas PRÓPRIAS. Nas inscrições cria, edita e apaga;
+     depois que a listRat começa só dá para renomear (para ninguém mudar as regras do jogo no meio).
    As mesmas regras estão no firestore.rules (é lá que elas valem de verdade). */
 window.Liga = window.Liga || {};
 (function (L) {
@@ -26,12 +28,15 @@ window.Liga = window.Liga || {};
   const subOwner = (s) => (s && s.owner) || projOwner(projOf(s));
   const canManageSub = (s) => !!s && (s.owner === S.myId || isProjectOwner(projOf(s)));
   const isHelper = (s) => !!s && s.helpers.includes(S.myId);
-  const canEditTasks = (s) => canManageSub(s) || isHelper(s);
   // em inscrições, cada integrante do projeto cria, edita e apaga as próprias tarefas
   const canFillOwn = (s) => !!s && s.status === "inscricoes" && isMember(projOf(s));
-  const canEditTask = (t) => { const s = t && S.subs[t.subId]; return canEditTasks(s) || (canFillOwn(s) && t.assignee === S.myId); };
-  // regras de inscrição, começar a listRat e incluir participante: dono e ajudantes
-  const canRunSub = (s) => canEditTasks(s);
+  const ownTask = (t) => !!t && t.assignee === S.myId && isMember(projOf(S.subs[t.subId]));
+  // editar: "full" (nome, tipo, frequência, dificuldade) nas inscrições, "name" depois que começou
+  const editLevel = (t) => (!ownTask(t) ? "" : S.subs[t.subId].status === "inscricoes" ? "full" : "name");
+  const canEditTask = (t) => !!editLevel(t);
+  const canDeleteTask = (t) => editLevel(t) === "full";
+  // regras de inscrição, começar a listRat, incluir participante e julgar: dono e ajudantes
+  const canRunSub = (s) => canManageSub(s) || isHelper(s);
   function roleIn(s, uid) {
     if (!s) return "";
     if (subOwner(s) === uid) return "dono";
@@ -39,5 +44,5 @@ window.Liga = window.Liga || {};
     return "";
   }
 
-  L.perms = { projOwner, isProjectOwner, isProjectHelper, projRole, isMember, canSeeProject, canCreateSub, subOwner, canManageSub, isHelper, canEditTasks, canFillOwn, canEditTask, canRunSub, roleIn };
+  L.perms = { projOwner, isProjectOwner, isProjectHelper, projRole, isMember, canSeeProject, canCreateSub, subOwner, canManageSub, isHelper, canFillOwn, ownTask, editLevel, canEditTask, canDeleteTask, canRunSub, roleIn };
 })(window.Liga);

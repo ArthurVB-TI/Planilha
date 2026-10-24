@@ -4,15 +4,15 @@
    ========================================================= */
 
 :root {
-  --bg: #0f1012;
-  --surface: #16171a;
-  --sunk: #1d1f23;
-  --hover: #23262b;
-  --line: #2a2d33;
-  --line-strong: #3b3f47;
-  --fg: #ecebe8;
-  --muted: #8f929a;
-  --faint: #5d6068;
+  --bg: #18191d;
+  --surface: #202227;
+  --sunk: #272a30;
+  --hover: #2e3138;
+  --line: #353840;
+  --line-strong: #4a4e58;
+  --fg: #efeeeb;
+  --muted: #a0a3ab;
+  --faint: #6f727b;
 
   --accent: #d7f36b;          /* fundo de botão principal */
   --accent-ink: #12130f;      /* texto em cima do accent */
@@ -23,6 +23,9 @@
   --neg: #ff7466;
   --neg-soft: rgba(255, 116, 102, .12);
   --gold: #e9c46a;
+  --silver: #c3c9d4;
+  --bronze: #d38b5d;
+  --warn: #e9b44c;
 
   --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -46,12 +49,12 @@
 }
 
 :root[data-theme="light"] {
-  --bg: #f3f2ee;
-  --surface: #ffffff;
-  --sunk: #ebe9e4;
-  --hover: #e4e2dc;
-  --line: #dddad3;
-  --line-strong: #c5c1b8;
+  --bg: #e4e2dc;
+  --surface: #f1f0ec;
+  --sunk: #dbd8d1;
+  --hover: #d3d0c8;
+  --line: #ccc8bf;
+  --line-strong: #b3aea3;
   --fg: #1b1b19;
   --muted: #696862;
   --faint: #9a988f;
@@ -65,6 +68,9 @@
   --neg: #c8382b;
   --neg-soft: rgba(200, 56, 43, .08);
   --gold: #9a6b00;
+  --silver: #5f6875;
+  --bronze: #9a5527;
+  --warn: #a86a00;
 
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
   --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948; --s-other: #9a988f;

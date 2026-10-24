@@ -1,5 +1,5 @@
 /* pages/sub.js — uma listRat, dividida em sub-páginas com um cabeçalho de abas:
-   Visão geral · Tarefas · Inscrições (ou Participantes) · Equipe · Editar · Gerenciar.
+   Visão geral · Tarefas · Inscrições (ou Participantes) · Contestação/Resultado · Equipe · Editar · Gerenciar.
    Rota: { page: "sub", pid, sid, tab }. */
 window.Liga = window.Liga || {};
 window.Liga.pages = window.Liga.pages || {};
@@ -31,6 +31,9 @@ window.Liga.pages = window.Liga.pages || {};
     ]);
     const t = (key, label, ic, extra) => Object.assign({ key, label, ic, go: () => go({ page: "sub", pid: p.id, sid: s.id, tab: key }) }, extra);
     const manage = P.canManageSub(s), run = P.canRunSub(s);
+    const ph = L.review.phase(s);
+    const pendJ = run ? L.review.pendingFor(s).length : 0;
+    const openAgainstMe = L.review.contestsOf(s).filter((c) => c.accused === S.myId && c.status === "aberta").length;
     v.append(L.ui.subHeader({
       kicker: "ListRat de " + p.name,
       title: s.name,
@@ -44,9 +47,11 @@ window.Liga.pages = window.Liga.pages || {};
       t("geral", "Visão geral", "home"),
       t("tarefas", "Tarefas", "list", { count: st.filter((x) => x.assignee === S.myId).length }),
       t("inscricoes", insc ? "Inscrições" : "Participantes", "users", { count: insc ? null : participants(s, p).length }),
+      t("resultado", ph === "contestacao" ? "Contestação" : "Resultado", ph === "contestacao" ? "flag" : "trophy",
+        { hidden: ph !== "contestacao" && ph !== "final", count: ph === "contestacao" ? openAgainstMe || null : null, tone: ph === "contestacao" ? "hot" : "" }),
       t("equipe", "Equipe", "heart"),
       t("editar", "Editar", "edit", { hidden: !manage }),
-      t("gerenciar", "Gerenciar", "gear", { hidden: !(manage || run) }),
+      t("gerenciar", "Gerenciar", "gear", { hidden: !(manage || run), count: pendJ || null }),
     ], tab));
   }
 
@@ -56,6 +61,19 @@ window.Liga.pages = window.Liga.pages || {};
     const insc = s.status === "inscricoes";
     const mine = st.filter((t) => t.assignee === S.myId);
     const cards = el("div", { class: "cards" });
+    const ph = L.review.phase(s);
+    if (ph === "contestacao" || ph === "final") {
+      const contra = L.review.contestsOf(s).filter((c) => c.accused === S.myId && c.status === "aberta");
+      v.append(el("button", { type: "button", class: "banner " + (ph === "contestacao" ? "hot" : "done"), onclick: () => go({ page: "sub", pid: p.id, sid: s.id, tab: "resultado" }) },
+        icon(ph === "contestacao" ? "flag" : "trophy"),
+        el("div", null,
+          el("b", null, ph === "contestacao" ? "Hoje é o dia de contestação" : "A listRat terminou"),
+          el("span", null, ph === "contestacao"
+            ? (contra.length ? "Contestaram " + plural(contra.length, "tarefa sua", "tarefas suas") + ": mande a prova até o fim do dia. " : "") +
+              "Você pode duvidar de até " + L.review.MAX_CONTESTS + " tarefas dos outros (restam " + L.review.left(s) + ")."
+            : "Veja o resultado final.")),
+        el("span", { class: "go" }, icon("chevron"))));
+    }
 
     if (insc) {
       const me = L.enroll.personStatus(s, S.myId);
@@ -117,7 +135,10 @@ window.Liga.pages = window.Liga.pages || {};
   function tasks(v, p, s) {
     const st = tasksOf(s);
     const d = S.draft.subView = S.draft.subView && S.draft.subView.sid === s.id ? S.draft.subView : { sid: s.id, only: false };
-    if (P.canEditTasks(s) || P.canFillOwn(s)) v.append(L.forms.taskForm(p, s));
+    if (P.canFillOwn(s)) v.append(L.forms.taskForm(p, s));
+    else if (s.status !== "inscricoes" && P.isMember(p)) {
+      v.append(el("p", { class: "hint" }, "As tarefas são criadas nas inscrições. Agora cada pessoa só pode renomear as próprias. Toque numa tarefa para ver tudo dela; na sua, toque num dia para marcar."));
+    }
 
     v.append(el("div", { class: "row", style: "align-items:center;justify-content:space-between" },
       el("h2", null, "Tarefas de cada pessoa"),
@@ -125,30 +146,51 @@ window.Liga.pages = window.Liga.pages || {};
         [[false, "Todas"], [true, "Só as minhas"]].map(([val, label]) =>
           el("button", { type: "button", class: d.only === val ? "on" : "", "aria-pressed": d.only === val ? "true" : "false", onclick: () => { d.only = val; rerender(); } }, label)))));
 
-    const cols = el("div", { class: "members" });
     const inList = (id) => L.score.isParticipant(s, id);
     let order = p.members.filter(inList).sort((a, b) => (a === S.myId ? -1 : b === S.myId ? 1 : 0));
     if (d.only) order = order.filter((id) => id === S.myId);
-    for (const id of order) {
-      const mt = st.filter((t) => t.assignee === id);
-      const sc = L.score.scoreFor(id, mt);
-      const r = P.roleIn(s, id);
-      cols.append(el("section", { class: "mcol" },
-        el("div", { class: "mhead" },
-          el("div", { class: "who" }, L.ui.avatar(id),
-            el("div", { style: "min-width:0" },
-              el("div", { class: "n" }, L.ui.nameOf(id), r ? el("span", { class: "role" }, r) : null),
-              el("div", { class: "small muted" }, plural(mt.length, "tarefa", "tarefas")))),
-          el("div", { class: "pts" + (sc.total < 0 ? " neg" : "") }, fmtTotal(sc.total))),
-        mt.length ? el("div", { class: "tlist" }, mt.map((t) => L.ui.taskCard(t, { admin: true }))) : L.ui.empty("Sem tarefas.")));
-    }
+    const groups = el("div", { class: "pgroups" });
+    for (const id of order) groups.append(L.tasksUI.group(id, st.filter((t) => t.assignee === id), s));
     const orphan = st.filter((t) => !p.members.includes(t.assignee) || !inList(t.assignee));
-    if (P.canEditTasks(s) && orphan.length && !d.only) {
-      cols.append(el("section", { class: "mcol" },
-        el("div", { class: "mhead" }, el("div", null, el("div", { class: "n" }, "Fora da listRat"), el("div", { class: "small muted" }, "Não participam ou saíram do projeto. Não contam no placar."))),
-        el("div", { class: "tlist" }, orphan.map((t) => L.ui.taskCard(t, { admin: true, where: L.ui.nameOf(t.assignee) })))));
+    if (P.canRunSub(s) && orphan.length && !d.only) {
+      groups.append(L.tasksUI.group("", orphan, s, { title: "Fora da listRat", sub: "Não participam ou saíram do projeto. Não contam no placar.", noScore: true, where: true }));
     }
-    v.append(order.length || orphan.length ? cols : L.ui.empty(d.only ? "Você não tem tarefas nesta listRat." : "Ninguém nesta listRat ainda."));
+    v.append(order.length || orphan.length ? groups : L.ui.empty(d.only ? "Você não tem tarefas nesta listRat." : "Ninguém nesta listRat ainda."));
+  }
+
+  /* ---------- Contestação / Resultado ---------- */
+  function resultado(v, p, s) {
+    const ph = L.review.phase(s);
+    const R = L.review;
+    const cs = R.contestsOf(s);
+    if (ph === "contestacao") {
+      v.append(L.ui.block("Dia de contestação", "Hoje (dia seguinte ao fim) cada participante pode duvidar de até " + R.MAX_CONTESTS +
+        " tarefas de outras pessoas, e cada tarefa só pode ser contestada uma vez. Quem for contestado tem até o fim do dia para mandar uma prova; sem prova, a tarefa perde os pontos. Para contestar, abra a tarefa na aba Tarefas.",
+        el("div", { class: "row", style: "align-items:center" },
+          el("span", { class: "badge" }, "Você ainda pode contestar " + R.left(s) + " de " + R.MAX_CONTESTS),
+          el("button", { type: "button", class: "btn purple", onclick: () => go({ page: "sub", pid: p.id, sid: s.id, tab: "tarefas" }) }, icon("list"), "Ver as tarefas"))));
+    }
+    const grid = el("div", { class: "grid" });
+    const left = el("div", { class: "stack" }), right = el("div", { class: "stack" });
+    grid.append(left, right);
+    v.append(grid);
+
+    left.append(L.ui.block(ph === "final" ? "Resultado final" : "Placar parcial",
+      ph === "final" ? "Pontos de cada participante depois das contestações." : "Pode mudar até o fim do dia, conforme as contestações.",
+      L.tasksUI.results(s, p, ph === "final")));
+
+    right.append(L.ui.block("Contestações", cs.length ? plural(cs.length, "tarefa contestada", "tarefas contestadas") : null,
+      cs.length
+        ? el("div", { class: "clist" }, cs.map((c) => {
+            const t = S.tasks[c.taskId];
+            const lost = R.lost(c);
+            return el("button", { type: "button", class: "citem" + (lost ? " lost" : ""), onclick: () => t && L.tasksUI.openSheet(t) },
+              el("div", { style: "min-width:0" },
+                el("div", { class: "t", text: t ? t.title : "tarefa apagada" }),
+                el("div", { class: "small muted" }, (c.by === S.myId ? "Você" : L.ui.nameOf(c.by)) + " contestou " + (c.accused === S.myId ? "você" : L.ui.nameOf(c.accused)))),
+              el("span", { class: "dstate " + (lost ? "st-miss" : c.status === "aberta" ? "st-jpend" : "st-on") }, R.contestText(c)));
+          }))
+        : L.ui.empty(ph === "contestacao" ? "Ninguém contestou nada ainda." : "Ninguém contestou nada.")));
   }
 
   /* ---------- Inscrições / Participantes ---------- */
@@ -161,7 +203,7 @@ window.Liga.pages = window.Liga.pages || {};
   /* ---------- Equipe ---------- */
   function team(v, p, s) {
     const owner = P.subOwner(s);
-    v.append(L.ui.block("Equipe da listRat", "O dono e os ajudantes criam, editam e apagam as tarefas desta listRat. Só o dono edita a listRat, apaga e escolhe os ajudantes.",
+    v.append(L.ui.block("Equipe da listRat", "O dono e os ajudantes cuidam das regras, começam a listRat e aceitam ou recusam justificativas e provas. Só o dono edita a listRat, apaga e escolhe os ajudantes. Cada pessoa cuida só das próprias tarefas.",
       el("div", { class: "toggle-row" }, el("div", { class: "who" }, L.ui.avatar(owner), el("b", { text: L.ui.nameOf(owner) })), el("span", { class: "role" }, "dono")),
       s.helpers.length
         ? s.helpers.map((id) => el("div", { class: "toggle-row" }, el("div", { class: "who" }, L.ui.avatar(id), el("span", { text: L.ui.nameOf(id) })), el("span", { class: "role" }, "ajudante")))
@@ -180,7 +222,7 @@ window.Liga.pages = window.Liga.pages || {};
     // ajudantes (dono da listRat ou dono do projeto)
     if (manage) {
       const cand = p.members.filter((id) => id !== owner);
-      v.append(L.ui.block("Ajudantes", "Ajudantes criam, editam e apagam tarefas, mudam as regras de inscrição e podem começar a listRat.",
+      v.append(L.ui.block("Ajudantes", "Ajudantes mudam as regras de inscrição, podem começar a listRat e aceitam ou recusam justificativas e provas de contestação. Eles não mexem nas tarefas dos outros.",
         cand.length
           ? cand.map((id) => {
               const on = s.helpers.includes(id);
@@ -197,6 +239,24 @@ window.Liga.pages = window.Liga.pages || {};
                     } }, label))));
             })
           : el("p", { class: "muted small" }, "Não tem mais ninguém no projeto para chamar.")));
+    }
+
+    // justificativas esperando (dono e ajudantes)
+    if (P.canRunSub(s)) {
+      const pend = L.review.pendingFor(s).filter((j) => S.tasks[j.taskId]);
+      v.append(L.ui.block("Justificativas esperando", "Quem não conseguiu fazer uma tarefa pode justificar. Só conta como feita se você aceitar.",
+        pend.length
+          ? el("div", { class: "clist" }, pend.map((j) => {
+              const t = S.tasks[j.taskId];
+              return el("div", { class: "citem jrow" },
+                el("button", { type: "button", class: "jopen", onclick: () => L.tasksUI.openSheet(t, j.key) },
+                  el("div", { class: "t" }, L.ui.nameOf(j.uid) + " · " + t.title + " · " + L.dates.shortDate(j.key)),
+                  el("div", { class: "small muted", text: j.comment })),
+                j.uid === S.myId ? el("span", { class: "muted small" }, "sua") : el("div", { class: "row", style: "gap:6px" },
+                  el("button", { type: "button", class: "btn purple sm", onclick: async () => { try { await L.review.judgeJustification(j, true); ok("Justificativa aceita."); } catch (e) { err(e, "Não deu para aceitar."); } rerender(); } }, "Aceitar"),
+                  el("button", { type: "button", class: "btn danger-ghost sm", onclick: async () => { try { await L.review.judgeJustification(j, false); ok("Justificativa recusada."); } catch (e) { err(e, "Não deu para recusar."); } rerender(); } }, "Recusar")));
+            }))
+          : el("p", { class: "muted small" }, "Nenhuma justificativa esperando.")));
     }
 
     // regras de inscrição e começar (dono e ajudantes)
@@ -231,7 +291,8 @@ window.Liga.pages = window.Liga.pages || {};
     let tab = S.view.tab || "geral";
     if (tab === "editar" && !P.canManageSub(s)) tab = "geral";
     if (tab === "gerenciar" && !(P.canManageSub(s) || P.canRunSub(s))) tab = "geral";
+    if (tab === "resultado" && !["contestacao", "final"].includes(L.review.phase(s))) tab = "geral";
     header(v, p, s, tab);
-    ({ geral: overview, tarefas: tasks, inscricoes: enroll, equipe: team, editar, gerenciar }[tab] || overview)(v, p, s);
+    ({ geral: overview, tarefas: tasks, inscricoes: enroll, resultado, equipe: team, editar, gerenciar }[tab] || overview)(v, p, s);
   };
 })(window.Liga);

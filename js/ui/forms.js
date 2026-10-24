@@ -109,21 +109,14 @@ window.Liga = window.Liga || {};
 
   function taskForm(p, s) {
     const d = S.draft.task;
-    if (!p.members.length) {
-      return el("section", { class: "panel" }, el("h2", null, "Nova tarefa"),
-        el("p", { class: "muted" }, "O projeto não tem integrantes. Adicione alguém (você, por exemplo) para criar tarefas."),
-        el("div", null, el("button", { class: "btn ghost", type: "button", onclick: () => L.app.go({ page: "members", pid: p.id }) }, "Adicionar integrantes")));
-    }
-    // em inscrições, quem não é dono nem ajudante só cria tarefas para si
-    const selfOnly = !L.perms.canEditTasks(s);
-    const people = selfOnly ? [S.myId] : p.members;
-    if (!people.includes(d.assignee)) d.assignee = people.includes(S.myId) ? S.myId : people[0];
+    // cada pessoa só cria tarefas para si mesma (nas inscrições)
+    d.assignee = S.myId;
     const insc = s.status === "inscricoes";
     let quota = null;
     if (insc) {
       const st = L.enroll.personStatus(s, d.assignee);
       quota = el("p", { class: "hint" + (st.ready ? "" : " warn") },
-        (d.assignee === S.myId ? "Você tem " : L.ui.nameOf(d.assignee) + " tem ") +
+        "Você tem " +
         plural(st.obr, "obrigatória", "obrigatórias") + " (mín. " + s.req.minObr + ") e " +
         plural(st.normal, "normal", "normais") + " (" + (s.req.maxTasks ? s.req.minTasks + " a " + s.req.maxTasks : "mín. " + s.req.minTasks) + "). " +
         (st.ready ? "Pronto para participar." : st.text + "."));
@@ -133,7 +126,6 @@ window.Liga = window.Liga || {};
       ev.preventDefault();
       const title = clean(d.title, 80);
       if (!title) return setErr("tErr", "Escreva o nome da tarefa.");
-      if (!people.includes(d.assignee)) return setErr("tErr", "Escolha quem vai fazer.");
       setErr("tErr", "");
       $("tSubmit").disabled = true;
       try {
@@ -146,13 +138,11 @@ window.Liga = window.Liga || {};
       }
       if ($("tSubmit")) $("tSubmit").disabled = false;
     } },
-      el("h2", null, insc && selfOnly ? "Suas tarefas" : "Nova tarefa"),
+      el("h2", null, "Nova tarefa sua"),
+      el("p", { class: "muted small" }, "Cada pessoa cria as próprias tarefas. Ninguém cria nem edita tarefa de outra pessoa."),
       el("div", { class: "row" },
         el("div", { class: "field grow" }, el("label", { for: "tTitle" }, "Tarefa"),
-          input({ id: "tTitle", maxlength: "80", required: true, placeholder: "Ler 20 páginas" }, d, "title")),
-        selfOnly ? null : el("div", { class: "field", style: "flex:0 1 200px" }, el("label", { for: "tWho" }, "Quem faz"),
-          el("select", { id: "tWho", value: d.assignee, onchange: (e) => { d.assignee = e.target.value; rerender(); } },
-            people.map((id) => el("option", { value: id }, L.ui.nameOf(id) + (id === S.myId ? " (você)" : "")))))),
+          input({ id: "tTitle", maxlength: "80", required: true, placeholder: "Ler 20 páginas" }, d, "title"))),
       el("div", { class: "row" },
         el("div", { class: "field" }, el("span", { class: "lbl" }, "Tipo"), seg(d, "type", [["normal", "Normal"], ["obrigatoria", "Obrigatória"]])),
         el("div", { class: "field" }, el("span", { class: "lbl" }, "Frequência"), seg(d, "kind", [["daily", "Diária"], ["weekly", "Semanal"]]))),
@@ -165,40 +155,5 @@ window.Liga = window.Liga || {};
       el("div", { class: "err", id: "tErr" }));
   }
 
-  function taskEditCard(task) {
-    const d = S.draft.editTask;
-    const sub = S.subs[task.subId], p = sub && S.projects[sub.projectId];
-    const people = p && L.perms.canEditTasks(sub) ? [...new Set([...p.members, task.assignee])] : [task.assignee];
-    return el("form", { class: "task f", id: "editTaskForm", onsubmit: async (ev) => {
-      ev.preventDefault();
-      const title = clean(d.title, 80);
-      if (!title) return setErr("etErr", "Escreva o nome da tarefa.");
-      $("etSave").disabled = true;
-      try {
-        await L.actions.saveTask(task.id, Object.assign({}, d, { title }));
-        S.draft.editTask = null;
-        rerender();
-      } catch (e) {
-        setErr("etErr", errMsg(e, "Não deu para salvar a tarefa."));
-        $("etSave").disabled = false;
-      }
-    } },
-      el("div", { class: "field" }, el("label", { for: "etTitle" }, "Tarefa"), input({ id: "etTitle", maxlength: "80", required: true }, d, "title")),
-      el("div", { class: "field" }, el("label", { for: "etWho" }, "Quem faz"),
-        el("select", { id: "etWho", value: d.assignee, onchange: (e) => { d.assignee = e.target.value; rerender(); } },
-          people.map((id) => el("option", { value: id },
-            L.ui.nameOf(id) + (id === S.myId ? " (você)" : "") + (p && !p.members.includes(id) ? " (fora do projeto)" : ""))))),
-      el("div", { class: "row" },
-        el("div", { class: "field" }, el("span", { class: "lbl" }, "Tipo"), seg(d, "type", [["normal", "Normal"], ["obrigatoria", "Obrigatória"]])),
-        el("div", { class: "field" }, el("span", { class: "lbl" }, "Frequência"), seg(d, "kind", [["daily", "Diária"], ["weekly", "Semanal"]]))),
-      el("div", { class: "field" }, el("span", { class: "lbl" }, "Dificuldade"), diffPick(d)),
-      d.assignee !== task.assignee ? el("p", { class: "hint warn" }, "Trocando quem faz, as marcações da pessoa anterior deixam de contar.")
-        : d.kind !== task.kind ? el("p", { class: "hint warn" }, "Trocando a frequência, as marcações antigas deixam de contar.") : null,
-      el("div", { class: "row" },
-        el("button", { class: "btn sm", type: "submit", id: "etSave" }, "Salvar"),
-        el("button", { class: "btn ghost sm", type: "button", onclick: () => { S.draft.editTask = null; rerender(); } }, "Cancelar")),
-      el("div", { class: "err", id: "etErr" }));
-  }
-
-  L.forms = { seg, diffPick, memberPicker, input, newProjectForm, projectEditForm, taskForm, taskEditCard };
+  L.forms = { seg, diffPick, memberPicker, input, newProjectForm, projectEditForm, taskForm };
 })(window.Liga);

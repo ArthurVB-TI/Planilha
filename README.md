@@ -34,6 +34,17 @@ js/
 firestore.rules         regras de segurança para colar no Firebase
 ```
 
+## Modo de teste
+
+Abra o site com `?teste` no fim do endereço (ex.: `https://arthurvb-ti.github.io/Planilha/?teste`). Ele usa dados de exemplo guardados só naquele navegador, sem tocar no Firebase: contas `voce`, `ana`, `bruno` e `carla` (senha `teste1234`), uma listRat que terminou ontem (hoje é o dia de contestação), uma já finalizada (resultado com ouro, prata e bronze), uma em andamento e uma em inscrições. "Recriar dados" refaz tudo com as datas de hoje; "Sair do teste" volta ao site normal.
+
+## Tarefas, justificativas e contestação
+
+- Cada pessoa só cria, edita e apaga as **próprias** tarefas (nas inscrições). Depois que a listRat começa, só dá para mudar o nome. Dono e ajudantes não mexem nas tarefas dos outros.
+- Tocar numa tarefa abre o painel dela: escolher o dia, marcar como feita, mandar foto, comentar, editar/apagar e **"Não consegui fazer"** (justificativa: comentário obrigatório e foto opcional). A justificativa só conta como feita se o dono ou um ajudante da listRat aceitar (na tarefa ou em Gerenciar). Na própria tarefa, tocar num dia da faixa marca/desmarca direto.
+- Depois que a listRat termina, não dá mais para marcar. O **dia seguinte ao fim** é o dia de contestação: cada participante pode duvidar de até 3 tarefas de outras pessoas (cada tarefa só pode ser contestada uma vez). A pessoa contestada tem até o fim do dia para mandar uma prova (foto e/ou comentário); sem prova a tarefa perde os pontos (obrigatória passa a contar como não feita). Dono e ajudantes podem aceitar ou recusar a prova.
+- Depois do dia de contestação a aba **Resultado** mostra a pontuação final; o top 3 aparece em ouro, prata e bronze.
+
 ## Rodar no seu computador
 
 ```bash
@@ -171,5 +182,7 @@ Tarefas antigas marcadas como "Lendária" passam a valer como Difícil.
 | `convites/<código>` | projectId, expiresAt, createdBy, createdAt |
 | `subprojetos/<id>` (listRats) | projectId, name, desc, start, end (AAAA-MM-DD ou vazio), status (inscricoes/ativa), req {minObr, minTasks, maxTasks, maxDesvio}, participants[], startedAt, joined {uid: dia}, owner, helpers[], createdAt |
 | `tarefas/<id>` | subId, projectId, title, assignee, kind (daily/weekly), type (normal/obrigatoria), diff (facil/media/dificil), startKey, createdAt |
-| `players/<uid>` | nick (= usuário), done, proofs, updatedAt |
+| `players/<uid>` | nick (= usuário), done, proofs, notes (comentários por dia), updatedAt |
 | `fotos/<id>` | uid, data (imagem em base64), createdAt |
+| `justificativas/<tarefa>_<dia>` | taskId, subId, projectId, uid, key, comment, photo, status (pendente/aceita/recusada), decidedBy, createdAt, decidedAt |
+| `contestacoes/<tarefa>` | taskId, subId, projectId, by, accused, status (aberta/provada/aceita/recusada), proofPhoto, proofComment, proofAt, decidedBy, createdAt |

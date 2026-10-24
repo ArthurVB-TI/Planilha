@@ -72,29 +72,11 @@ window.Liga.pages = window.Liga.pages || {};
         }))
       : el("p", { class: "hint" }, "Este projeto ainda não tem listRats.");
 
-    let move = null;
-    if (sm.tasks.length && others.length) {
-      if (!others.includes(d.moveTo)) d.moveTo = others[0];
-      move = el("div", { class: "row" },
-        el("div", { class: "field grow" }, el("label", { for: "mvTo" }, "Passar " + theTasks(sm.tasks.length) + " para"),
-          el("select", { id: "mvTo", value: d.moveTo, onchange: (e) => { d.moveTo = e.target.value; } },
-            others.map((x) => el("option", { value: x }, L.ui.nameOf(x) + (x === S.myId ? " (você)" : ""))))),
-        el("button", { class: "btn ghost", type: "button", onclick: async () => {
-          try {
-            const n = await L.actions.moveTasks(p.id, id, d.moveTo);
-            note(plural(n, "tarefa passada", "tarefas passadas") + " de " + L.ui.nameOf(id) + " para " + L.ui.nameOf(d.moveTo) + ".");
-          } catch (e) { err(e, "Não deu para passar as tarefas."); }
-          rerender();
-        } }, "Passar"));
-    }
-
     return el("div", { class: "medit" },
       P.projOwner(p) !== id ? transferPanel(p, id, true) : null,
       el("div", { class: "lbl" }, "Papel nas listRats"),
       roles,
-      el("p", { class: "hint" }, "Dono e ajudantes criam e editam as tarefas da listRat. Quem era dono vira ajudante quando outra pessoa assume."),
-      move,
-      move ? el("p", { class: "hint" }, "As marcações antigas ficam com quem fez; a pessoa nova começa do zero nessas tarefas.") : null);
+      el("p", { class: "hint" }, "Dono e ajudantes cuidam da listRat (regras, começar, aprovar justificativas). Cada pessoa cria e edita só as próprias tarefas. Quem era dono vira ajudante quando outra pessoa assume."));
   }
 
   /* ---------- passar o projeto para outra pessoa ---------- */
@@ -120,16 +102,12 @@ window.Liga.pages = window.Liga.pages || {};
     const d = draft();
     const sm = summary(p, id);
     const others = p.members.filter((x) => x !== id);
-    if (d.moveTo && !others.includes(d.moveTo)) d.moveTo = "";
-    const heir = d.moveTo || P.projOwner(p);
+    const heir = P.projOwner(p);
 
     return el("div", { class: "mremove" },
       el("p", null, "Tirar ", el("b", { text: L.ui.nameOf(id) }), " do projeto?"),
       sm.tasks.length
-        ? el("div", { class: "field" }, el("label", { for: "rmTo" }, (sm.tasks.length === 1 ? "A tarefa" : "As " + sm.tasks.length + " tarefas") + " dessa pessoa"),
-            el("select", { id: "rmTo", value: d.moveTo, onchange: (e) => { d.moveTo = e.target.value; rerender(); } },
-              el("option", { value: "" }, "Ficam guardadas e param de contar"),
-              others.map((x) => el("option", { value: x }, "Passar para " + L.ui.nameOf(x) + (x === S.myId ? " (você)" : "")))))
+        ? el("p", { class: "hint" }, (sm.tasks.length === 1 ? "A tarefa" : "As " + sm.tasks.length + " tarefas") + " dessa pessoa ficam guardadas e param de contar (ninguém mexe nas tarefas dos outros).")
         : null,
       sm.owns.length
         ? el("p", { class: "hint" }, (sm.owns.length > 1 ? "As listRats " : "A listRat ") + sm.owns.map((s) => s.name).join(", ") +
@@ -140,9 +118,8 @@ window.Liga.pages = window.Liga.pages || {};
         el("button", { class: "btn danger sm", type: "button", onclick: async () => {
           S.confirm = null;
           try {
-            await L.actions.removeMember(p.id, id, d.moveTo || null);
+            await L.actions.removeMember(p.id, id);
             note(L.ui.nameOf(id) + " saiu do projeto.");
-            d.moveTo = "";
             if (after) after();
           } catch (e) { err(e, "Não deu para tirar do projeto."); }
           rerender();

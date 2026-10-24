@@ -121,12 +121,36 @@ window.Liga = window.Liga || {};
   }
 
   function player(id, d) {
-    return { nick: clean(d.nick, NICK_MAX), done: obj(d.done), proofs: obj(d.proofs), weeks: d.weeks };
+    return { nick: clean(d.nick, NICK_MAX), done: obj(d.done), proofs: obj(d.proofs), notes: obj(d.notes), weeks: d.weeks };
+  }
+
+  // justificativa de um dia/semana não feito: id = "<tarefa>_<dia>"; só vale se o dono/ajudante aceitar
+  const J_STATUS = ["pendente", "aceita", "recusada"];
+  function justification(id, d) {
+    if (!isId(d.taskId) || !isId(d.subId) || !isId(d.uid) || !isKey(d.key)) return null;
+    const comment = cleanLong(d.comment, 300);
+    if (!comment) return null;
+    return {
+      id, taskId: d.taskId, subId: d.subId, projectId: isId(d.projectId) ? d.projectId : "", uid: d.uid, key: d.key, comment,
+      photo: isPhotoId(d.photo) ? d.photo : "", status: J_STATUS.includes(d.status) ? d.status : "pendente",
+      decidedBy: isId(d.decidedBy) ? d.decidedBy : "", createdAt: Number(d.createdAt) || 0, decidedAt: Number(d.decidedAt) || 0,
+    };
+  }
+  // contestação de uma tarefa (no dia seguinte ao fim da listRat): id = id da tarefa (cada tarefa só uma vez)
+  const C_STATUS = ["aberta", "provada", "aceita", "recusada"];
+  function contest(id, d) {
+    if (!isId(d.taskId) || d.taskId !== id || !isId(d.subId) || !isId(d.by) || !isId(d.accused)) return null;
+    return {
+      id, taskId: d.taskId, subId: d.subId, projectId: isId(d.projectId) ? d.projectId : "", by: d.by, accused: d.accused,
+      status: C_STATUS.includes(d.status) ? d.status : "aberta",
+      proofPhoto: isPhotoId(d.proofPhoto) ? d.proofPhoto : "", proofComment: cleanLong(d.proofComment, 300),
+      proofAt: Number(d.proofAt) || 0, decidedBy: isId(d.decidedBy) ? d.decidedBy : "", createdAt: Number(d.createdAt) || 0,
+    };
   }
 
   L.rules = {
     DIFF, DIFF_KEYS, MAX_MARKS, DEFAULT_REQ, RECOMMENDED_DESVIO, normReq, NICK_MAX, isPhotoId,
     checkUsername, checkEmail, checkPassword,
-    sanitize: { project, sub, task, player, invite, friendship, request, notif },
+    sanitize: { project, sub, task, player, invite, friendship, request, notif, justification, contest },
   };
 })(window.Liga);

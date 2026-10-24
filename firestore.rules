@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Regras de segurança do listRats (v10).
+// Regras de segurança do listRats (v11).
 // Cole este arquivo inteiro em: Firebase > Firestore Database > Regras > Publicar.
 //
 // Resumo:
@@ -13,10 +13,14 @@ rules_version = '2';
 // - notificações: qualquer um logado avisa outra pessoa; só quem recebe lê, marca como lida e apaga;
 // - o dono do projeto pode mexer em todas as listRats e tarefas do projeto;
 // - qualquer integrante de um projeto cria listRats nele (coleção subprojetos) e vira o dono delas;
-// - o dono da listRat edita (nome, detalhes, início e fim), apaga e escolhe ajudantes; dono e ajudantes cuidam das tarefas;
+// - o dono da listRat edita (nome, detalhes, início e fim), apaga e escolhe ajudantes;
+// - TAREFAS: cada pessoa só cria, edita e apaga as PRÓPRIAS (nas inscrições); depois que a listRat começa, só renomeia;
+//   ninguém (nem dono nem ajudante) mexe na tarefa de outra pessoa; o dono da listRat/projeto só apaga ao apagar a listRat;
+// - justificativas: quem não fez justifica; dono/ajudantes da listRat aceitam ou recusam;
+// - contestações: no dia seguinte ao fim da listRat, participante contesta tarefa de outro (uma vez por tarefa);
+//   o contestado manda a prova até o fim do dia; dono/ajudantes aceitam ou recusam a prova;
 // - quem tem um link de convite válido pode se colocar como integrante do projeto do convite;
 // - só o dono do projeto cria links de convite; cada um só vê os links que criou;
-// - listRat nova fica em inscrições: cada integrante cria/edita/apaga as próprias tarefas dela;
 // - cada jogador só grava o próprio documento players/<seu uid>;
 // - cada jogador só cria e apaga as próprias fotos.
 
@@ -221,36 +225,106 @@ service cloud.firestore {
         || isProjectOwner(resource.data.projectId);
     }
 
-    // em inscrições, cada integrante do projeto mexe nas próprias tarefas da listRat
-    function selfFill(sid, assignee) {
-      let s = get(/databases/$(database)/documents/subprojetos/$(sid)).data;
-      return signedIn()
-        && s.get('status', 'ativa') == 'inscricoes'
-        && assignee == request.auth.uid
-        && request.auth.uid in project(s.projectId).members;
+    function sub(sid) {
+      return get(/databases/$(database)/documents/subprojetos/$(sid)).data;
     }
+    // dono da listRat ou dono do projeto dela (podem apagar a listRat inteira, com as tarefas)
+    function ownsSub(sid) {
+      let s = sub(sid);
+      return signedIn() && (s.get('owner', '') == request.auth.uid || isProjectOwner(s.projectId));
+    }
+    // quem julga justificativas e provas: dono, ajudantes da listRat e dono do projeto
+    function judgesSub(sid) { return canEditSub(sid); }
+    function inscricoes(sid) { return sub(sid).get('status', 'ativa') == 'inscricoes'; }
 
+    // tarefas: cada pessoa só mexe nas próprias
     match /tarefas/{id} {
       allow read: if signedIn();
-      allow create: if canEditSub(request.resource.data.subId)
-        || selfFill(request.resource.data.subId, request.resource.data.assignee);
-      allow update: if (canEditSub(resource.data.subId) && request.resource.data.subId == resource.data.subId)
-        || (selfFill(resource.data.subId, resource.data.assignee)
-          && request.resource.data.subId == resource.data.subId
-          && request.resource.data.assignee == resource.data.assignee);
-      allow delete: if canEditSub(resource.data.subId)
-        || selfFill(resource.data.subId, resource.data.assignee);
+      allow create: if signedIn()
+        && request.resource.data.assignee == request.auth.uid
+        && inscricoes(request.resource.data.subId)
+        && isProjectMember(sub(request.resource.data.subId).projectId);
+      allow update: if signedIn()
+        && resource.data.assignee == request.auth.uid
+        && request.resource.data.assignee == resource.data.assignee
+        && request.resource.data.subId == resource.data.subId
+        && (inscricoes(resource.data.subId)
+          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title']));
+      allow delete: if (signedIn() && resource.data.assignee == request.auth.uid && inscricoes(resource.data.subId))
+        || ownsSub(resource.data.subId);
+    }
+
+    // justificativa: id = <tarefa>_<dia>
+    match /justificativas/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['taskId', 'subId', 'projectId', 'uid', 'key', 'comment', 'photo', 'status', 'decidedBy', 'createdAt', 'decidedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.comment is string && request.resource.data.comment.size() >= 1 && request.resource.data.comment.size() <= 300
+        && id == request.resource.data.taskId + '_' + request.resource.data.key
+        && get(/databases/$(database)/documents/tarefas/$(request.resource.data.taskId)).data.assignee == request.auth.uid
+        && get(/databases/$(database)/documents/tarefas/$(request.resource.data.taskId)).data.subId == request.resource.data.subId;
+      // quem julga muda só o resultado
+      allow update: if judgesSub(resource.data.subId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedBy', 'decidedAt'])
+        && request.resource.data.status in ['aceita', 'recusada']
+        && request.resource.data.decidedBy == request.auth.uid;
+      allow delete: if (signedIn() && resource.data.uid == request.auth.uid && resource.data.status == 'pendente')
+        || ownsSub(resource.data.subId);
+    }
+
+    // dia de contestação = dia seguinte ao fim da listRat (folga de algumas horas por causa do fuso)
+    function endOf(sid) {
+      let e = sub(sid).get('end', '');
+      return timestamp.date(int(e[0:4]), int(e[5:7]), int(e[8:10]));
+    }
+    function inContestDay(sid) {
+      return sub(sid).get('end', '') != ''
+        && request.time > endOf(sid) + duration.value(1, 'd')
+        && request.time < endOf(sid) + duration.value(54, 'h');
+    }
+
+    // contestação: id = id da tarefa (cada tarefa só pode ser contestada uma vez)
+    match /contestacoes/{tid} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['taskId', 'subId', 'projectId', 'by', 'accused', 'status', 'proofPhoto', 'proofComment', 'proofAt', 'decidedBy', 'createdAt'])
+        && request.resource.data.taskId == tid
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.status == 'aberta'
+        && get(/databases/$(database)/documents/tarefas/$(tid)).data.assignee == request.resource.data.accused
+        && get(/databases/$(database)/documents/tarefas/$(tid)).data.subId == request.resource.data.subId
+        && request.resource.data.accused != request.auth.uid
+        && isProjectMember(sub(request.resource.data.subId).projectId)
+        && inContestDay(request.resource.data.subId);
+      // a pessoa contestada manda a prova (no dia de contestação)
+      allow update: if signedIn()
+        && resource.data.accused == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'proofPhoto', 'proofComment', 'proofAt'])
+        && request.resource.data.status == 'provada'
+        && request.resource.data.proofComment is string && request.resource.data.proofComment.size() <= 300
+        && inContestDay(resource.data.subId);
+      // quem julga aceita ou recusa a prova
+      allow update: if judgesSub(resource.data.subId)
+        && resource.data.accused != request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedBy'])
+        && request.resource.data.status in ['aceita', 'recusada']
+        && request.resource.data.decidedBy == request.auth.uid;
+      allow delete: if (signedIn() && resource.data.by == request.auth.uid && resource.data.status == 'aberta')
+        || ownsSub(resource.data.subId);
     }
 
     match /players/{uid} {
       allow read: if signedIn();
       allow create, update: if signedIn() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['nick', 'done', 'proofs', 'updatedAt', 'weeks'])
+        && request.resource.data.keys().hasOnly(['nick', 'done', 'proofs', 'notes', 'updatedAt', 'weeks'])
         && request.resource.data.nick is string
         && request.resource.data.nick.size() >= 1
         && request.resource.data.nick.size() <= 20
         && request.resource.data.done is map
-        && request.resource.data.proofs is map;
+        && request.resource.data.proofs is map
+        && request.resource.data.get('notes', {}) is map;
       allow delete: if signedIn() && request.auth.uid == uid;
     }
 

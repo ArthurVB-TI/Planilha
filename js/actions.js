@@ -34,7 +34,12 @@ window.Liga = window.Liga || {};
     too_many_tasks: "Passou do máximo de tarefas normais desta listRat.",
     already_member: "Essa pessoa já está no projeto.",
     project_gone: "Esse projeto não existe mais.",
-    dup_task: "Essa pessoa já tem uma tarefa com esse nome nesta listRat.",
+    dup_task: "Você já tem uma tarefa com esse nome nesta listRat.",
+    need_comment: "Escreva o motivo: o comentário é obrigatório na justificativa.",
+    need_proof: "Mande uma foto ou escreva um comentário como prova.",
+    cant_contest: "Não dá para contestar esta tarefa agora.",
+    task_locked: "Depois que a listRat começa, só dá para mudar o nome da tarefa.",
+    day_locked: "Esse dia não pode mais ser mudado.",
     owner_stays: "O dono do projeto não pode sair. Passe o projeto para outra pessoa antes.",
     owner_needed: "Toda listRat precisa de um dono. Para tirar esta pessoa do comando, escolha outra como dona.",
     unknown: "Isso não existe mais. Recarregue a página.",
@@ -69,7 +74,18 @@ window.Liga = window.Liga || {};
       for (const k in m) if (isKey(k) && isPhotoId(m[k])) o[k] = m[k];
       if (Object.keys(o).length) proofs[id] = o;
     }
-    const out = { nick: clean(S.mine.nick, NICK_MAX), done, proofs, updatedAt: Date.now() };
+    // comentário de cada dia/semana feito: notes[tarefa][dia] = texto
+    const notes = {};
+    const nsrc = S.mine.notes || {};
+    for (const id in nsrc) {
+      if (S.loaded.tasks && !S.tasks[id]) continue;
+      const m = nsrc[id];
+      if (!m || typeof m !== "object") continue;
+      const o = {};
+      for (const k in m) { const t = L.text.cleanLong(m[k], 300); if (isKey(k) && t) o[k] = t; }
+      if (Object.keys(o).length) notes[id] = o;
+    }
+    const out = { nick: clean(S.mine.nick, NICK_MAX), done, proofs, notes, updatedAt: Date.now() };
     if (S.mine.weeks && typeof S.mine.weeks === "object") out.weeks = S.mine.weeks; // dados da versão 1
     return out;
   }
@@ -105,14 +121,41 @@ window.Liga = window.Liga || {};
   function ensureMine() {
     if (!S.mine.done || typeof S.mine.done !== "object") S.mine.done = {};
     if (!S.mine.proofs || typeof S.mine.proofs !== "object") S.mine.proofs = {};
+    if (!S.mine.notes || typeof S.mine.notes !== "object") S.mine.notes = {};
   }
 
   function canMark(task) {
     return !S.readOnly && !!S.mine && task.assignee === S.myId;
   }
+  // dá para marcar/desmarcar, mandar foto ou justificar este dia (ou semana)?
+  // Só dentro do período da listRat, até hoje, e só enquanto a listRat não terminou.
+  function canChangeDay(task, key) {
+    if (!canMark(task) || !L.score.counts(task)) return false;
+    const sp = L.score.span(task);
+    if (sp.prep) return false;
+    const t = todayKey();
+    if (sp.end && t > sp.end) return false;
+    if (task.kind === "daily") return key >= sp.from && key <= t && (!sp.end || key <= sp.end);
+    const W = L.dates.weekOf;
+    return key === W(key) && key >= W(sp.from) && key <= W(t);
+  }
+  const noteOf = (task, key) => {
+    const p = L.score.playerDoc(task.assignee);
+    const m = p && p.notes && p.notes[task.id];
+    return m && typeof m[key] === "string" ? m[key] : "";
+  };
+  function setNote(task, key, text) {
+    if (!canChangeDay(task, key)) throw fail("day_locked");
+    ensureMine();
+    const t = L.text.cleanLong(text, 300);
+    if (!S.mine.notes[task.id]) S.mine.notes[task.id] = {};
+    if (t) S.mine.notes[task.id][key] = t; else delete S.mine.notes[task.id][key];
+    render();
+    scheduleSave();
+  }
 
   function toggleMark(task, key) {
-    if (!canMark(task)) return;
+    if (!canChangeDay(task, key)) return;
     ensureMine();
     const arr = Array.isArray(S.mine.done[task.id]) ? [...S.mine.done[task.id]] : [];
     const i = arr.indexOf(key);
@@ -131,6 +174,7 @@ window.Liga = window.Liga || {};
 
   // grava a foto já enviada como prova do dia/semana e marca a tarefa
   function attachProof(task, key, photoId) {
+    if (!canChangeDay(task, key)) { removePhoto(photoId); return; }
     ensureMine();
     if (!S.mine.proofs[task.id]) S.mine.proofs[task.id] = {};
     const old = S.mine.proofs[task.id][key];
@@ -147,7 +191,7 @@ window.Liga = window.Liga || {};
   }
 
   function join(nick) {
-    S.mine = { nick, done: {}, proofs: {} };
+    S.mine = { nick, done: {}, proofs: {}, notes: {} };
     S.pending = true;
     render();
     flush();
@@ -250,20 +294,30 @@ window.Liga = window.Liga || {};
   function checkDup(subId, assignee, title, ignoreId) {
     if (Object.values(S.tasks).some((t) => t.subId === subId && t.assignee === assignee && t.id !== ignoreId && norm(t.title) === norm(title))) throw fail("dup_task");
   }
+  // cada pessoa só cria tarefas para si mesma, e só nas inscrições
   async function createTask(p, s, d) {
-    checkDup(s.id, d.assignee, d.title);
-    checkMax(s, d.assignee, d.type);
+    if (!L.perms.canFillOwn(s)) throw fail("task_locked");
+    checkDup(s.id, S.myId, d.title);
+    checkMax(s, S.myId, d.type);
     await db().set("tarefas/" + db().newId("tarefas"), {
-      subId: s.id, projectId: p.id, title: d.title, assignee: d.assignee,
+      subId: s.id, projectId: p.id, title: d.title, assignee: S.myId,
       kind: d.kind, type: d.type, diff: d.diff, startKey: todayKey(), createdAt: Date.now(),
     });
   }
+  // só a própria pessoa edita; depois que a listRat começa, só o nome
   async function saveTask(id, d) {
-    if (S.tasks[id]) checkDup(S.tasks[id].subId, d.assignee, d.title, id);
-    checkMax(S.tasks[id] && S.subs[S.tasks[id].subId], d.assignee, d.type, id);
-    await db().update("tarefas/" + id, { title: d.title, assignee: d.assignee, type: d.type, kind: d.kind, diff: d.diff });
+    const t = S.tasks[id];
+    const lvl = L.perms.editLevel(t);
+    if (!lvl) throw fail("denied");
+    checkDup(t.subId, t.assignee, d.title, id);
+    if (lvl === "name") return db().update("tarefas/" + id, { title: d.title });
+    checkMax(S.subs[t.subId], t.assignee, d.type, id);
+    await db().update("tarefas/" + id, { title: d.title, type: d.type, kind: d.kind, diff: d.diff });
   }
-  const deleteTask = (id) => db().remove("tarefas/" + id);
+  async function deleteTask(id) {
+    if (!L.perms.canDeleteTask(S.tasks[id])) throw fail("task_locked");
+    await db().remove("tarefas/" + id);
+  }
 
   /* ---------- integrantes (dono do projeto) ---------- */
 
@@ -292,21 +346,13 @@ window.Liga = window.Liga || {};
     }
   }
 
-  // passa todas as tarefas de alguém neste projeto para outra pessoa
-  async function moveTasks(pid, from, to) {
-    const list = L.score.tasksOfProject(pid).filter((t) => t.assignee === from);
-    for (const t of list) await db().update("tarefas/" + t.id, { assignee: to });
-    return list.length;
-  }
-
-  // tira do projeto: sai das listRats (as que era dono passam para "heir"),
-  // as tarefas vão para "moveTo" ou ficam guardadas sem contar
-  async function removeMember(pid, uid, moveTo) {
+  // tira do projeto: sai das listRats (as que era dono passam para o dono do projeto);
+  // as tarefas da pessoa ficam guardadas e param de contar (ninguém mexe nas tarefas dos outros)
+  async function removeMember(pid, uid) {
     const p = S.projects[pid];
     if (!p) throw fail("unknown");
     if (L.perms.projOwner(p) === uid) throw fail("owner_stays");
-    const heir = moveTo || L.perms.projOwner(p);
-    if (moveTo) await moveTasks(pid, uid, moveTo);
+    const heir = L.perms.projOwner(p);
     for (const s of subsOf(pid)) {
       const owner = L.perms.subOwner(s);
       if (owner === uid) {
@@ -364,8 +410,8 @@ window.Liga = window.Liga || {};
 
   L.actions = {
     createInvite, deleteInvite, inviteUrl, peekInvite, joinByInvite, setSubReq, startSub, addParticipant,
-    setSubRole, moveTasks, removeMember,
-    errMsg, flush, scheduleSave, canMark, toggleMark, attachProof, join, setNick,
+    setSubRole, removeMember,
+    errMsg, flush, scheduleSave, canMark, canChangeDay, noteOf, setNote, toggleMark, attachProof, removePhoto, join, setNick,
     createProject, transferProject, setProjectHelper, saveProject, deleteProject, createSub, saveSub, renameSub, setSubHelpers, deleteSub,
     createTask, saveTask, deleteTask,
   };

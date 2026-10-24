@@ -1,4 +1,4 @@
-/* pages/rules.js — Regras da liga */
+/* pages/rules.js — Regras do listRats */
 window.Liga = window.Liga || {};
 window.Liga.pages = window.Liga.pages || {};
 (function (L) {

@@ -7,7 +7,7 @@ window.Liga = window.Liga || {};
   const { store } = L.text;
   const san = L.rules.sanitize;
 
-  const PAGES = ["home", "projects", "mine", "rules", "new", "project", "members", "subform", "sub", "charts", "settings"];
+  const PAGES = ["home", "projects", "mine", "rules", "new", "project", "members", "subform", "sub", "charts", "friends", "inbox", "settings"];
 
   /* ---------- navegação e avisos ---------- */
 
@@ -42,7 +42,7 @@ window.Liga = window.Liga || {};
     const loading = !S.loaded.projects || !S.loaded.subs;
     v.append(el("section", { class: "panel" },
       el("h2", null, loading ? "Carregando…" : "Não encontrado"),
-      el("p", { class: "muted" }, loading ? "Buscando os dados da liga." : "Esse projeto, listRat ou integrante não existe ou você não faz parte dele."),
+      el("p", { class: "muted" }, loading ? "Buscando os dados." : "Esse projeto, listRat ou integrante não existe ou você não faz parte dele."),
       loading ? null : el("div", null, el("button", { class: "btn ghost", type: "button", onclick: () => go({ page: "projects" }) }, "Ver projetos"))));
   };
 
@@ -66,6 +66,7 @@ window.Liga = window.Liga || {};
       const page = PAGES.includes(S.view && S.view.page) ? S.view.page : "home";
       L.pages[page](v);
     }
+    if (S.myId && S.invitePrompt) v.append(invitePromptBox());
     L.shell.renderMenu();
     L.shell.renderUserBox();
     L.fx.enter(v, S.myId ? JSON.stringify(S.view) : "login");
@@ -108,7 +109,7 @@ window.Liga = window.Liga || {};
       loaded: { players: false, projects: false, subs: false, tasks: false },
       mine: null, myLoaded: false, pending: false, writing: false,
       ownerId: null, configLoaded: false, readOnly: false, photoCache: {},
-      invites: {}, invitesOn: false,
+      invites: {}, invitesOn: false, friendships: {}, reqs: {}, sentReqs: {}, notifs: {}, invitePrompt: null,
     });
     S.draft.settings = {};
     S.draft.newProject = null;
@@ -122,8 +123,8 @@ window.Liga = window.Liga || {};
   }
 
   function onListenError(e) {
-    if (e && e.code === "denied") setStatus("Sem permissão para ler a liga. Confira as regras do Firestore (arquivo firestore.rules).", true);
-    else setStatus("Conexão perdida com a liga. Recarregue a página.", true);
+    if (e && e.code === "denied") setStatus("Sem permissão para ler os dados. Confira as regras do Firestore (arquivo firestore.rules).", true);
+    else setStatus("Conexão perdida. Recarregue a página.", true);
   }
 
   function checkLoaded() {
@@ -149,14 +150,23 @@ window.Liga = window.Liga || {};
     S.invite = null;
     try { sessionStorage.removeItem("liga.invite"); } catch (e) { /* ignora */ }
   }
+  // antes de entrar, pergunta: "Você quer entrar no projeto X?"
   async function useInvite() {
     S.joining = true;
     const token = S.invite;
     try {
-      const r = await L.actions.joinByInvite(token);
-      dropInvite();
-      go({ page: "project", pid: r.pid });
-      setStatus(r.already ? "Você já estava no projeto " + r.name + "." : "Você entrou no projeto " + r.name + ".", false, { auto: true });
+      const r = await L.actions.peekInvite(token);
+      if (r.already) {
+        dropInvite();
+        go({ page: "project", pid: r.pid });
+        setStatus("Você já está no projeto " + r.name + ".", false, { auto: true });
+      } else {
+        S.invitePrompt = Object.assign({ token, busy: false }, r);
+        // atrás da caixa, mostra o Início (e não uma página de projeto que a pessoa não vê)
+        const vp = S.view && S.view.pid && S.projects[S.view.pid];
+        if (S.view && S.view.pid && !(vp && L.perms.canSeeProject(vp))) S.view = { page: "home" };
+        render();
+      }
     } catch (e) {
       dropInvite();
       setStatus(L.actions.errMsg(e, "Não deu para usar o convite."), true);
@@ -164,11 +174,37 @@ window.Liga = window.Liga || {};
     }
     S.joining = false;
   }
+
+  function invitePromptBox() {
+    const ip = S.invitePrompt;
+    if (!ip) return null;
+    const close = () => { S.invitePrompt = null; dropInvite(); render(); };
+    return L.ui.modal("Entrar no projeto?",
+      el("div", { class: "f" },
+        el("p", null, "Você quer entrar no projeto ", el("b", { text: ip.name }), "?"),
+        el("p", { class: "muted small" }, (ip.owner ? "Dono: " + L.ui.nameOf(ip.owner) + " · " : "") + ip.members + (ip.members === 1 ? " integrante" : " integrantes") + ". Você pode sair quando quiser.")),
+      [
+        el("button", { class: "btn ghost", type: "button", disabled: ip.busy, onclick: close }, "Agora não"),
+        el("button", { class: "btn purple", type: "button", disabled: ip.busy, onclick: async () => {
+          ip.busy = true; render();
+          try {
+            const r = await L.actions.joinByInvite(ip.token);
+            S.invitePrompt = null; dropInvite();
+            go({ page: "project", pid: r.pid });
+            setStatus("Você entrou no projeto " + r.name + ".", false, { auto: true });
+          } catch (e) {
+            S.invitePrompt = null; dropInvite();
+            setStatus(L.actions.errMsg(e, "Não deu para entrar no projeto."), true);
+            render();
+          }
+        } }, ip.busy ? "Entrando…" : "Entrar no projeto"),
+      ]);
+  }
   window.addEventListener("hashchange", () => { readInvite(); if (S.invite && S.myId) checkLoaded(); render(); });
 
   function listen(coll, key, sanitize, where) {
     const watch = where
-      ? (cb, err) => S.backend.watchWhere(coll, where[0], where[1], cb, err)
+      ? (cb, err) => S.backend.watchWhere(coll, where[0], where[1], cb, err, where[2])
       : (cb, err) => S.backend.watch(coll, cb, err);
     S.unsubs.push(watch((docs) => {
       const out = {};
@@ -214,6 +250,10 @@ window.Liga = window.Liga || {};
       render();
     }, () => { S.configLoaded = true; }));
     listen("convites", "invites", san.invite, ["createdBy", user.id]);   // só os links que eu criei
+    listen("amizades", "friendships", san.friendship, ["users", user.id, "array-contains"]);
+    listen("pedidos", "reqs", san.request, ["to", user.id]);            // convites para projetos que eu recebi
+    listen("pedidos", "sentReqs", san.request, ["from", user.id]);      // convites que eu mandei
+    listen("notificacoes", "notifs", san.notif, ["to", user.id]);
     listen("players", "players", san.player);
     listen("projetos", "projects", san.project);
     listen("subprojetos", "subs", san.sub);

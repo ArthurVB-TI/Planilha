@@ -1,13 +1,16 @@
 rules_version = '2';
 
-// Regras de segurança da Liga das Tarefas.
+// Regras de segurança do listRats (v10).
 // Cole este arquivo inteiro em: Firebase > Firestore Database > Regras > Publicar.
 //
 // Resumo:
 // - "usernames" só pode ser consultado por nome exato (para entrar com o usuário); ninguém lista;
 // - o resto só quem está logado lê;
 // - qualquer pessoa logada cria projetos e vira o DONO DO PROJETO (campo owner);
-// - o dono do projeto edita, apaga, escolhe os integrantes e pode passar o projeto para outro integrante;
+// - o dono do projeto edita, apaga, tira integrantes, escolhe ajudantes do projeto e pode passar o projeto;
+// - ninguém é colocado num projeto direto: o dono manda um convite (pedidos) e a pessoa aceita, ou ela entra por link;
+// - amizades: um pede, o outro aceita; cada um vê só as próprias;
+// - notificações: qualquer um logado avisa outra pessoa; só quem recebe lê, marca como lida e apaga;
 // - o dono do projeto pode mexer em todas as listRats e tarefas do projeto;
 // - qualquer integrante de um projeto cria listRats nele (coleção subprojetos) e vira o dono delas;
 // - o dono da listRat edita (nome, detalhes, início e fim), apaga e escolhe ajudantes; dono e ajudantes cuidam das tarefas;
@@ -48,11 +51,12 @@ service cloud.firestore {
     }
     // formato de um projeto: o dono precisa ser integrante
     function projectOk(d) {
-      return d.keys().hasOnly(['name', 'desc', 'members', 'owner', 'createdAt', 'joinedVia'])
+      return d.keys().hasOnly(['name', 'desc', 'members', 'owner', 'helpers', 'createdAt', 'joinedVia'])
         && d.name is string && d.name.size() >= 1 && d.name.size() <= 60
         && d.get('desc', '') is string && d.get('desc', '').size() <= 200
         && d.members is list && d.members.size() <= 50
-        && d.owner is string && d.owner in d.members;
+        && d.owner is string && d.owner in d.members
+        && d.get('helpers', []) is list && d.members.hasAll(d.get('helpers', []));
     }
 
     match /usernames/{name} {
@@ -60,11 +64,11 @@ service cloud.firestore {
       allow list: if false;
       allow create: if signedIn()
         && name.matches('^[a-z0-9_.]{3,20}$')
-        && request.resource.data.keys().hasOnly(['uid', 'email'])
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'pending'])
         && request.resource.data.uid == request.auth.uid;
       allow update: if signedIn()
         && resource.data.uid == request.auth.uid
-        && request.resource.data.keys().hasOnly(['uid', 'email'])
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'pending'])
         && request.resource.data.uid == request.auth.uid;
       allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
@@ -80,14 +84,86 @@ service cloud.firestore {
       // qualquer um cria; quem cria é o dono
       allow create: if signedIn()
         && projectOk(request.resource.data)
-        && request.resource.data.owner == request.auth.uid;
-      // o dono edita (inclusive passar o projeto para outro integrante) e apaga
+        && request.resource.data.owner == request.auth.uid
+        && request.resource.data.members == [request.auth.uid];
+      // o dono edita (inclusive passar o projeto para outro integrante) e apaga,
+      // mas não coloca ninguém novo: integrantes só podem sair
       allow update: if signedIn()
         && resource.data.get('owner', '') == request.auth.uid
-        && projectOk(request.resource.data);
+        && projectOk(request.resource.data)
+        && resource.data.members.hasAll(request.resource.data.members);
       allow delete: if signedIn() && resource.data.get('owner', '') == request.auth.uid;
       // entrar pelo link de convite: só se acrescentar a si mesmo, com um convite válido deste projeto
       allow update: if signedIn() && joinByInvite(id);
+      // aceitar um convite (pedido) que o dono mandou para mim
+      allow update: if signedIn() && joinByRequest(id);
+    }
+
+    function joinByRequest(pid) {
+      let rq = get(/databases/$(database)/documents/pedidos/$(pid + '_' + request.auth.uid)).data;
+      return request.resource.data.get('joinedVia', '') == 'pedido'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'joinedVia'])
+        && !(request.auth.uid in resource.data.members)
+        && request.resource.data.members == resource.data.members.concat([request.auth.uid])
+        && request.resource.data.members.size() <= 50
+        && rq.to == request.auth.uid
+        && rq.projectId == pid;
+    }
+
+    // convites para projetos: id = <projeto>_<pessoa>; o dono do projeto manda, a pessoa aceita ou recusa
+    match /pedidos/{id} {
+      allow read: if signedIn()
+        && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['projectId', 'projectName', 'from', 'to', 'createdAt'])
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.to is string && request.resource.data.to != request.auth.uid
+        && id == request.resource.data.projectId + '_' + request.resource.data.to
+        && request.resource.data.projectName is string && request.resource.data.projectName.size() <= 60
+        && isProjectOwner(request.resource.data.projectId)
+        && !(request.resource.data.to in project(request.resource.data.projectId).members);
+      allow update: if false;
+      allow delete: if signedIn()
+        && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid
+          || isProjectOwner(resource.data.projectId));
+    }
+
+    // amizades: id = <menor uid>_<maior uid>
+    match /amizades/{id} {
+      allow read: if signedIn() && request.auth.uid in resource.data.users;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['users', 'from', 'to', 'status', 'createdAt'])
+        && request.resource.data.status == 'pending'
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.to is string && request.resource.data.to != request.auth.uid
+        && request.resource.data.users is list && request.resource.data.users.size() == 2
+        && request.resource.data.users[0] < request.resource.data.users[1]
+        && request.resource.data.users.hasAll([request.resource.data.from, request.resource.data.to])
+        && id == request.resource.data.users[0] + '_' + request.resource.data.users[1];
+      // só quem recebeu o pedido aceita
+      allow update: if signedIn()
+        && resource.data.to == request.auth.uid
+        && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'acceptedAt'])
+        && request.resource.data.status == 'accepted';
+      allow delete: if signedIn() && request.auth.uid in resource.data.users;
+    }
+
+    // notificações
+    match /notificacoes/{id} {
+      allow read: if signedIn() && resource.data.to == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['to', 'from', 'cat', 'kind', 'text', 'projectId', 'sid', 'createdAt', 'read'])
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.to is string && request.resource.data.to != request.auth.uid
+        && request.resource.data.cat in ['projetos', 'amizades', 'site']
+        && request.resource.data.kind is string && request.resource.data.kind.size() <= 30
+        && request.resource.data.text is string && request.resource.data.text.size() <= 200
+        && request.resource.data.read == false;
+      allow update: if signedIn()
+        && resource.data.to == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow delete: if signedIn() && resource.data.to == request.auth.uid;
     }
 
     function joinByInvite(pid) {

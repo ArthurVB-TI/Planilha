@@ -28,9 +28,10 @@
 .brand {
   display: flex; align-items: center; gap: 10px;
   background: none; border: 0; padding: 4px 6px; cursor: pointer;
-  font-weight: 700; font-size: 15px; letter-spacing: -.01em; text-align: left;
+  font-weight: 700; font-size: 16px; letter-spacing: -.02em; text-align: left;
 }
-.brand .mark { width: 14px; height: 14px; border-radius: 3px; background: var(--accent); flex: none; }
+.brand .mark { width: 26px; height: 26px; border-radius: 7px; flex: none; display: block; }
+.auth-box .brand .mark { width: 34px; height: 34px; border-radius: 9px; }
 .only-mobile { display: none; }
 
 .nav { display: grid; gap: 1px; align-content: start; }

@@ -37,8 +37,8 @@ window.Liga.pages = window.Liga.pages || {};
     const key = s ? "e:" + s.id : "n:" + S.view.pid;
     if (!S.draft.subForm || S.draft.subForm.key !== key) {
       S.draft.subForm = s
-        ? { key, name: s.name, desc: s.desc, start: s.start || "", end: s.end || "", hasEnd: !!s.end, req: Object.assign({}, s.req) }
-        : { key, name: "", desc: "", start: todayKey(), end: "", hasEnd: false, req: Object.assign({}, L.rules.DEFAULT_REQ) };
+        ? { key, name: s.name, desc: s.desc, start: s.start || "", end: s.end || "", hasEnd: !!s.end, req: Object.assign({}, s.req, { maxTasks: s.req.maxTasks || "" }) }
+        : { key, name: "", desc: "", start: todayKey(), end: "", hasEnd: false, req: Object.assign({}, L.rules.DEFAULT_REQ, { maxTasks: "" }) };
     }
     return S.draft.subForm;
   }
@@ -54,7 +54,8 @@ window.Liga.pages = window.Liga.pages || {};
       ": de " + L.ui.fmtDate(start) + " a " + L.ui.fmtDate(d.end) + ".";
   }
 
-  L.pages.subform = function (v) {
+  L.pages.subform = function (v, opts) {
+    opts = opts || {};
     const p = S.projects[S.view.pid];
     const s = S.view.sid ? S.subs[S.view.sid] : null;
     if (!p || !P.canSeeProject(p) || (S.view.sid && (!s || s.projectId !== p.id))) return L.pages.notFound(v);
@@ -67,9 +68,10 @@ window.Liga.pages = window.Liga.pages || {};
     ];
     if (editing) crumbs.push({ label: s.name, go: () => go({ page: "sub", pid: p.id, sid: s.id }) });
     crumbs.push({ label: editing ? "Editar" : "Nova listRat" });
-    L.ui.crumbs(crumbs);
-
-    v.append(L.ui.pageHead(editing ? "Editar listRat" : "Nova listRat", editing ? s.name + " · " + p.name : "Em " + p.name));
+    if (!opts.embedded) {
+      L.ui.crumbs(crumbs);
+      v.append(L.ui.pageHead(editing ? "Editar listRat" : "Nova listRat", editing ? s.name + " · " + p.name : "Em " + p.name));
+    }
     if (!allowed) {
       v.append(L.ui.empty(editing ? "Só o dono da listRat (ou o dono do projeto) edita." : "Só quem é integrante do projeto cria listRats."));
       return;
@@ -90,7 +92,7 @@ window.Liga.pages = window.Liga.pages || {};
       setErr("");
       $("sfSave").disabled = true;
       const req = L.rules.normReq(d.req);
-      if (+d.req.maxTasks < +d.req.minTasks) return setErr("O máximo de tarefas normais precisa ser maior ou igual ao mínimo.");
+      if (d.req.maxTasks !== "" && +d.req.maxTasks > 0 && +d.req.maxTasks < +d.req.minTasks) return setErr("O máximo de tarefas normais precisa ser maior ou igual ao mínimo (ou deixe em branco para não ter máximo).");
       const info = { name, desc: cleanLong(d.desc, 500), start, end, req };
       try {
         if (editing) {
@@ -154,11 +156,17 @@ window.Liga.pages = window.Liga.pages || {};
               ? "Cada integrante preenche as próprias tarefas. Só participa quem cumprir as regras abaixo."
               : "A listRat começa em inscrições: cada integrante preenche as próprias tarefas e só participa quem cumprir as regras abaixo. Você (ou um ajudante) começa a listRat quando o desvio padrão estiver dentro do máximo."),
             el("div", { class: "req-grid" },
-              [["minObr", "Mín. obrigatórias", "0", "1"], ["minTasks", "Mín. tarefas normais", "0", "1"], ["maxTasks", "Máx. tarefas normais", "1", "1"], ["maxDesvio", "Desvio padrão máximo", "0", "0.5"]]
-                .map(([k, label, min, step]) => el("div", { class: "field nfield" }, el("label", { for: "sf-" + k }, label),
-                  el("input", { id: "sf-" + k, type: "number", inputmode: "decimal", min, max: k === "maxDesvio" ? null : "30", step,
-                    value: String(d.req[k]), oninput: (e) => { d.req[k] = e.target.value; } })))),
-            el("p", { class: "hint" }, "Desvio padrão dos pontos possíveis por semana das tarefas normais (diária vale os pontos × 7). Obrigatórias não entram no desvio. O desvio não impede ninguém de entrar, só impede começar."))
+              [["minObr", "Mín. obrigatórias", "0", "30", ""], ["minTasks", "Mín. tarefas normais", "0", "30", ""], ["maxTasks", "Máx. tarefas normais (opcional)", "0", "30", "sem máximo"], ["maxDesvio", "Desvio padrão máximo", "0", "500", ""]]
+                .map(([k, label, min, max, ph]) => el("div", { class: "field nfield" }, el("label", { for: "sf-" + k }, label),
+                  el("input", { id: "sf-" + k, type: "number", inputmode: "numeric", min, max, step: "1", placeholder: ph || null,
+                    value: d.req[k] === "" || d.req[k] == null ? "" : String(d.req[k]), oninput: (e) => { d.req[k] = e.target.value; } })))),
+            el("div", { class: "row", style: "align-items:center" },
+              el("span", { class: "hint" }, "Desvio recomendado: " + L.rules.RECOMMENDED_DESVIO + "."),
+              +d.req.maxDesvio !== L.rules.RECOMMENDED_DESVIO
+                ? el("button", { class: "link purple", type: "button", onclick: () => { d.req.maxDesvio = L.rules.RECOMMENDED_DESVIO; rerender(); } }, "Usar " + L.rules.RECOMMENDED_DESVIO)
+                : null),
+            el("p", { class: "hint" }, "O desvio é medido nos pontos possíveis por semana das tarefas normais de quem está pronto (diária vale os pontos × 7). " +
+              "35 deixa duas pessoas ficarem até 1 tarefa fácil diária de diferença (70 pontos por semana). Obrigatórias não entram no desvio, e ele não impede ninguém de entrar: só impede começar."))
         : el("p", { class: "hint" }, "Esta listRat já começou" + (s.startedAt ? " em " + L.ui.fmtDate(s.startedAt) : "") + " com " +
             plural((s.participants || []).length, "participante", "participantes") + "."),
 

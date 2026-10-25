@@ -12,7 +12,7 @@ window.Liga = window.Liga || {};
   const { el, icon } = L.dom;
   const { fmtPts, fmtTotal, plural } = L.text;
   const { WD, todayKey, curWeek, addDays, weekOf, parseKey, shortDate } = L.dates;
-  const { DIFF } = L.rules;
+  const { DIFF, TASK_MAX } = L.rules;
 
   const rerender = () => L.app.render();
   const ok = (m) => L.app.setStatus(m, false, { auto: true });
@@ -355,13 +355,13 @@ window.Liga = window.Liga || {};
         const d = sh.edit;
         foot.append(el("form", { class: "f", onsubmit: (ev) => {
           ev.preventDefault();
-          const title = L.text.clean(d.title, 80);
+          const title = L.text.clean(d.title, TASK_MAX);
           if (!title) { sh.err = "Escreva o nome da tarefa."; return rerender(); }
           run(sh, async () => { await L.actions.saveTask(task.id, Object.assign({}, d, { title })); sh.mode = ""; sh.edit = null; }, "Tarefa salva.");
         } },
           el("div", { class: "sh-lbl" }, "Editar tarefa"),
           el("div", { class: "field" }, el("label", { for: "shTitle" }, "Nome"),
-            el("input", { id: "shTitle", maxlength: "80", required: true, value: d.title, oninput: (e) => { d.title = e.target.value; } })),
+            el("input", { id: "shTitle", maxlength: String(TASK_MAX), required: true, value: d.title, oninput: (e) => { d.title = e.target.value; } })),
           lvl === "full" ? el("div", { class: "row" },
             el("div", { class: "field" }, el("span", { class: "lbl" }, "Tipo"), L.forms.seg(d, "type", [["normal", "Normal"], ["obrigatoria", "Obrigatória"]])),
             el("div", { class: "field" }, el("span", { class: "lbl" }, "Frequência"), L.forms.seg(d, "kind", [["daily", "Diária"], ["weekly", "Semanal"]]))) : null,

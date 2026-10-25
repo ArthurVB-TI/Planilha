@@ -329,7 +329,7 @@ window.Liga.pages = window.Liga.pages || {};
     const pend = sm.tasks.filter((t) => t.type === "obrigatoria" && !L.score.doneNow(t)).length;
 
     v.append(el("div", { class: "head" },
-      el("div", { class: "who" }, L.ui.avatar(id, true),
+      el("div", { class: "who member-who" }, L.ui.avatar(id, "xl"),
         el("div", { style: "min-width:0" },
           el("h1", { class: "pname" }, el("span", { text: L.ui.nameOf(id) }), you(id)),
           el("div", { class: "sub-t" }, inProject ? "Integrante de " + p.name + (P.projOwner(p) === id ? " · dono do projeto" : "") : "Fora do projeto " + p.name),

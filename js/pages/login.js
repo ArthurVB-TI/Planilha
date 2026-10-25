@@ -48,7 +48,34 @@ window.Liga.pages = window.Liga.pages || {};
     } },
       field("aLogin", "Usuário ou e-mail", { autocomplete: "username", autocapitalize: "none", spellcheck: "false" }, d, "login"),
       field("aPass", "Senha", { type: "password", autocomplete: "current-password" }, d, "password"),
-      el("button", { class: "btn block", type: "submit", disabled: d.busy }, d.busy ? "Entrando…" : "Entrar"));
+      el("button", { class: "btn block", type: "submit", disabled: d.busy }, d.busy ? "Entrando…" : "Entrar"),
+      el("button", { class: "btn ghost block", type: "button", onclick: () => { d.tab = "reset"; d.err = ""; d.resetOk = ""; d.resetLogin = d.login; rerender(); } }, "Esqueci minha senha"));
+  }
+
+  // recuperar a conta pelo e-mail: o Firebase manda um link para criar uma senha nova
+  function resetForm(d) {
+    if (d.resetOk) {
+      return el("div", { class: "f" },
+        el("p", null, "Mandamos um link para ", el("b", { text: d.resetOk }), "."),
+        el("p", { class: "hint" }, "Abra o e-mail (olhe também a pasta de spam), toque no link e escolha a senha nova. Depois volte aqui e entre com ela. O link vale por pouco tempo."),
+        el("button", { class: "btn block", type: "button", onclick: () => { d.tab = "login"; d.resetOk = ""; d.password = ""; rerender(); } }, "Voltar para entrar"),
+        el("button", { class: "btn ghost block", type: "button", disabled: d.busy, onclick: () => send() }, d.busy ? "Mandando…" : "Mandar de novo"));
+    }
+    function send() {
+      const v = (d.resetLogin || "").trim();
+      if (!v) { d.err = "Digite seu usuário ou e-mail."; return rerender(); }
+      if (v.includes("@") && R.checkEmail(v)) { d.err = R.checkEmail(v); return rerender(); }
+      run(d, async () => {
+        const r = await S.backend.auth.resetPassword(v);
+        d.resetOk = (r && r.to) || v;
+      });
+    }
+    return el("form", { class: "f", id: "resetForm", onsubmit: (ev) => { ev.preventDefault(); send(); } },
+      el("p", { class: "muted small" }, "Digite seu usuário ou o e-mail da conta. Vamos mandar um link para o e-mail cadastrado para você criar uma senha nova."),
+      field("aReset", "Usuário ou e-mail", { autocomplete: "username", autocapitalize: "none", spellcheck: "false" }, d, "resetLogin"),
+      el("button", { class: "btn block purple", type: "submit", disabled: d.busy }, d.busy ? "Mandando…" : "Mandar link de recuperação"),
+      el("button", { class: "btn ghost block", type: "button", onclick: () => { d.tab = "login"; d.err = ""; rerender(); } }, "Voltar para entrar"),
+      el("p", { class: "hint" }, "Só funciona se a conta tiver e-mail confirmado. Conta sem e-mail não tem como ser recuperada."));
   }
 
   function signupForm(d) {
@@ -88,8 +115,10 @@ window.Liga.pages = window.Liga.pages || {};
       el("div", { class: "brand" }, el("img", { class: "mark", src: "assets/icon.svg", alt: "", width: "34", height: "34" }), el("span", null, "listRats")),
       S.invite ? el("div", { class: "notice invite-note" }, el("b", null, "Você recebeu um convite."), " Entre ou crie sua conta e você já entra no projeto.") : null,
       el("section", { class: "panel" },
-        d.mfa ? el("h2", null, "Verificação em duas etapas") : el("div", { class: "tabs" }, tab("login", "Entrar"), tab("signup", "Criar conta")),
-        d.tab === "signup" && !d.mfa ? signupForm(d) : loginForm(d),
+        d.mfa ? el("h2", null, "Verificação em duas etapas")
+          : d.tab === "reset" ? el("h2", null, "Recuperar a conta")
+          : el("div", { class: "tabs" }, tab("login", "Entrar"), tab("signup", "Criar conta")),
+        d.mfa ? loginForm(d) : d.tab === "signup" ? signupForm(d) : d.tab === "reset" ? resetForm(d) : loginForm(d),
         el("div", { class: "err", role: "alert" }, d.err || "")))));
   };
 })(window.Liga);

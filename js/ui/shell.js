@@ -15,6 +15,7 @@ window.Liga = window.Liga || {};
     if (isMobile()) {
       S.navOpen = !S.navOpen;
       root.classList.toggle("nav-open", S.navOpen);
+      renderTabbar();
     } else {
       const closed = !root.classList.contains("nav-closed");
       root.classList.toggle("nav-closed", closed);
@@ -24,6 +25,7 @@ window.Liga = window.Liga || {};
   function closeDrawer() {
     S.navOpen = false;
     root.classList.remove("nav-open");
+    renderTabbar();
   }
 
   function go(v) {
@@ -96,6 +98,37 @@ window.Liga = window.Liga || {};
     nav.append(item({ ic: "book", label: "Regras", on: pg === "rules", onclick: () => go({ page: "rules" }) }));
   }
 
+  /* ---------- celular: barra fixa embaixo ---------- */
+  const MORE = ["friends", "charts", "rules", "settings", "user"];
+  function renderTabbar() {
+    const bar = $("tabbar");
+    if (!bar) return;
+    bar.replaceChildren();
+    if (!S.myId) return;
+    const pg = (S.view || {}).page;
+    const pend = L.score.pendingMandatory();
+    const nUnread = L.social ? L.social.unread() : 0;
+    const tab = (ic, label, on, onclick, n) => el("button", {
+      type: "button", class: "tb" + (on ? " on" : ""), "aria-current": on ? "page" : null, onclick,
+    }, el("span", { class: "tb-ic" }, icon(ic), n ? el("span", { class: "tb-n" }, n > 99 ? "99+" : String(n)) : null), el("span", { class: "tb-l" }, label));
+    bar.append(
+      tab("home", "Início", pg === "home", () => go({ page: "home" })),
+      tab("list", "Tarefas", pg === "mine", () => go({ page: "mine" }), pend),
+      tab("folder", "Projetos", ["projects", "project", "sub", "members", "new", "subform"].includes(pg), () => go({ page: "projects" })),
+      tab("bell", "Avisos", pg === "inbox", () => go({ page: "inbox" }), nUnread),
+      tab("menu", "Mais", S.navOpen || MORE.includes(pg), toggleNav));
+  }
+
+  // depois de desenhar: deixa a aba aberta (Visão geral, Tarefas…) visível na faixa de abas
+  function afterRender() {
+    const bar = document.querySelector(".tabsbar");
+    const on = bar && bar.querySelector(".tabbtn.on");
+    if (on && bar.scrollWidth > bar.clientWidth) {
+      bar.scrollLeft = Math.max(0, on.offsetLeft - (bar.clientWidth - on.offsetWidth) / 2);
+    }
+    if (bar) bar.classList.toggle("scrolls", bar.scrollWidth > bar.clientWidth + 2);
+  }
+
   function renderUserBox() {
     const box = $("userBox");
     box.replaceChildren();
@@ -129,5 +162,5 @@ window.Liga = window.Liga || {};
     setTheme(theme());
   }
 
-  L.shell = { renderMenu, renderUserBox, setup, theme, setTheme };
+  L.shell = { renderMenu, renderUserBox, renderTabbar, afterRender, setup, theme, setTheme };
 })(window.Liga);

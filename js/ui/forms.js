@@ -6,7 +6,7 @@ window.Liga = window.Liga || {};
   const S = L.S;
   const { el, $ } = L.dom;
   const { clean, plural } = L.text;
-  const { DIFF, DIFF_KEYS, NICK_MAX } = L.rules;
+  const { DIFF, DIFF_KEYS, NICK_MAX, TASK_MAX } = L.rules;
 
   const rerender = () => L.app.render();
   const errMsg = (e, f) => L.actions.errMsg(e, f);
@@ -124,7 +124,7 @@ window.Liga = window.Liga || {};
 
     return el("form", { class: "f panel", id: "taskForm", onsubmit: async (ev) => {
       ev.preventDefault();
-      const title = clean(d.title, 80);
+      const title = clean(d.title, TASK_MAX);
       if (!title) return setErr("tErr", "Escreva o nome da tarefa.");
       setErr("tErr", "");
       $("tSubmit").disabled = true;
@@ -142,7 +142,7 @@ window.Liga = window.Liga || {};
       el("p", { class: "muted small" }, "Cada pessoa cria as próprias tarefas. Ninguém cria nem edita tarefa de outra pessoa."),
       el("div", { class: "row" },
         el("div", { class: "field grow" }, el("label", { for: "tTitle" }, "Tarefa"),
-          input({ id: "tTitle", maxlength: "80", required: true, placeholder: "Ler 20 páginas" }, d, "title"))),
+          input({ id: "tTitle", maxlength: String(TASK_MAX), required: true, placeholder: "Ler 20 páginas" }, d, "title"))),
       el("div", { class: "row" },
         el("div", { class: "field" }, el("span", { class: "lbl" }, "Tipo"), seg(d, "type", [["normal", "Normal"], ["obrigatoria", "Obrigatória"]])),
         el("div", { class: "field" }, el("span", { class: "lbl" }, "Frequência"), seg(d, "kind", [["daily", "Diária"], ["weekly", "Semanal"]]))),

@@ -1,0 +1,134 @@
+/* =========================================================
+   mobile.css — versão para celular (até 760px de largura)
+   Barra de navegação fixa embaixo, toques maiores, abas que rolam,
+   cartões em duas colunas e perfil centralizado.
+   ========================================================= */
+
+/* barra de baixo: só aparece no celular e com a conta aberta */
+.tabbar { display: none; }
+
+/* página do integrante: foto grande ao lado do nome */
+.member-who { align-items: center; gap: 16px; }
+
+/* perfil (todas as telas) */
+.profile-main { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.profile-id { min-width: 0; display: grid; gap: 6px; }
+.profile-acts { margin-top: 4px; }
+.profile .av.xl { width: 104px; height: 104px; font-size: 40px; border-radius: 18px; }
+
+@media (max-width: 760px) {
+  :root { --tabbar-h: 60px; }
+
+  /* ---------- navegação ---------- */
+  .tabbar {
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+    padding: 0 max(4px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(4px, env(safe-area-inset-left, 0px));
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter: saturate(1.4) blur(14px); -webkit-backdrop-filter: saturate(1.4) blur(14px);
+    border-top: 1px solid var(--line);
+  }
+  .signed-out .tabbar { display: none; }
+  .tb {
+    display: grid; justify-items: center; align-content: center; gap: 3px; min-width: 0;
+    border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit;
+    padding: 6px 2px; -webkit-tap-highlight-color: transparent;
+  }
+  .tb-ic {
+    position: relative; display: grid; place-items: center;
+    width: 52px; height: 30px; border-radius: 999px; transition: background .15s, color .15s;
+  }
+  .tb-ic .ico { width: 21px; height: 21px; }
+  .tb-l { font-size: 11px; font-weight: 600; line-height: 1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tb.on { color: var(--fg); }
+  .tb.on .tb-ic { background: var(--purple-soft); color: var(--purple-text); }
+  .tb:active .tb-ic { background: var(--hover); }
+  .tb-n {
+    position: absolute; top: -3px; right: 6px; min-width: 17px; height: 17px; padding: 0 4px;
+    display: grid; place-items: center; border-radius: 999px;
+    background: var(--purple); color: var(--purple-ink);
+    font-family: var(--mono); font-size: 10px; font-weight: 600; line-height: 1;
+    box-shadow: 0 0 0 2px var(--surface);
+  }
+
+  /* o menu lateral continua existindo (botão "Mais"); o botão de três riscos do topo sai */
+  #navToggle { display: none; }
+  .topbar { margin-left: 0; min-height: 44px; border-bottom: 1px solid transparent; }
+  .crumbs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; white-space: nowrap; -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+  .crumbs::-webkit-scrollbar { display: none; }
+  .crumbs button, .crumbs .cur { overflow-wrap: normal; padding: 6px 4px; }
+  .side { padding-bottom: calc(16px + var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); }
+
+  /* espaço para a barra de baixo não cobrir o fim da página */
+  .main {
+    gap: 14px;
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+    padding-bottom: calc(28px + var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+  }
+  .stack, .grid { gap: 14px; }
+  .panel { padding: 14px; gap: 12px; }
+
+  /* ---------- toques ---------- */
+  .btn { min-height: 40px; }
+  .btn.sm { min-height: 36px; padding: 6px 12px; }
+  .link { min-height: 36px; padding: 6px 12px; }
+  .icon-btn { width: 40px; height: 40px; }
+  .nav-item { padding: 10px 10px; font-size: 15px; }
+  .nav-sub .nav-item { padding: 8px 8px; font-size: 14.5px; }
+  /* campos com 16px: o iPhone não dá zoom ao tocar */
+  .field input, .field select, .field textarea, input, select, textarea { font-size: 16px; }
+
+  /* ---------- cabeçalho e abas ---------- */
+  .hero { padding: 16px 14px; gap: 14px; }
+  .hero-side, .hero-side .stats { width: 100%; }
+  .tabsbar { padding: 0 4px; }
+  .tabsbar.scrolls { -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 24px), transparent); }
+  .tabbtn { padding: 13px 11px 11px; }
+
+  /* cartões de números: dois por linha */
+  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .card { padding: 12px; gap: 4px; }
+  .card .v { font-size: 22px; }
+  .card .d { font-size: 12px; }
+
+  /* faixa do modo de teste mais baixa */
+  .testbar { gap: 8px; padding: 10px 12px; }
+  .testbar span { min-width: 0; flex-basis: 100%; font-size: 13px; }
+
+  /* janelas de confirmação viram folha que sobe de baixo */
+  .modal-back:not(.sheet-back) { place-items: end center; padding: 0; }
+  .modal-back:not(.sheet-back) .modal {
+    max-width: none; border-radius: 16px 16px 0 0; border-bottom: 0;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    animation: sheetUp .22s ease-out;
+  }
+  .modal-actions { flex-direction: column-reverse; align-items: stretch; }
+  .modal-actions .btn { width: 100%; }
+  .sheet { padding-bottom: env(safe-area-inset-bottom, 0px); animation: sheetUp .24s ease-out; }
+
+  /* ---------- perfil ---------- */
+  .profile { justify-content: center; text-align: center; }
+  .profile .hero-main { width: 100%; }
+  .profile-main { flex-direction: column; gap: 14px; }
+  .profile .av.xl { width: 128px; height: 128px; font-size: 48px; border-radius: 24px; }
+  .profile-id { justify-items: center; width: 100%; }
+  .profile .hero-title { justify-content: center; }
+  .profile-acts { width: 100%; }
+  .profile-acts > .btn, .profile-acts .fbox > .btn { flex: 1 1 100%; }
+  .profile-acts .fbox { justify-content: center; }
+  .profile .hero-side { justify-content: center; }
+
+  /* foto ampliada */
+  .lightbox { gap: 10px; }
+  .pv .lb-stage img { border-radius: 16px; }
+  .pv-acts .btn { flex: 1 1 100%; }
+  .pv-acts .fbox { width: 100%; }
+  .pv-acts .fbox > .btn { flex: 1 1 100%; }
+}
+
+@media (max-width: 760px) and (prefers-reduced-motion: reduce) {
+  .modal-back:not(.sheet-back) .modal, .sheet { animation: none; }
+}
+@keyframes sheetUp { from { transform: translateY(40px); opacity: .4; } }

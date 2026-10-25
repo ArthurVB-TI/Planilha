@@ -9,10 +9,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
-  <link rel="stylesheet" href="css/base.css">
-  <link rel="stylesheet" href="css/layout.css">
-  <link rel="stylesheet" href="css/components.css">
-  <link rel="stylesheet" href="css/motion.css">
+  <link rel="stylesheet" href="css/base.css?v=14">
+  <link rel="stylesheet" href="css/layout.css?v=14">
+  <link rel="stylesheet" href="css/components.css?v=14">
+  <link rel="stylesheet" href="css/motion.css?v=14">
+  <link rel="stylesheet" href="css/mobile.css?v=14">
   <script>
     // tema salvo (padrão: escuro) e estado do menu, antes de desenhar a página
     try {
@@ -49,55 +50,59 @@
     </div>
   </div>
 
+  <!-- celular: navegação fixa embaixo -->
+  <nav class="tabbar" id="tabbar" aria-label="Navegação"></nav>
+
   <input type="file" id="camInput" accept="image/*" capture="environment" hidden>
   <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Foto"></div>
   <div class="fx-layer" id="fx" aria-hidden="true"></div>
 
+  <!-- ?v=14 em todos os arquivos: ao mudar o site, troque o número para o celular baixar a versão nova -->
   <!-- configuração (Firebase ou modo local) -->
-  <script src="js/config.js" defer></script>
+  <script src="js/config.js?v=14" defer></script>
   <!-- utilitários -->
-  <script src="js/util/dom.js" defer></script>
-  <script src="js/util/text.js" defer></script>
-  <script src="js/util/dates.js" defer></script>
-  <script src="js/util/crypto.js" defer></script>
+  <script src="js/util/dom.js?v=14" defer></script>
+  <script src="js/util/text.js?v=14" defer></script>
+  <script src="js/util/dates.js?v=14" defer></script>
+  <script src="js/util/crypto.js?v=14" defer></script>
   <!-- regras do jogo e estado -->
-  <script src="js/core/rules.js" defer></script>
-  <script src="js/core/state.js" defer></script>
-  <script src="js/core/scoring.js" defer></script>
-  <script src="js/core/perms.js" defer></script>
-  <script src="js/core/enroll.js" defer></script>
+  <script src="js/core/rules.js?v=14" defer></script>
+  <script src="js/core/state.js?v=14" defer></script>
+  <script src="js/core/scoring.js?v=14" defer></script>
+  <script src="js/core/perms.js?v=14" defer></script>
+  <script src="js/core/enroll.js?v=14" defer></script>
   <!-- dados e contas -->
-  <script src="js/data/local.js" defer></script>
-  <script src="js/data/firebase.js" defer></script>
+  <script src="js/data/local.js?v=14" defer></script>
+  <script src="js/data/firebase.js?v=14" defer></script>
   <!-- ações e interface -->
-  <script src="js/actions.js" defer></script>
-  <script src="js/social.js" defer></script>
-  <script src="js/review.js" defer></script>
-  <script src="js/ui/fx.js" defer></script>
-  <script src="js/ui/components.js" defer></script>
-  <script src="js/ui/forms.js" defer></script>
-  <script src="js/ui/photos.js" defer></script>
-  <script src="js/ui/tasks.js" defer></script>
-  <script src="js/ui/shell.js" defer></script>
-  <script src="js/ui/enroll-panel.js" defer></script>
+  <script src="js/actions.js?v=14" defer></script>
+  <script src="js/social.js?v=14" defer></script>
+  <script src="js/review.js?v=14" defer></script>
+  <script src="js/ui/fx.js?v=14" defer></script>
+  <script src="js/ui/components.js?v=14" defer></script>
+  <script src="js/ui/forms.js?v=14" defer></script>
+  <script src="js/ui/photos.js?v=14" defer></script>
+  <script src="js/ui/tasks.js?v=14" defer></script>
+  <script src="js/ui/shell.js?v=14" defer></script>
+  <script src="js/ui/enroll-panel.js?v=14" defer></script>
   <!-- telas -->
-  <script src="js/pages/login.js" defer></script>
-  <script src="js/pages/home.js" defer></script>
-  <script src="js/pages/projects.js" defer></script>
-  <script src="js/pages/mine.js" defer></script>
-  <script src="js/pages/rules.js" defer></script>
-  <script src="js/pages/new-project.js" defer></script>
-  <script src="js/pages/project.js" defer></script>
-  <script src="js/pages/members.js" defer></script>
-  <script src="js/pages/sub-form.js" defer></script>
-  <script src="js/pages/sub.js" defer></script>
-  <script src="js/pages/charts.js" defer></script>
-  <script src="js/pages/friends.js" defer></script>
-  <script src="js/pages/inbox.js" defer></script>
-  <script src="js/pages/user.js" defer></script>
-  <script src="js/pages/settings.js" defer></script>
+  <script src="js/pages/login.js?v=14" defer></script>
+  <script src="js/pages/home.js?v=14" defer></script>
+  <script src="js/pages/projects.js?v=14" defer></script>
+  <script src="js/pages/mine.js?v=14" defer></script>
+  <script src="js/pages/rules.js?v=14" defer></script>
+  <script src="js/pages/new-project.js?v=14" defer></script>
+  <script src="js/pages/project.js?v=14" defer></script>
+  <script src="js/pages/members.js?v=14" defer></script>
+  <script src="js/pages/sub-form.js?v=14" defer></script>
+  <script src="js/pages/sub.js?v=14" defer></script>
+  <script src="js/pages/charts.js?v=14" defer></script>
+  <script src="js/pages/friends.js?v=14" defer></script>
+  <script src="js/pages/inbox.js?v=14" defer></script>
+  <script src="js/pages/user.js?v=14" defer></script>
+  <script src="js/pages/settings.js?v=14" defer></script>
   <!-- inicialização -->
-  <script src="js/demo.js" defer></script>
-  <script src="js/main.js" defer></script>
+  <script src="js/demo.js?v=14" defer></script>
+  <script src="js/main.js?v=14" defer></script>
 </body>
 </html>

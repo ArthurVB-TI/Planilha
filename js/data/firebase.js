@@ -43,6 +43,8 @@ window.Liga.data = window.Liga.data || {};
   // (domínio reservado example.com). O e-mail de verdade só entra depois que a pessoa confirma pelo link.
   const NO_MAIL = "@sem-email.listrats.example.com";
   const isPlaceholder = (e) => !e || String(e).toLowerCase().endsWith(NO_MAIL);
+  // a•••@gmail.com
+  const maskEmail = (e) => { const [u, dom] = String(e).split("@"); return (u.length > 2 ? u.slice(0, 2) : u.slice(0, 1)) + "•••@" + dom; };
   const placeholderEmail = () => "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10) + NO_MAIL;
 
   function current() {
@@ -139,6 +141,41 @@ window.Liga.data = window.Liga.data || {};
 
     signOut() { return A.signOut(auth); },
 
+    /* esqueci a senha: o Firebase manda um link para criar uma senha nova.
+       Aceita usuário ou e-mail. Devolve o e-mail com parte escondida (a•••@gmail.com) para mostrar na tela. */
+    async resetPassword(login) {
+      const v = String(login || "").trim();
+      let list;
+      if (v.includes("@")) {
+        if (isPlaceholder(v)) throw fail("no_email_reset");
+        list = [v];
+      } else {
+        const d = await wrap(F.getDoc(F.doc(fs, "usernames", unameKey(v))));
+        if (!d.exists()) throw fail("no_user");
+        // o e-mail da conta; se a pessoa confirmou um e-mail novo e ainda não entrou, a conta já usa o pendente
+        list = [...new Set([d.data().email, d.data().pending].filter((e) => e && !isPlaceholder(e)))];
+        if (!list.length) throw fail("no_email_reset");
+      }
+      const back = { url: location.origin + location.pathname, handleCodeInApp: false };
+      let sent = 0, last = null;
+      for (const e of list) {
+        try {
+          try { await A.sendPasswordResetEmail(auth, e, back); }
+          catch (e1) {
+            // endereço do site não autorizado no Firebase: manda sem o botão "voltar ao site"
+            if (!/continue-uri|unauthorized-domain|invalid-continue/.test(String(e1.code))) throw e1;
+            await A.sendPasswordResetEmail(auth, e);
+          }
+          sent++;
+        } catch (err) { last = err; }
+      }
+      if (!sent) {
+        const m = mapErr(last);
+        if (m.code !== "bad_login") throw m;   // e-mail sem conta: não conta isso para ninguém, só mostra a mensagem de sempre
+      }
+      return { to: list.map(maskEmail).join(" ou ") };
+    },
+
     async changeUsername(username) {
       const u = auth.currentUser;
       const newRef = F.doc(fs, "usernames", unameKey(username));
@@ -224,6 +261,7 @@ window.Liga.data = window.Liga.data || {};
       A = authMod; F = fsMod;
       const app = appMod.initializeApp(window.LIGA_CONFIG.firebase);
       auth = A.getAuth(app);
+      auth.languageCode = "pt";   // e-mails do Firebase (recuperar senha, confirmar e-mail) em português
       fs = F.getFirestore(app);
       A.onAuthStateChanged(auth, (u) => {
         onAuth(u ? current() : null);

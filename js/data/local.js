@@ -164,6 +164,9 @@ window.Liga.data = window.Liga.data || {};
 
     async signOut() { setSession(null); },
 
+    // no modo local e no de teste não existe envio de e-mail
+    async resetPassword() { throw fail("reset_local"); },
+
     async changeUsername(username) {
       const m = me();
       if (!m) throw fail("denied");

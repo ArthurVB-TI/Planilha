@@ -28,7 +28,7 @@ window.Liga = window.Liga || {};
     const img = el("img", { alt: "", loading: "lazy", decoding: "async" });
     // tocar na foto abre ela grande
     const box = el("span", { class: "av pic" + (big === "xl" ? " xl" : big ? " lg" : ""), title: "Ver foto de " + nameOf(id),
-      onclick: (e) => { e.stopPropagation(); e.preventDefault(); L.photos.openPhoto(pic, "Foto de perfil de " + nameOf(id)); } }, img);
+      onclick: (e) => { e.stopPropagation(); e.preventDefault(); L.photos.openAvatar(id); } }, img);
     L.photos.loadInto(img, pic, () => { box.classList.remove("pic"); box.replaceChildren(letter); });
     return box;
   }

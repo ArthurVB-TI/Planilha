@@ -29,6 +29,7 @@ window.Liga = window.Liga || {};
     return { minObr, minTasks, maxTasks, maxDesvio };
   }
   const NICK_MAX = 20;
+  const TASK_MAX = 150;   // tamanho máximo do nome da tarefa
   // tarefas obrigatórias NÃO contam na pontuação (não dão nem tiram pontos).
   // Continuam sendo exigidas para entrar na listRat e aparecem como "faltou" quando não feitas.
   // (true = volta ao jeito antigo: cada dia sem fazer tira os pontos da dificuldade)
@@ -87,7 +88,7 @@ window.Liga = window.Liga || {};
   }
 
   function task(id, d) {
-    const title = clean(d.title, 80);
+    const title = clean(d.title, TASK_MAX);
     const kind = d.kind === "weekly" ? "weekly" : d.kind === "daily" ? "daily" : null;
     const type = d.type === "obrigatoria" ? "obrigatoria" : d.type === "normal" ? "normal" : null;
     // "lendaria" não existe mais: tarefas antigas com ela passam a valer como difícil
@@ -153,7 +154,7 @@ window.Liga = window.Liga || {};
   }
 
   L.rules = {
-    OBR_PENALTY, DIFF, DIFF_KEYS, MAX_MARKS, DEFAULT_REQ, RECOMMENDED_DESVIO, normReq, NICK_MAX, isPhotoId,
+    OBR_PENALTY, DIFF, DIFF_KEYS, MAX_MARKS, DEFAULT_REQ, RECOMMENDED_DESVIO, normReq, NICK_MAX, TASK_MAX, isPhotoId,
     checkUsername, checkEmail, checkPassword,
     sanitize: { project, sub, task, player, invite, friendship, request, notif, justification, contest },
   };

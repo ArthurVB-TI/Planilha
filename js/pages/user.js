@@ -24,20 +24,21 @@ window.Liga.pages = window.Liga.pages || {};
     const f = L.social.friendshipWith(id);
     const friend = f && f.status === "accepted";
 
+    const since = friend && f.acceptedAt ? "Amigos desde " + L.ui.fmtDate(L.dates.keyOf(new Date(f.acceptedAt))) : me ? "Este é o seu perfil." : "";
     v.append(el("section", { class: "hero solo profile" },
       el("div", { class: "hero-main profile-main" },
         L.ui.avatar(id, "xl"),
-        el("div", { style: "min-width:0;display:grid;gap:6px" },
+        el("div", { class: "profile-id" },
           el("div", { class: "hero-kicker" }, "Perfil"),
           el("h1", { class: "hero-title" }, el("span", { text: name }),
             me ? el("span", { class: "you" }, "você") : friend ? el("span", { class: "ftag" }, "amigo") : null),
-          el("div", { class: "hero-sub" }, friend && f.acceptedAt ? "Amigos desde " + L.ui.fmtDate(L.dates.keyOf(new Date(f.acceptedAt))) : me ? "Este é o seu perfil." : ""),
-          el("div", null, me
-            ? el("button", { class: "btn purple sm", type: "button", onclick: () => go({ page: "settings" }) }, icon("camera"), "Trocar foto e dados")
-            : L.social.friendButton(id)))),
+          since ? el("div", { class: "hero-sub" }, since) : null,
+          el("div", { class: "profile-acts" }, me
+            ? el("button", { class: "btn purple", type: "button", onclick: () => go({ page: "settings" }) }, icon("camera"), "Trocar foto e dados")
+            : L.social.friendButton(id, { big: true, remove: true })))),
       el("div", { class: "hero-side" }, el("div", { class: "stats" },
         L.ui.stat(me ? "Seus pontos" : "Pontos com você", fmtTotal(sc.total), sc.total < 0 ? "neg" : ""),
-        L.ui.stat("Projetos em comum", String(me ? shared.length : shared.length))))));
+        L.ui.stat("Projetos em comum", String(shared.length))))));
 
     v.append(L.ui.block(me ? "Seus projetos" : "Projetos em comum", shared.length ? null : (me ? "Você ainda não está em nenhum projeto." : "Vocês ainda não estão no mesmo projeto."),
       shared.length

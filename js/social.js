@@ -135,27 +135,39 @@ window.Liga = window.Liga || {};
   const unread = () => inbox().filter((i) => !i.read).length;
 
   // botão de amizade para o perfil de alguém: Adicionar amigo / Pedido enviado / Aceitar pedido / Amigos
-  function friendButton(uid) {
+  // opts.big: botões grandes (perfil e foto ampliada); opts.remove: mostra "Desfazer amizade" quando já são amigos
+  function friendButton(uid, opts) {
     const { el, icon } = L.dom;
+    opts = opts || {};
     if (!uid || uid === me()) return null;
     const f = friendshipWith(uid);
+    const sz = opts.big ? "" : " sm";
     const run = async (fn, okText) => {
       try { await fn(); if (okText) L.app.setStatus(okText, false, { auto: true }); }
       catch (e) { L.app.setStatus(L.actions.errMsg(e, "Não deu certo agora."), true); }
+      S.draft.unfriend = "";
       L.app.render();
     };
-    if (f && f.status === "accepted") return el("span", { class: "fstate ok" }, icon("heart"), "Amigos");
+    const box = (...kids) => el("div", { class: "fbox" + (opts.big ? " big" : "") }, kids);
+    if (f && f.status === "accepted") {
+      if (opts.remove && S.draft.unfriend === uid) {
+        return box(el("span", { class: "fstate" }, "Desfazer a amizade?"),
+          el("button", { class: "btn danger" + sz, type: "button", onclick: () => run(() => removeFriendship(f), "Amizade desfeita.") }, "Sim, desfazer"),
+          el("button", { class: "btn ghost" + sz, type: "button", onclick: () => { S.draft.unfriend = ""; L.app.render(); } }, "Não"));
+      }
+      return box(el("span", { class: "fstate ok" }, icon("heart"), "Vocês são amigos"),
+        opts.remove ? el("button", { class: "btn ghost" + sz, type: "button", onclick: () => { S.draft.unfriend = uid; L.app.render(); } }, "Desfazer amizade") : null);
+    }
     if (f && f.from === me()) {
-      return el("div", { class: "row", style: "gap:6px;align-items:center" },
-        el("span", { class: "fstate" }, "Pedido de amizade enviado"),
-        el("button", { class: "btn ghost sm", type: "button", onclick: () => run(() => removeFriendship(f), "Pedido cancelado.") }, "Cancelar"));
+      return box(el("span", { class: "fstate" }, icon("check"), "Pedido de amizade enviado"),
+        el("button", { class: "btn ghost" + sz, type: "button", onclick: () => run(() => removeFriendship(f), "Pedido cancelado.") }, "Cancelar pedido"));
     }
     if (f && f.to === me()) {
-      return el("div", { class: "row", style: "gap:6px" },
-        el("button", { class: "btn purple sm", type: "button", onclick: () => run(() => acceptFriend(f), "Agora vocês são amigos.") }, icon("heart"), "Aceitar pedido de amizade"),
-        el("button", { class: "btn ghost sm", type: "button", onclick: () => run(() => removeFriendship(f)) }, "Recusar"));
+      return box(
+        el("button", { class: "btn purple" + sz, type: "button", onclick: () => run(() => acceptFriend(f), "Agora vocês são amigos.") }, icon("heart"), "Aceitar pedido de amizade"),
+        el("button", { class: "btn ghost" + sz, type: "button", onclick: () => run(() => removeFriendship(f)) }, "Recusar"));
     }
-    return el("button", { class: "btn purple sm", type: "button", onclick: () => run(() => sendFriendRequest(uid), "Pedido de amizade enviado para " + name(uid) + ".") }, icon("plus"), "Adicionar amigo");
+    return box(el("button", { class: "btn purple" + sz, type: "button", onclick: () => run(() => sendFriendRequest(uid), "Pedido de amizade enviado para " + name(uid) + ".") }, icon("plus"), "Adicionar amigo"));
   }
 
   L.social = {

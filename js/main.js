@@ -72,8 +72,11 @@ window.Liga = window.Liga || {};
     if (S.backend && S.backend.isTest) v.prepend(testBar());
     L.shell.renderMenu();
     L.shell.renderUserBox();
+    L.shell.renderTabbar();
     L.fx.enter(v, S.myId ? JSON.stringify(S.view) : "login");
     L.fx.afterRender();
+    L.shell.afterRender();
+    L.photos.refresh();
 
     if (aid) {
       const n = $(aid);

@@ -76,7 +76,7 @@ window.Liga = window.Liga || {};
       el("span", { class: "tc " + (isObr ? "c-obr" : "c-norm") }, isObr ? "Obrigatória" : "Normal"),
       el("span", { class: "tc" }, task.kind === "daily" ? "Diária" : "Semanal"),
       el("span", { class: "tc c-diff" }, el("i", { class: "dots", "aria-hidden": "true" }, D.dots), D.label),
-      el("span", { class: "tc c-pts" }, isObr ? "−" + D.pen + " se faltar" : "+" + D.pts + " por vez"),
+      el("span", { class: "tc c-pts" }, isObr ? (L.rules.OBR_PENALTY ? "−" + D.pen + " se faltar" : "não vale pontos") : "+" + D.pts + " por vez"),
       extra || null);
   }
 

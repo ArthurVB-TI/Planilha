@@ -42,7 +42,7 @@ Abra o site com `?teste` no fim do endereço (ex.: `https://arthurvb-ti.github.i
 
 - Cada pessoa só cria, edita e apaga as **próprias** tarefas (nas inscrições). Depois que a listRat começa, só dá para mudar o nome. Dono e ajudantes não mexem nas tarefas dos outros.
 - Tocar numa tarefa abre o painel dela: escolher o dia, marcar como feita, mandar foto, comentar, editar/apagar e **"Não consegui fazer"** (justificativa: comentário obrigatório e foto opcional). A justificativa só conta como feita se o dono ou um ajudante da listRat aceitar (na tarefa ou em Gerenciar). Na própria tarefa, tocar num dia da faixa marca/desmarca direto.
-- Depois que a listRat termina, não dá mais para marcar. O **dia seguinte ao fim** é o dia de contestação: cada participante pode duvidar de até 3 tarefas de outras pessoas (cada tarefa só pode ser contestada uma vez). A pessoa contestada tem até o fim do dia para mandar uma prova (foto e/ou comentário); sem prova a tarefa perde os pontos (obrigatória passa a contar como não feita). Dono e ajudantes podem aceitar ou recusar a prova.
+- Depois que a listRat termina, não dá mais para marcar. O **dia seguinte ao fim** é o dia de contestação: cada participante pode duvidar de até 3 tarefas de outras pessoas (cada tarefa só pode ser contestada uma vez). A pessoa contestada tem até o fim do dia para mandar uma prova (foto e/ou comentário); sem prova a tarefa perde os pontos (obrigatória passa a aparecer como não feita). Dono e ajudantes podem aceitar ou recusar a prova.
 - Depois do dia de contestação a aba **Resultado** mostra a pontuação final; o top 3 aparece em ouro, prata e bronze.
 
 ## Rodar no seu computador
@@ -145,16 +145,16 @@ ListRats antigas, criadas antes de existir dono, ficam com o dono do projeto.
 
 ## Pontuação
 
-| Dificuldade | Tarefa normal ganha | Tarefa obrigatória perde |
+| Dificuldade | Tarefa normal ganha | Tarefa obrigatória |
 |---|---|---|
-| Fácil | +10 | −5 |
-| Média | +25 | −10 |
-| Difícil | +50 | −20 |
+| Fácil | +10 | não conta |
+| Média | +25 | não conta |
+| Difícil | +50 | não conta |
 
 Tarefas antigas marcadas como "Lendária" passam a valer como Difícil.
 
 - **Normal**: ganha os pontos a cada dia (ou semana) em que é feita.
-- **Obrigatória**: não dá pontos e tira os pontos a cada dia (ou semana) encerrado sem ela.
+- **Obrigatória**: não conta na pontuação (não dá nem tira pontos). É o mínimo exigido para entrar na listRat e o dia sem ela aparece como "faltou". Para voltar a tirar pontos, mude `OBR_PENALTY` para `true` em `js/core/rules.js`.
 - Diárias podem ser marcadas até 6 dias para trás; semanais, na semana atual e na anterior.
 - Só contam tarefas de quem é integrante do projeto.
 

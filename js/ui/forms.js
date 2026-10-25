@@ -27,7 +27,7 @@ window.Liga = window.Liga || {};
         onclick: () => { d.diff = k; rerender(); },
       },
         el("span", { class: "l" }, L.ui.diffText(k)),
-        el("span", { class: "v" }, d.type === "normal" ? "+" + DIFF[k].pts + " pts" : "−" + DIFF[k].pen + " se faltar"))));
+        el("span", { class: "v" }, d.type === "normal" ? "+" + DIFF[k].pts + " pts" : L.rules.OBR_PENALTY ? "−" + DIFF[k].pen + " se faltar" : "sem pontos"))));
   }
 
   function memberPicker(selected, onChange) {
@@ -149,7 +149,8 @@ window.Liga = window.Liga || {};
       el("div", { class: "field" }, el("span", { class: "lbl" }, "Dificuldade"), diffPick(d)),
       el("p", { class: "hint" }, d.type === "normal"
         ? "Ganha os pontos a cada " + (d.kind === "daily" ? "dia" : "semana") + " em que for feita."
-        : "Não dá pontos. Perde os pontos a cada " + (d.kind === "daily" ? "dia" : "semana") + " sem fazer."),
+        : L.rules.OBR_PENALTY ? "Não dá pontos. Perde os pontos a cada " + (d.kind === "daily" ? "dia" : "semana") + " sem fazer."
+          : "Não dá nem tira pontos: é o compromisso que você precisa ter para entrar na listRat. Quando não for feita, aparece como \"faltou\"."),
       quota,
       el("div", { class: "row" }, el("button", { class: "btn", type: "submit", id: "tSubmit" }, "Criar tarefa")),
       el("div", { class: "err", id: "tErr" }));

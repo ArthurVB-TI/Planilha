@@ -142,12 +142,17 @@ window.Liga = window.Liga || {};
   function openPhoto(id, caption) {
     const lb = $("lightbox");
     lb.replaceChildren();
-    const img = el("img", { alt: "Foto de prova: " + caption });
+    const img = el("img", { alt: caption });
     loadInto(img, id, () => img.replaceWith(el("p", { style: "color:#fff;margin:auto;text-align:center" }, "Esta foto não pode ser exibida.")));
     lb.append(el("div", { class: "bar" },
       el("div", { text: caption }),
-      el("button", { class: "btn ghost sm", type: "button", id: "lbClose", onclick: closePhoto }, icon("close"), "Fechar")), img);
-    lb.onclick = (e) => { if (e.target === lb) closePhoto(); };
+      el("button", { class: "btn ghost sm", type: "button", id: "lbClose", onclick: closePhoto }, icon("close"), "Fechar")), img,
+      el("div", { class: "lb-hint" }, "Toque fora da foto ou arraste para baixo para fechar"));
+    lb.onclick = (e) => { if (e.target === lb || e.target.classList.contains("lb-hint")) closePhoto(); };
+    // celular: arrastar para baixo fecha
+    let y0 = null;
+    lb.ontouchstart = (e) => { y0 = e.touches.length === 1 ? e.touches[0].clientY : null; };
+    lb.ontouchend = (e) => { if (y0 != null && e.changedTouches[0].clientY - y0 > 90) closePhoto(); y0 = null; };
     lb.hidden = false;
     $("lbClose").focus();
   }

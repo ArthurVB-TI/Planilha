@@ -14,7 +14,8 @@ window.Liga.pages = window.Liga.pages || {};
           el("h2", null, "Pontos"),
           el("p", null, "Cada projeto tem listRats, e cada listRat tem as tarefas de cada integrante. O placar soma tudo desde que cada tarefa foi criada e não zera."),
           el("p", null, "Tarefa normal: ganha os pontos da dificuldade em cada dia (ou semana) em que for feita."),
-          el("p", null, "Tarefa obrigatória: não dá pontos. Cada dia (ou semana) que termina sem ela tira os pontos da dificuldade. O dia conta depois da meia-noite; a semana, depois de domingo."),
+          el("p", null, L.rules.OBR_PENALTY ? "Tarefa obrigatória: não dá pontos. Cada dia (ou semana) que termina sem ela tira os pontos da dificuldade. O dia conta depois da meia-noite; a semana, depois de domingo."
+            : "Tarefa obrigatória: não conta na pontuação (não dá nem tira pontos). Ela é o compromisso mínimo para entrar na listRat, e o dia (ou semana) sem ela aparece como \"faltou\" para todo mundo ver."),
           el("p", null, "Dá para marcar até 6 dias para trás.")),
         el("section", { class: "panel" },
           el("h2", null, "Quem faz o quê"),

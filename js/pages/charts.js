@@ -126,7 +126,7 @@ window.Liga.pages = window.Liga.pages || {};
     for (const t of tasks) {
       const r = L.score.taskResult(t), D = DIFF[t.diff];
       for (const k of r.done) { const c = cell(t.assignee, k); c.done++; if (t.type === "normal") c.plus += D.pts; }
-      if (t.type === "obrigatoria") for (const k of missedKeys(t, r.done)) { const c = cell(t.assignee, k); c.miss++; c.minus += D.pen; }
+      if (t.type === "obrigatoria") for (const k of missedKeys(t, r.done)) { const c = cell(t.assignee, k); c.miss++; if (L.rules.OBR_PENALTY) c.minus += D.pen; }
     }
     return by;
   }

@@ -67,8 +67,7 @@ window.Liga.pages = window.Liga.pages || {};
         const own = mine.filter((p) => L.perms.isProjectOwner(p)).length;
         return mine.length ? mine.length + (mine.length === 1 ? " projeto" : " projetos") + (own ? " (dono de " + own + ")" : "") : "Nenhum ainda";
       })()),
-      el("dt", null, "Duas etapas"), el("dd", null, u.mfa ? "Ativada" : "Desativada"),
-      el("dt", null, "Onde ficam os dados"), el("dd", null, S.mode === "local" ? "Só neste navegador (modo local)" : "Online (Firebase)"));
+      el("dt", null, "Duas etapas"), el("dd", null, u.mfa ? "Ativada" : "Desativada"));
 
     const rename = el("form", { class: "row", id: "unameForm", onsubmit: (ev) => {
       ev.preventDefault();
@@ -93,7 +92,7 @@ window.Liga.pages = window.Liga.pages || {};
           el("button", { class: "btn purple sm", type: "button", disabled: !!S.uploading, onclick: () => L.photos.pick("avatar", async (id) => {
             try { await L.actions.setAvatar(id); d.msg.acc = { ok: "Foto de perfil salva." }; }
             catch (e) { d.msg.acc = { err: L.actions.errMsg(e, "Não deu para salvar a foto.") }; }
-          }, { square: 256, gallery: true }) },
+          }, { square: 640, gallery: true }) },
             L.dom.icon("camera"), S.uploading === "avatar" ? "Enviando…" : pic ? "Trocar foto" : "Colocar foto"),
           pic ? el("button", { class: "btn ghost sm", type: "button", onclick: async () => {
             try { await L.actions.setAvatar(""); d.msg.acc = { ok: "Foto de perfil removida." }; }

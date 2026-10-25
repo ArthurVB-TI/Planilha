@@ -26,7 +26,9 @@ window.Liga = window.Liga || {};
     const pic = p && p.avatar;
     if (!pic) return el("span", { class: "av" + (big === "xl" ? " xl" : big ? " lg" : ""), "aria-hidden": "true" }, letter);
     const img = el("img", { alt: "", loading: "lazy", decoding: "async" });
-    const box = el("span", { class: "av pic" + (big === "xl" ? " xl" : big ? " lg" : ""), "aria-hidden": "true" }, img);
+    // tocar na foto abre ela grande
+    const box = el("span", { class: "av pic" + (big === "xl" ? " xl" : big ? " lg" : ""), title: "Ver foto de " + nameOf(id),
+      onclick: (e) => { e.stopPropagation(); e.preventDefault(); L.photos.openPhoto(pic, "Foto de perfil de " + nameOf(id)); } }, img);
     L.photos.loadInto(img, pic, () => { box.classList.remove("pic"); box.replaceChildren(letter); });
     return box;
   }
@@ -194,7 +196,7 @@ window.Liga = window.Liga || {};
         avatar(r.id),
         el("div", { style: "min-width:0" },
           el("div", { class: "pname" }, userLink(r.id), r.id === S.myId ? el("span", { class: "you" }, "você") : null),
-          el("div", { class: "split" }, "+" + r.plus.toLocaleString("pt-BR") + "  −" + r.minus.toLocaleString("pt-BR"))),
+          L.rules.OBR_PENALTY ? el("div", { class: "split" }, "+" + r.plus.toLocaleString("pt-BR") + "  −" + r.minus.toLocaleString("pt-BR")) : null),
         el("div", { class: "pts" + (r.total < 0 ? " neg" : ""), "data-count": "board-" + boardKey + "-" + r.id },
           L.fx.count("board-" + boardKey + "-" + r.id, r.total, fmtTotal))));
     });
@@ -207,9 +209,9 @@ window.Liga = window.Liga || {};
     return el("section", { class: "panel" },
       el("h2", null, "Dificuldades"),
       el("div", { style: "overflow-x:auto" }, el("table", { class: "legend" },
-        el("thead", null, el("tr", null, el("th", null, "Nível"), el("th", { class: "r" }, "Normal ganha"), el("th", { class: "r" }, "Obrigatória perde"))),
+        el("thead", null, el("tr", null, el("th", null, "Nível"), el("th", { class: "r" }, "Normal ganha"), el("th", { class: "r" }, "Obrigatória"))),
         el("tbody", null, DIFF_KEYS.map((k) =>
-          el("tr", null, el("td", null, diffText(k)), el("td", { class: "r num" }, "+" + DIFF[k].pts), el("td", { class: "r num" }, "−" + DIFF[k].pen)))))));
+          el("tr", null, el("td", null, diffText(k)), el("td", { class: "r num" }, "+" + DIFF[k].pts), el("td", { class: "r num" }, L.rules.OBR_PENALTY ? "−" + DIFF[k].pen : "não conta")))))));
   }
 
   /* ---------- projetos ---------- */

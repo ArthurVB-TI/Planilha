@@ -32,7 +32,9 @@ window.Liga.pages = window.Liga.pages || {};
       el("div", { class: "stats" },
         L.ui.stat("Total", my.total, my.total < 0 ? "neg" : "", { key: "home-total", fmt: fmtTotal }),
         L.ui.stat("Ganhos", my.plus, my.plus ? "pos" : "", { key: "home-plus", fmt: fmtPts }),
-        L.ui.stat("Perdidos", -my.minus, my.minus ? "neg" : "", { key: "home-minus", fmt: fmtPts }))));
+        L.rules.OBR_PENALTY
+          ? L.ui.stat("Perdidos", -my.minus, my.minus ? "neg" : "", { key: "home-minus", fmt: fmtPts })
+          : L.ui.stat("Obrigatórias hoje", String(L.score.pendingMandatory()), L.score.pendingMandatory() ? "neg" : ""))));
 
     if (mineTasks.length) {
       const pct = Math.round((done.length / mineTasks.length) * 100);

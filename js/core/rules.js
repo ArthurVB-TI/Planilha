@@ -29,6 +29,10 @@ window.Liga = window.Liga || {};
     return { minObr, minTasks, maxTasks, maxDesvio };
   }
   const NICK_MAX = 20;
+  // tarefas obrigatórias NÃO contam na pontuação (não dão nem tiram pontos).
+  // Continuam sendo exigidas para entrar na listRat e aparecem como "faltou" quando não feitas.
+  // (true = volta ao jeito antigo: cada dia sem fazer tira os pontos da dificuldade)
+  const OBR_PENALTY = false;
 
   /* ---------- contas ---------- */
   const USER_RE = /^[A-Za-z0-9_.]{3,20}$/;
@@ -149,7 +153,7 @@ window.Liga = window.Liga || {};
   }
 
   L.rules = {
-    DIFF, DIFF_KEYS, MAX_MARKS, DEFAULT_REQ, RECOMMENDED_DESVIO, normReq, NICK_MAX, isPhotoId,
+    OBR_PENALTY, DIFF, DIFF_KEYS, MAX_MARKS, DEFAULT_REQ, RECOMMENDED_DESVIO, normReq, NICK_MAX, isPhotoId,
     checkUsername, checkEmail, checkPassword,
     sanitize: { project, sub, task, player, invite, friendship, request, notif, justification, contest },
   };

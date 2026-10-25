@@ -76,7 +76,7 @@ window.Liga = window.Liga || {};
       const end = minKey(addDays(curWeek(), -7), sp.end && weekOf(sp.end));
       for (let k = weekOf(sp.from), i = 0; k <= end && i < 600; k = addDays(k, 7), i++) if (!done.has(k)) missed++;
     }
-    return { done, plus: 0, minus: D.pen * missed, missed, voided };
+    return { done, plus: 0, minus: L.rules.OBR_PENALTY ? D.pen * missed : 0, missed, voided };
   }
 
   const periodKey = (task) => (task.kind === "daily" ? todayKey() : curWeek());

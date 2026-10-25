@@ -247,6 +247,13 @@ window.Liga.pages = window.Liga.pages || {};
               onclick: () => { L.shell.setTheme(val); rerender(); } }, label)))));
   }
 
+  // modo de teste: dados de exemplo só no navegador, com listRat que já acabou
+  function testMode() {
+    if (S.backend && S.backend.isTest) return null;
+    return section("Modo de teste", "Abre o site com dados de exemplo guardados só neste navegador (não mexe nos seus dados): uma listRat que terminou ontem (hoje é dia de contestação), uma já finalizada com o resultado, uma em andamento e uma em inscrições.",
+      el("div", null, el("a", { class: "btn purple", href: location.pathname + "?teste", target: "_blank", rel: "noopener" }, "Abrir modo de teste")));
+  }
+
   function signOut() {
     return section("Sair", null,
       el("div", null, el("button", { class: "btn ghost", type: "button", onclick: () => auth().signOut() }, "Sair da conta")));
@@ -257,6 +264,6 @@ window.Liga.pages = window.Liga.pages || {};
     const d = draft();
     v.append(L.ui.pageHead("Configurações"));
     v.append(el("div", { class: "settings" },
-      account(d), password(d), email(d), twoFactor(d), appearance(), signOut()));
+      account(d), password(d), email(d), twoFactor(d), appearance(), testMode(), signOut()));
   };
 })(window.Liga);

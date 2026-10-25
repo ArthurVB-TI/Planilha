@@ -276,8 +276,8 @@ service cloud.firestore {
 
     // dia de contestação = dia seguinte ao fim da listRat (folga de algumas horas por causa do fuso)
     function endOf(sid) {
-      let e = sub(sid).get('end', '');
-      return timestamp.date(int(e[0:4]), int(e[5:7]), int(e[8:10]));
+      let e = sub(sid).get('end', '').split('-');
+      return timestamp.date(int(e[0]), int(e[1]), int(e[2]));
     }
     function inContestDay(sid) {
       return sub(sid).get('end', '') != ''

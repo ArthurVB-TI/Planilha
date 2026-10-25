@@ -126,8 +126,10 @@ window.Liga = window.Liga || {};
     else if (S.mine.nick !== S.user.name && !S.pending && !S.writing) L.actions.setNick(S.user.name);
   }
 
-  function onListenError(e) {
-    if (e && e.code === "denied") setStatus("Sem permissão para ler os dados. Confira as regras do Firestore (arquivo firestore.rules).", true);
+  function onListenError(e, coll) {
+    if (e && e.code === "denied" && (coll === "justificativas" || coll === "contestacoes")) {
+      setStatus("As regras novas do Firestore ainda não foram publicadas: justificativas e contestações não funcionam até colar o firestore.rules no Firebase e publicar.", true);
+    } else if (e && e.code === "denied") setStatus("Sem permissão para ler os dados. Confira as regras do Firestore (arquivo firestore.rules).", true);
     else setStatus("Conexão perdida. Recarregue a página.", true);
   }
 
@@ -246,7 +248,7 @@ window.Liga = window.Liga || {};
       }
       checkLoaded();
       render();
-    }, onListenError));
+    }, (e) => onListenError(e, coll)));
   }
 
   function onAuth(user) {

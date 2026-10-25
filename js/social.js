@@ -21,6 +21,29 @@ window.Liga = window.Liga || {};
   const incoming = () => all().filter((f) => f.status === "pending" && f.to === me());
   const outgoing = () => all().filter((f) => f.status === "pending" && f.from === me());
   const friendshipWith = (uid) => S.friendships[pairId(me(), uid)] || null;
+  const isFriend = (uid) => { const f = friendshipWith(uid); return !!f && f.status === "accepted"; };
+
+  // quanto você interage com alguém: projetos em comum (3), listRats em que os dois participam (2),
+  // avisos que a pessoa te mandou (1). Empate: amizade mais antiga primeiro.
+  function interaction(uid) {
+    let n = 0;
+    for (const p of Object.values(S.projects)) {
+      if (!p.members.includes(me()) || !p.members.includes(uid)) continue;
+      n += 3;
+      for (const s of Object.values(S.subs)) {
+        if (s.projectId === p.id && L.score.isParticipant(s, me()) && L.score.isParticipant(s, uid)) n += 2;
+      }
+    }
+    for (const x of Object.values(S.notifs)) if (x.from === uid) n += 1;
+    return n;
+  }
+  // amigos que mais interagem com você (sem os que "skip" mandar pular)
+  function topFriends(limit, skip) {
+    return friends().filter((id) => !(skip && skip(id)))
+      .map((id) => ({ id, n: interaction(id), since: (friendshipWith(id) || {}).acceptedAt || 0 }))
+      .sort((a, b) => b.n - a.n || a.since - b.since)
+      .slice(0, limit).map((x) => x.id);
+  }
 
   async function sendFriendRequest(uid) {
     if (!uid || uid === me()) throw fail("unknown");
@@ -112,7 +135,7 @@ window.Liga = window.Liga || {};
   const unread = () => inbox().filter((i) => !i.read).length;
 
   L.social = {
-    pairId, friends, incoming, outgoing, friendshipWith, sendFriendRequest, acceptFriend, removeFriendship,
+    pairId, friends, isFriend, interaction, topFriends, incoming, outgoing, friendshipWith, sendFriendRequest, acceptFriend, removeFriendship,
     sendProjectInvite, cancelProjectInvite, acceptProjectInvite, declineProjectInvite,
     notify, markRead, deleteNotif, markSiteRead, inbox, unread,
   };

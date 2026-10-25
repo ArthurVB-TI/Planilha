@@ -164,7 +164,9 @@ window.Liga.pages = window.Liga.pages || {};
     const ids = new Set(Object.keys(S.players).filter((id) => clean(S.players[id].nick, NICK_MAX)));
     if (S.myId) ids.add(S.myId);
     const hits = [...ids].map((id) => ({ id, n: L.ui.nameOf(id).toLowerCase() })).filter((h) => h.n.includes(q));
-    hits.sort((a, b) => (a.n.startsWith(q) ? 0 : 1) - (b.n.startsWith(q) ? 0 : 1) || a.n.localeCompare(b.n));
+    // amigos primeiro, depois quem começa com o texto digitado
+    const fr = (id) => (L.social.isFriend(id) ? 0 : 1);
+    hits.sort((a, b) => fr(a.id) - fr(b.id) || (a.n.startsWith(q) ? 0 : 1) - (b.n.startsWith(q) ? 0 : 1) || a.n.localeCompare(b.n));
     return hits.slice(0, MAX_RESULTS).map((h) => h.id);
   }
 
@@ -185,17 +187,28 @@ window.Liga.pages = window.Liga.pages || {};
       const i = $("mSearch"); if (i) i.focus({ preventScroll: true });
     };
     const pendingHere = Object.values(S.sentReqs).filter((r) => r.projectId === p.id).sort((a, b) => b.createdAt - a.createdAt);
+    // sugestões: os 3 amigos com quem você mais interage e que ainda não estão no projeto
+    const sugg = L.social.topFriends(3, (id) => p.members.includes(id) || !!sent(id));
+    const friendTag = (id) => (L.social.isFriend(id) ? el("span", { class: "ftag" }, "amigo") : null);
 
     return el("section", { class: "panel", id: "addPanel" },
-      el("h2", null, "Convidar pelo nome de usuário"),
+      el("h2", null, "Convidar pessoas"),
       el("p", { class: "muted small" }, "Ninguém entra direto: a pessoa recebe o convite nas notificações e decide se entra."),
+      sugg.length
+        ? el("div", { class: "f sugg" },
+            el("span", { class: "lbl" }, "Sugestões: seus amigos"),
+            el("div", { class: "cands" }, sugg.map((id) => el("div", { class: "cand" },
+              L.ui.avatar(id),
+              el("div", { class: "pname" }, el("span", { text: L.ui.nameOf(id) }), friendTag(id)),
+              el("button", { class: "btn sm purple", type: "button", onclick: () => add(id) }, icon("plus"), "Convidar")))))
+        : null,
       el("form", { class: "field", role: "search", onsubmit: (ev) => {
         ev.preventDefault();
         // Enter adiciona quando o nome digitado é exatamente o de alguém fora do projeto
         const exact = found.find((id) => L.ui.nameOf(id).toLowerCase() === q && !p.members.includes(id));
         if (exact) add(exact);
       } },
-        el("label", { for: "mSearch" }, "Nome de usuário da pessoa"),
+        el("label", { for: "mSearch" }, "Procurar pelo nome de usuário"),
         el("input", { id: "mSearch", type: "search", autocomplete: "off", autocapitalize: "none", spellcheck: "false", maxlength: "20",
           value: d.q, placeholder: "digite o usuário…", oninput: (e) => { d.q = e.target.value; rerender(); } })),
       found.length
@@ -203,7 +216,7 @@ window.Liga.pages = window.Liga.pages || {};
             const inside = p.members.includes(id);
             return el("div", { class: "cand" },
               L.ui.avatar(id),
-              el("div", { class: "pname" }, el("span", { text: L.ui.nameOf(id) }), you(id)),
+              el("div", { class: "pname" }, el("span", { text: L.ui.nameOf(id) }), you(id), friendTag(id)),
               inside
                 ? el("span", { class: "small muted" }, "já está no projeto")
                 : sent(id)

@@ -693,3 +693,5 @@ button.card:hover { border-color: var(--line-strong); background: var(--hover); 
 }
 .testbar b { color: var(--purple-text); }
 .testbar span { color: var(--muted); flex: 1; min-width: 200px; }
+.ftag { font-size: 11px; color: var(--purple-text); border: 1px solid currentColor; border-radius: 4px; padding: 0 5px; line-height: 16px; }
+.sugg .cand { border-color: color-mix(in srgb, var(--purple) 35%, var(--line)); }

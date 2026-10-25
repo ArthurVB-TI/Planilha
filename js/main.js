@@ -7,7 +7,7 @@ window.Liga = window.Liga || {};
   const { store } = L.text;
   const san = L.rules.sanitize;
 
-  const PAGES = ["home", "projects", "mine", "rules", "new", "project", "members", "subform", "sub", "charts", "friends", "inbox", "settings"];
+  const PAGES = ["home", "projects", "mine", "rules", "new", "project", "members", "subform", "sub", "charts", "friends", "inbox", "user", "settings"];
 
   /* ---------- navegação e avisos ---------- */
 

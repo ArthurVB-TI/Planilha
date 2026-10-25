@@ -29,7 +29,7 @@ window.Liga.pages = window.Liga.pages || {};
   function personLine(id, right, sub) {
     return el("div", { class: "cand" },
       L.ui.avatar(id),
-      el("div", { class: "pname", style: "display:grid;gap:0" }, el("span", { text: L.ui.nameOf(id) }), sub ? el("span", { class: "small muted" }, sub) : null),
+      el("div", { class: "pname", style: "display:grid;gap:0;justify-items:start" }, L.ui.userLink(id), sub ? el("span", { class: "small muted" }, sub) : null),
       el("div", { class: "row", style: "gap:6px;justify-content:flex-end" }, right));
   }
 

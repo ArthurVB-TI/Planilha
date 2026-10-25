@@ -90,9 +90,16 @@ window.Liga.pages = window.Liga.pages || {};
       L.ui.avatar(S.myId, "xl"),
       el("div", { class: "f", style: "gap:8px" },
         el("div", { class: "row", style: "gap:8px" },
-          el("button", { class: "btn purple sm", type: "button", disabled: !!S.uploading, onclick: () => L.photos.pick("avatar", (id) => { L.actions.setAvatar(id); d.msg.acc = { ok: "Foto de perfil salva." }; }, { square: 256, gallery: true }) },
+          el("button", { class: "btn purple sm", type: "button", disabled: !!S.uploading, onclick: () => L.photos.pick("avatar", async (id) => {
+            try { await L.actions.setAvatar(id); d.msg.acc = { ok: "Foto de perfil salva." }; }
+            catch (e) { d.msg.acc = { err: L.actions.errMsg(e, "Não deu para salvar a foto.") }; }
+          }, { square: 256, gallery: true }) },
             L.dom.icon("camera"), S.uploading === "avatar" ? "Enviando…" : pic ? "Trocar foto" : "Colocar foto"),
-          pic ? el("button", { class: "btn ghost sm", type: "button", onclick: () => { L.actions.setAvatar(""); d.msg.acc = { ok: "Foto de perfil removida." }; rerender(); } }, "Remover foto") : null),
+          pic ? el("button", { class: "btn ghost sm", type: "button", onclick: async () => {
+            try { await L.actions.setAvatar(""); d.msg.acc = { ok: "Foto de perfil removida." }; }
+            catch (e) { d.msg.acc = { err: L.actions.errMsg(e, "Não deu para remover a foto.") }; }
+            rerender();
+          } }, "Remover foto") : null),
         el("p", { class: "hint" }, "Aparece no lugar da primeira letra do seu nome, para todo mundo. A foto é cortada em quadrado.")));
     return section("Conta", "Seus dados. O usuário é o nome que aparece no placar.", photo, info, rename, msg("acc"));
   }

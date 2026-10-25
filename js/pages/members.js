@@ -146,7 +146,7 @@ window.Liga.pages = window.Liga.pages || {};
       el("div", { class: "mline" },
         L.ui.avatar(id),
         el("div", { class: "mi" },
-          el("div", { class: "pname" }, el("span", { text: L.ui.nameOf(id) }), you(id),
+          el("div", { class: "pname" }, L.ui.userLink(id), you(id),
             P.projOwner(p) === id ? el("span", { class: "badge" }, "dono do projeto") : p.helpers.includes(id) ? el("span", { class: "badge" }, "ajudante") : null),
           el("div", { class: "small muted", text: rolesLine(sm) })),
         el("div", { class: "pts" + (sm.score.total < 0 ? " neg" : "") }, fmtTotal(sm.score.total)),
@@ -216,7 +216,7 @@ window.Liga.pages = window.Liga.pages || {};
             const inside = p.members.includes(id);
             return el("div", { class: "cand" },
               L.ui.avatar(id),
-              el("div", { class: "pname" }, el("span", { text: L.ui.nameOf(id) }), you(id), friendTag(id)),
+              el("div", { class: "pname" }, L.ui.userLink(id), you(id), friendTag(id)),
               inside
                 ? el("span", { class: "small muted" }, "já está no projeto")
                 : sent(id)

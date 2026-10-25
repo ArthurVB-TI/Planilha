@@ -149,7 +149,7 @@ window.Liga = window.Liga || {};
       el("header", { class: "pg-head" },
         el("div", { class: "who" }, id ? L.ui.avatar(id) : null,
           el("div", { style: "min-width:0" },
-            el("div", { class: "n" }, el("span", { text: opts.title || L.ui.nameOf(id) }), id === S.myId ? el("span", { class: "you" }, "você") : null, role ? el("span", { class: "role" }, role) : null),
+            el("div", { class: "n" }, opts.title || !id ? el("span", { text: opts.title || "" }) : L.ui.userLink(id), id === S.myId ? el("span", { class: "you" }, "você") : null, role ? el("span", { class: "role" }, role) : null),
             el("div", { class: "small muted" }, opts.sub || (plural(tasks.length, "tarefa", "tarefas") + (late ? " · " + plural(late, "obrigatória falta hoje", "obrigatórias faltam hoje") : ""))))),
         opts.noScore ? null : el("div", { class: "pts" + (sc.total < 0 ? " neg" : "") }, fmtTotal(sc.total))),
       tasks.length ? el("div", { class: "tr-list" }, tasks.map((t) => row(t, opts.where ? { where: L.ui.nameOf(t.assignee) } : {}))) : el("p", { class: "muted small pg-empty" }, "Sem tarefas."));
@@ -406,7 +406,7 @@ window.Liga = window.Liga || {};
       return el("li", { class: m },
         el("span", { class: "rk" }, rank + "º"),
         L.ui.avatar(r.id),
-        el("span", { class: "nm" }, L.ui.nameOf(r.id), r.id === S.myId ? el("span", { class: "you" }, "você") : null),
+        el("span", { class: "nm" }, L.ui.userLink(r.id), r.id === S.myId ? el("span", { class: "you" }, "você") : null),
         m ? el("span", { class: "medal", "aria-label": m === "gold" ? "ouro" : m === "silver" ? "prata" : "bronze" }, icon("trophy")) : null,
         el("span", { class: "pt" + (r.total < 0 ? " neg" : "") }, fmtTotal(r.total)));
     }));

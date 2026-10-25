@@ -40,6 +40,7 @@ window.Liga = window.Liga || {};
     cant_contest: "Não dá para contestar esta tarefa agora.",
     task_locked: "Depois que a listRat começa, só dá para mudar o nome da tarefa.",
     day_locked: "Esse dia não pode mais ser mudado.",
+    rules_old: "O Firebase recusou a foto: as regras do Firestore estão desatualizadas. Publique o arquivo firestore.rules de novo no Firebase (Firestore > Regras > Publicar).",
     owner_stays: "O dono do projeto não pode sair. Passe o projeto para outra pessoa antes.",
     owner_needed: "Toda listRat precisa de um dono. Para tirar esta pessoa do comando, escolha outra como dona.",
     unknown: "Isso não existe mais. Recarregue a página.",
@@ -101,8 +102,17 @@ window.Liga = window.Liga || {};
     if (S.writing || !S.pending || !db() || !S.myId || !S.mine) return;
     S.pending = false;
     S.writing = true;
+    let doc = buildMyDoc();
     try {
-      await db().set("players/" + S.myId, buildMyDoc());
+      try {
+        await db().set("players/" + S.myId, doc);
+      } catch (e1) {
+        // regras antigas não aceitam a foto de perfil: salva o resto mesmo assim
+        if (e1.code !== "denied" || !doc.avatar) throw e1;
+        delete doc.avatar;
+        await db().set("players/" + S.myId, doc);
+        setStatus(MESSAGES.rules_old, true);
+      }
     } catch (e) {
       if (e.code === "denied") {
         S.readOnly = true;
@@ -187,13 +197,21 @@ window.Liga = window.Liga || {};
   }
 
   // foto de perfil (fica na coleção de fotos; o id vai no meu documento de jogador)
-  function setAvatar(photoId) {
-    if (!S.mine) return;
-    const old = S.mine.avatar;
+  // grava na hora (e não junto com as marcações) para dar erro claro se o Firebase recusar
+  async function setAvatar(photoId) {
+    if (!S.mine) throw fail("unknown");
+    const old = S.mine.avatar || "";
     S.mine.avatar = photoId || "";
+    try {
+      await db().set("players/" + S.myId, buildMyDoc());
+    } catch (e) {
+      S.mine.avatar = old;
+      if (photoId) removePhoto(photoId);
+      render();
+      throw e.code === "denied" ? fail("rules_old") : e;
+    }
     if (old && old !== photoId) removePhoto(old);
     render();
-    scheduleSave();
   }
 
   function removePhoto(id) {

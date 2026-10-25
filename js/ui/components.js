@@ -31,6 +31,11 @@ window.Liga = window.Liga || {};
     return box;
   }
 
+  // nome que abre o perfil da pessoa
+  function userLink(id, text) {
+    return el("button", { type: "button", class: "ulink", title: "Ver perfil", onclick: (e) => { e.stopPropagation(); go({ page: "user", uid: id }); } }, text || nameOf(id));
+  }
+
   function personChip(id, onToggle, on) {
     const kids = [avatar(id), el("span", { text: nameOf(id) })];
     if (onToggle) {
@@ -188,7 +193,7 @@ window.Liga = window.Liga || {};
         el("div", { class: "rank" }, rank + "º"),
         avatar(r.id),
         el("div", { style: "min-width:0" },
-          el("div", { class: "pname" }, el("span", { text: nameOf(r.id) }), r.id === S.myId ? el("span", { class: "you" }, "você") : null),
+          el("div", { class: "pname" }, userLink(r.id), r.id === S.myId ? el("span", { class: "you" }, "você") : null),
           el("div", { class: "split" }, "+" + r.plus.toLocaleString("pt-BR") + "  −" + r.minus.toLocaleString("pt-BR"))),
         el("div", { class: "pts" + (r.total < 0 ? " neg" : ""), "data-count": "board-" + boardKey + "-" + r.id },
           L.fx.count("board-" + boardKey + "-" + r.id, r.total, fmtTotal))));
@@ -230,5 +235,5 @@ window.Liga = window.Liga || {};
     }));
   }
 
-  L.ui = { subHeader, block, modal, ago, fmtDate, period, periodTag, nameOf, avatar, personChip, empty, stat, pageHead, crumbs, diffText, confirmRow, taskCard, board, legend, visibleProjects, projectList };
+  L.ui = { userLink, subHeader, block, modal, ago, fmtDate, period, periodTag, nameOf, avatar, personChip, empty, stat, pageHead, crumbs, diffText, confirmRow, taskCard, board, legend, visibleProjects, projectList };
 })(window.Liga);

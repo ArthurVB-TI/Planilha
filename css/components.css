@@ -704,3 +704,9 @@ button.card:hover { border-color: var(--line-strong); background: var(--hover); 
 .fstate { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
 .fstate.ok { color: var(--purple-text); font-weight: 600; }
 .fstate .ico { width: 15px; height: 15px; }
+/* nome que abre o perfil */
+.ulink { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
+.ulink:hover { color: var(--purple-text); }
+.profile-main { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.citem .pts { font-family: var(--mono); font-weight: 600; }
+.citem .pts.neg { color: var(--neg); }

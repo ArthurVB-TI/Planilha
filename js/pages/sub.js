@@ -152,7 +152,10 @@ window.Liga.pages = window.Liga.pages || {};
   /* ---------- Tarefas ---------- */
   function tasks(v, p, s) {
     const st = tasksOf(s);
-    const d = S.draft.subView = S.draft.subView && S.draft.subView.sid === s.id ? S.draft.subView : { sid: s.id, only: false };
+    // filtro: "all" (todas), "me" (só as minhas) ou "pick" (só de quem eu escolher)
+    const d = S.draft.subView = S.draft.subView && S.draft.subView.sid === s.id ? S.draft.subView : { sid: s.id, show: "all", pick: [] };
+    if (!d.show) d.show = d.only ? "me" : "all";
+    if (!Array.isArray(d.pick)) d.pick = [];
     if (P.canFillOwn(s)) v.append(L.forms.taskForm(p, s));
     else if (s.status !== "inscricoes" && P.isMember(p)) {
       v.append(el("p", { class: "hint" }, "As tarefas são criadas e editadas só nas inscrições. Agora elas estão travadas. Toque numa tarefa para ver tudo dela; na sua, toque num dia para marcar."));
@@ -161,19 +164,32 @@ window.Liga.pages = window.Liga.pages || {};
     v.append(el("div", { class: "row", style: "align-items:center;justify-content:space-between" },
       el("h2", null, "Tarefas de cada pessoa"),
       el("div", { class: "seg", role: "group", "aria-label": "Mostrar" },
-        [[false, "Todas"], [true, "Só as minhas"]].map(([val, label]) =>
-          el("button", { type: "button", class: d.only === val ? "on" : "", "aria-pressed": d.only === val ? "true" : "false", onclick: () => { d.only = val; rerender(); } }, label)))));
+        [["all", "Todas"], ["me", "Só as minhas"], ["pick", "Escolher pessoas"]].map(([val, label]) =>
+          el("button", { type: "button", class: d.show === val ? "on" : "", "aria-pressed": d.show === val ? "true" : "false", onclick: () => { d.show = val; rerender(); } }, label)))));
 
     const inList = (id) => L.score.isParticipant(s, id);
-    let order = p.members.filter(inList).sort((a, b) => (a === S.myId ? -1 : b === S.myId ? 1 : 0));
-    if (d.only) order = order.filter((id) => id === S.myId);
+    const everyone = p.members.filter(inList).sort((a, b) => (a === S.myId ? -1 : b === S.myId ? 1 : 0));
+    d.pick = d.pick.filter((id) => everyone.includes(id));
+    let order = everyone;
+    if (d.show === "me") order = order.filter((id) => id === S.myId);
+    if (d.show === "pick") {
+      // escolher de quem ver: toque para marcar ou desmarcar (dá para escolher várias pessoas)
+      v.append(el("div", { class: "pick-people" },
+        el("div", { class: "people", role: "group", "aria-label": "Escolher de quem ver as tarefas" }, everyone.map((id) =>
+          L.ui.personChip(id, () => { d.pick = d.pick.includes(id) ? d.pick.filter((x) => x !== id) : d.pick.concat([id]); rerender(); }, d.pick.includes(id)))),
+        el("div", { class: "row", style: "gap:6px;align-items:center" },
+          el("span", { class: "hint" }, d.pick.length ? plural(d.pick.length, "pessoa escolhida", "pessoas escolhidas") : "Toque nas pessoas para ver só as tarefas delas."),
+          d.pick.length ? el("button", { class: "btn ghost sm", type: "button", onclick: () => { d.pick = []; rerender(); } }, "Limpar") : null)));
+      order = order.filter((id) => d.pick.includes(id));
+    }
     const groups = el("div", { class: "pgroups" });
     for (const id of order) groups.append(L.tasksUI.group(id, st.filter((t) => t.assignee === id), s));
     const orphan = st.filter((t) => !p.members.includes(t.assignee) || !inList(t.assignee));
-    if (P.canRunSub(s) && orphan.length && !d.only) {
+    if (P.canRunSub(s) && orphan.length && d.show === "all") {
       groups.append(L.tasksUI.group("", orphan, s, { title: "Fora da listRat", sub: "Não participam ou saíram do projeto. Não contam no placar.", noScore: true, where: true }));
     }
-    v.append(order.length || orphan.length ? groups : L.ui.empty(d.only ? "Você não tem tarefas nesta listRat." : "Ninguém nesta listRat ainda."));
+    const nothing = d.show === "me" ? "Você não tem tarefas nesta listRat." : d.show === "pick" ? (d.pick.length ? "Essas pessoas não têm tarefas aqui." : "Escolha uma ou mais pessoas acima.") : "Ninguém nesta listRat ainda.";
+    v.append(order.length || (orphan.length && d.show === "all") ? groups : L.ui.empty(nothing));
   }
 
   /* ---------- Contestação / Resultado ---------- */

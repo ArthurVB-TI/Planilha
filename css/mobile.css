@@ -137,3 +137,7 @@
   .modal-back:not(.sheet-back) .modal, .sheet { animation: none; }
 }
 @keyframes sheetUp { from { transform: translateY(40px); opacity: .4; } }
+@media (max-width: 760px) {
+  /* filtro das tarefas: os três botões cabem numa linha */
+  .seg button { padding-left: 10px; padding-right: 10px; }
+}

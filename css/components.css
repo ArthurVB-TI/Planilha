@@ -799,3 +799,4 @@ button.card:hover { border-color: var(--line-strong); background: var(--hover); 
 @media (max-width: 420px) { .money-grid, .mrules { grid-template-columns: minmax(0, 1fr); } }
 .rules-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
 .rules-list li::marker { color: var(--purple-text); }
+.pick-people { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }

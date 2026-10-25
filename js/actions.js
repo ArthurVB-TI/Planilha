@@ -86,6 +86,7 @@ window.Liga = window.Liga || {};
       if (Object.keys(o).length) notes[id] = o;
     }
     const out = { nick: clean(S.mine.nick, NICK_MAX), done, proofs, notes, updatedAt: Date.now() };
+    if (isPhotoId(S.mine.avatar)) out.avatar = S.mine.avatar;               // foto de perfil
     if (S.mine.weeks && typeof S.mine.weeks === "object") out.weeks = S.mine.weeks; // dados da versão 1
     return out;
   }
@@ -182,6 +183,16 @@ window.Liga = window.Liga || {};
     if (!Array.isArray(S.mine.done[task.id])) S.mine.done[task.id] = [];
     if (!S.mine.done[task.id].includes(key)) { S.mine.done[task.id].push(key); L.fx.markDone(task, key); }
     if (old && old !== photoId) removePhoto(old);
+    scheduleSave();
+  }
+
+  // foto de perfil (fica na coleção de fotos; o id vai no meu documento de jogador)
+  function setAvatar(photoId) {
+    if (!S.mine) return;
+    const old = S.mine.avatar;
+    S.mine.avatar = photoId || "";
+    if (old && old !== photoId) removePhoto(old);
+    render();
     scheduleSave();
   }
 
@@ -411,7 +422,7 @@ window.Liga = window.Liga || {};
   L.actions = {
     createInvite, deleteInvite, inviteUrl, peekInvite, joinByInvite, setSubReq, startSub, addParticipant,
     setSubRole, removeMember,
-    errMsg, flush, scheduleSave, canMark, canChangeDay, noteOf, setNote, toggleMark, attachProof, removePhoto, join, setNick,
+    errMsg, flush, scheduleSave, canMark, canChangeDay, noteOf, setNote, toggleMark, attachProof, removePhoto, setAvatar, join, setNick,
     createProject, transferProject, setProjectHelper, saveProject, deleteProject, createSub, saveSub, renameSub, setSubHelpers, deleteSub,
     createTask, saveTask, deleteTask,
   };

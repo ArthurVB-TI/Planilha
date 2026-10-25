@@ -19,8 +19,16 @@ window.Liga = window.Liga || {};
     return (p && clean(p.nick, NICK_MAX)) || "jogador";
   }
 
+  // foto de perfil (se a pessoa tiver) ou a primeira letra do nome
   function avatar(id, big) {
-    return el("span", { class: "av" + (big ? " lg" : ""), "aria-hidden": "true" }, (nameOf(id)[0] || "?").toUpperCase());
+    const letter = (nameOf(id)[0] || "?").toUpperCase();
+    const p = id && L.score.playerDoc(id);
+    const pic = p && p.avatar;
+    if (!pic) return el("span", { class: "av" + (big === "xl" ? " xl" : big ? " lg" : ""), "aria-hidden": "true" }, letter);
+    const img = el("img", { alt: "", loading: "lazy", decoding: "async" });
+    const box = el("span", { class: "av pic" + (big === "xl" ? " xl" : big ? " lg" : ""), "aria-hidden": "true" }, img);
+    L.photos.loadInto(img, pic, () => { box.classList.remove("pic"); box.replaceChildren(letter); });
+    return box;
   }
 
   function personChip(id, onToggle, on) {

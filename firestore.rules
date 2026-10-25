@@ -318,13 +318,14 @@ service cloud.firestore {
     match /players/{uid} {
       allow read: if signedIn();
       allow create, update: if signedIn() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['nick', 'done', 'proofs', 'notes', 'updatedAt', 'weeks'])
+        && request.resource.data.keys().hasOnly(['nick', 'done', 'proofs', 'notes', 'avatar', 'updatedAt', 'weeks'])
         && request.resource.data.nick is string
         && request.resource.data.nick.size() >= 1
         && request.resource.data.nick.size() <= 20
         && request.resource.data.done is map
         && request.resource.data.proofs is map
-        && request.resource.data.get('notes', {}) is map;
+        && request.resource.data.get('notes', {}) is map
+        && request.resource.data.get('avatar', '') is string && request.resource.data.get('avatar', '').size() <= 64;
       allow delete: if signedIn() && request.auth.uid == uid;
     }
 

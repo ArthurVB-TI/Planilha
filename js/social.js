@@ -134,7 +134,32 @@ window.Liga = window.Liga || {};
   // número no menu: convites e pedidos esperando + avisos não lidos
   const unread = () => inbox().filter((i) => !i.read).length;
 
+  // botão de amizade para o perfil de alguém: Adicionar amigo / Pedido enviado / Aceitar pedido / Amigos
+  function friendButton(uid) {
+    const { el, icon } = L.dom;
+    if (!uid || uid === me()) return null;
+    const f = friendshipWith(uid);
+    const run = async (fn, okText) => {
+      try { await fn(); if (okText) L.app.setStatus(okText, false, { auto: true }); }
+      catch (e) { L.app.setStatus(L.actions.errMsg(e, "Não deu certo agora."), true); }
+      L.app.render();
+    };
+    if (f && f.status === "accepted") return el("span", { class: "fstate ok" }, icon("heart"), "Amigos");
+    if (f && f.from === me()) {
+      return el("div", { class: "row", style: "gap:6px;align-items:center" },
+        el("span", { class: "fstate" }, "Pedido de amizade enviado"),
+        el("button", { class: "btn ghost sm", type: "button", onclick: () => run(() => removeFriendship(f), "Pedido cancelado.") }, "Cancelar"));
+    }
+    if (f && f.to === me()) {
+      return el("div", { class: "row", style: "gap:6px" },
+        el("button", { class: "btn purple sm", type: "button", onclick: () => run(() => acceptFriend(f), "Agora vocês são amigos.") }, icon("heart"), "Aceitar pedido de amizade"),
+        el("button", { class: "btn ghost sm", type: "button", onclick: () => run(() => removeFriendship(f)) }, "Recusar"));
+    }
+    return el("button", { class: "btn purple sm", type: "button", onclick: () => run(() => sendFriendRequest(uid), "Pedido de amizade enviado para " + name(uid) + ".") }, icon("plus"), "Adicionar amigo");
+  }
+
   L.social = {
+    friendButton,
     pairId, friends, isFriend, interaction, topFriends, incoming, outgoing, friendshipWith, sendFriendRequest, acceptFriend, removeFriendship,
     sendProjectInvite, cancelProjectInvite, acceptProjectInvite, declineProjectInvite,
     notify, markRead, deleteNotif, markSiteRead, inbox, unread,

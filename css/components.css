@@ -695,3 +695,12 @@ button.card:hover { border-color: var(--line-strong); background: var(--hover); 
 .testbar span { color: var(--muted); flex: 1; min-width: 200px; }
 .ftag { font-size: 11px; color: var(--purple-text); border: 1px solid currentColor; border-radius: 4px; padding: 0 5px; line-height: 16px; }
 .sugg .cand { border-color: color-mix(in srgb, var(--purple) 35%, var(--line)); }
+/* foto de perfil */
+.av.pic { padding: 0; overflow: hidden; background: var(--sunk); }
+.av.pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.av.xl { width: 84px; height: 84px; font-size: 32px; border-radius: 12px; }
+.avatar-edit { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.fbtn { margin-top: 8px; }
+.fstate { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
+.fstate.ok { color: var(--purple-text); font-weight: 600; }
+.fstate .ico { width: 15px; height: 15px; }

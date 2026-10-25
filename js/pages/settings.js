@@ -85,7 +85,16 @@ window.Liga.pages = window.Liga.pages || {};
         el("input", { id: "sUname", maxlength: "20", autocomplete: "off", autocapitalize: "none", value: d.uname, oninput: (e) => { d.uname = e.target.value; } })),
       el("button", { class: "btn ghost", type: "submit", disabled: !!d.busy.acc }, "Salvar"));
 
-    return section("Conta", "Seus dados. O usuário é o nome que aparece no placar.", L.ui.avatar(S.myId, true), info, rename, msg("acc"));
+    const pic = S.mine && S.mine.avatar;
+    const photo = el("div", { class: "avatar-edit" },
+      L.ui.avatar(S.myId, "xl"),
+      el("div", { class: "f", style: "gap:8px" },
+        el("div", { class: "row", style: "gap:8px" },
+          el("button", { class: "btn purple sm", type: "button", disabled: !!S.uploading, onclick: () => L.photos.pick("avatar", (id) => { L.actions.setAvatar(id); d.msg.acc = { ok: "Foto de perfil salva." }; }, { square: 256, gallery: true }) },
+            L.dom.icon("camera"), S.uploading === "avatar" ? "Enviando…" : pic ? "Trocar foto" : "Colocar foto"),
+          pic ? el("button", { class: "btn ghost sm", type: "button", onclick: () => { L.actions.setAvatar(""); d.msg.acc = { ok: "Foto de perfil removida." }; rerender(); } }, "Remover foto") : null),
+        el("p", { class: "hint" }, "Aparece no lugar da primeira letra do seu nome, para todo mundo. A foto é cortada em quadrado.")));
+    return section("Conta", "Seus dados. O usuário é o nome que aparece no placar.", photo, info, rename, msg("acc"));
   }
 
   /* ---------- senha ---------- */

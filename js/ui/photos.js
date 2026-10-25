@@ -18,16 +18,35 @@ window.Liga = window.Liga || {};
   }
 
   // carrega a imagem (com cache) e coloca no <img>
+  const inflight = {};
   function loadInto(img, id, onFail) {
     const cached = S.photoCache[id];
     if (cached) { img.src = cached; return; }
-    S.backend.photos.load(id)
-      .then((url) => {
-        if (typeof url !== "string" || !url.startsWith("data:image/")) throw new Error("foto inválida");
-        S.photoCache[id] = url;
-        img.src = url;
-      })
-      .catch(() => onFail && onFail());
+    // a mesma foto (ex.: foto de perfil) pode aparecer várias vezes na tela: baixa uma vez só
+    inflight[id] = inflight[id] || S.backend.photos.load(id).then((url) => {
+      if (typeof url !== "string" || !url.startsWith("data:image/")) throw new Error("foto inválida");
+      S.photoCache[id] = url;
+      return url;
+    }).finally(() => { delete inflight[id]; });
+    inflight[id].then((url) => { img.src = url; }).catch(() => onFail && onFail());
+  }
+
+  // recorta no meio em quadrado e reduz (foto de perfil)
+  function prepareSquare(file, size) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const side = Math.min(img.naturalWidth, img.naturalHeight);
+        const c = document.createElement("canvas");
+        c.width = c.height = size;
+        c.getContext("2d").drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size);
+        resolve(c.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(Object.assign(new Error("formato"), { code: "unsupported_type" })); };
+      img.src = url;
+    });
   }
 
   // reduz a foto (lado maior até 1280 px, JPEG) até caber no limite
@@ -59,14 +78,17 @@ window.Liga = window.Liga || {};
     S.camTarget = { taskId: task.id, key };
     const inp = $("camInput");
     inp.value = "";
+    inp.setAttribute("capture", "environment");
     inp.click();
   }
   // escolhe uma foto para outra coisa (justificativa, prova de contestação): cb(idDaFoto)
-  function pick(tag, cb) {
+  function pick(tag, cb, opts) {
     if (S.uploading) return;
-    S.camTarget = { tag, cb };
+    S.camTarget = { tag, cb, square: opts && opts.square };
     const inp = $("camInput");
     inp.value = "";
+    // foto de perfil: deixa escolher da galeria (sem abrir direto a câmera)
+    if (opts && opts.gallery) inp.removeAttribute("capture"); else inp.setAttribute("capture", "environment");
     inp.click();
   }
   const uploadErr = (e) => {
@@ -87,7 +109,7 @@ window.Liga = window.Liga || {};
       S.uploading = tgt.tag;
       L.app.render();
       try {
-        const data = await prepare(file);
+        const data = tgt.square ? await prepareSquare(file, tgt.square) : await prepare(file);
         const id = await S.backend.photos.save(data, S.myId);
         S.photoCache[id] = data;
         await tgt.cb(id);

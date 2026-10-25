@@ -121,7 +121,7 @@ window.Liga = window.Liga || {};
   }
 
   function player(id, d) {
-    return { nick: clean(d.nick, NICK_MAX), done: obj(d.done), proofs: obj(d.proofs), notes: obj(d.notes), weeks: d.weeks };
+    return { nick: clean(d.nick, NICK_MAX), done: obj(d.done), proofs: obj(d.proofs), notes: obj(d.notes), avatar: isPhotoId(d.avatar) ? d.avatar : "", weeks: d.weeks };
   }
 
   // justificativa de um dia/semana não feito: id = "<tarefa>_<dia>"; só vale se o dono/ajudante aceitar

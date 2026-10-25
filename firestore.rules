@@ -14,7 +14,7 @@ rules_version = '2';
 // - o dono do projeto pode mexer em todas as listRats e tarefas do projeto;
 // - qualquer integrante de um projeto cria listRats nele (coleção subprojetos) e vira o dono delas;
 // - o dono da listRat edita (nome, detalhes, início e fim), apaga e escolhe ajudantes;
-// - TAREFAS: cada pessoa só cria, edita e apaga as PRÓPRIAS (nas inscrições); depois que a listRat começa, só renomeia;
+// - TAREFAS: cada pessoa só cria, edita e apaga as PRÓPRIAS (nas inscrições); depois que a listRat começa, ficam travadas;
 //   ninguém (nem dono nem ajudante) mexe na tarefa de outra pessoa; o dono da listRat/projeto só apaga ao apagar a listRat;
 // - justificativas: quem não fez justifica; dono/ajudantes da listRat aceitam ou recusam;
 // - contestações: no dia seguinte ao fim da listRat, participante contesta tarefa de outro (uma vez por tarefa);
@@ -201,7 +201,7 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if signedIn()
         && (isProjectMember(request.resource.data.projectId) || isProjectOwner(request.resource.data.projectId))
-        && request.resource.data.keys().hasOnly(['projectId', 'name', 'desc', 'start', 'end', 'status', 'req', 'participants', 'startedAt', 'joined', 'owner', 'helpers', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['projectId', 'name', 'desc', 'start', 'end', 'status', 'req', 'participants', 'startedAt', 'joined', 'owner', 'helpers', 'createdAt', 'scoring', 'money', 'kicked'])
         && request.resource.data.owner == request.auth.uid
         && request.resource.data.name is string && request.resource.data.name.size() <= 60
         && subInfoOk(request.resource.data)
@@ -248,8 +248,7 @@ service cloud.firestore {
         && resource.data.assignee == request.auth.uid
         && request.resource.data.assignee == resource.data.assignee
         && request.resource.data.subId == resource.data.subId
-        && (inscricoes(resource.data.subId)
-          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title']));
+        && inscricoes(resource.data.subId);
       allow delete: if (signedIn() && resource.data.assignee == request.auth.uid && inscricoes(resource.data.subId))
         || ownsSub(resource.data.subId);
     }
@@ -318,13 +317,14 @@ service cloud.firestore {
     match /players/{uid} {
       allow read: if signedIn();
       allow create, update: if signedIn() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['nick', 'done', 'proofs', 'notes', 'avatar', 'updatedAt', 'weeks'])
+        && request.resource.data.keys().hasOnly(['nick', 'done', 'proofs', 'notes', 'proofAt', 'avatar', 'updatedAt', 'weeks'])
         && request.resource.data.nick is string
         && request.resource.data.nick.size() >= 1
         && request.resource.data.nick.size() <= 20
         && request.resource.data.done is map
         && request.resource.data.proofs is map
         && request.resource.data.get('notes', {}) is map
+        && request.resource.data.get('proofAt', {}) is map
         && request.resource.data.get('avatar', '') is string && request.resource.data.get('avatar', '').size() <= 64;
       allow delete: if signedIn() && request.auth.uid == uid;
     }

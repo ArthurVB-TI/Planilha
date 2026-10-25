@@ -238,12 +238,13 @@ window.Liga = window.Liga || {};
         const me = out[S.myId];
         const cp = (o) => JSON.parse(JSON.stringify(o || {}));
         if (me && !S.mine) {
-          S.mine = { nick: me.nick, done: cp(me.done), proofs: cp(me.proofs), notes: cp(me.notes), avatar: me.avatar || "", weeks: me.weeks ? cp(me.weeks) : undefined };
+          S.mine = { nick: me.nick, done: cp(me.done), proofs: cp(me.proofs), notes: cp(me.notes), proofAt: cp(me.proofAt), avatar: me.avatar || "", weeks: me.weeks ? cp(me.weeks) : undefined };
         } else if (me && S.mine && !S.pending && !S.writing && !S.uploading) {
           // atualização vinda de outro aparelho
           S.mine.done = cp(me.done);
           S.mine.proofs = cp(me.proofs);
           S.mine.notes = cp(me.notes);
+          S.mine.proofAt = cp(me.proofAt);
           S.mine.avatar = me.avatar || "";
           S.mine.nick = me.nick || S.mine.nick;
         }

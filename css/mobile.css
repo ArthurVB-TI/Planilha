@@ -108,6 +108,11 @@
   .modal-actions .btn { width: 100%; }
   .sheet { padding-bottom: env(safe-area-inset-bottom, 0px); animation: sheetUp .24s ease-out; }
 
+  /* tirar da listRat: botões embaixo do nome quando confirma */
+  .kick-line.asking { grid-template-columns: 28px minmax(0, 1fr); }
+  .kick-line.asking .kick-acts { grid-column: 1 / -1; }
+  .kick-line.asking .kick-acts .btn { flex: 1; }
+
   /* ---------- perfil ---------- */
   .profile { justify-content: center; text-align: center; }
   .profile .hero-main { width: 100%; }

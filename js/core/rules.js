@@ -30,6 +30,10 @@ window.Liga = window.Liga || {};
   }
   const NICK_MAX = 20;
   const TASK_MAX = 150;   // tamanho máximo do nome da tarefa
+  // prova: um dia (ou semana) marcado só conta com foto OU comentário, colocado até o fim do dia seguinte ao prazo.
+  // Dias antes de PROOF_FROM (quando a regra entrou) continuam valendo sem prova.
+  const PROOF_FROM = "2026-10-25";
+  const PROOF_GRACE = 1;   // dias depois do prazo para colocar a foto ou o comentário
   // tarefas obrigatórias NÃO contam na pontuação (não dão nem tiram pontos).
   // Continuam sendo exigidas para entrar na listRat e aparecem como "faltou" quando não feitas.
   // (true = volta ao jeito antigo: cada dia sem fazer tira os pontos da dificuldade)
@@ -80,9 +84,17 @@ window.Liga = window.Liga || {};
     // dia em que cada participante entrou (quem é incluído depois só conta dali em diante)
     const joined = {};
     for (const k in obj(d.joined)) if (isId(k) && isKey(d.joined[k])) joined[k] = d.joined[k];
+    // quem o dono tirou da listRat (não participa, não conta no placar, não cria tarefas)
+    // como o placar da listRat é calculado: "pontos" (soma) ou "porcentagem" (pontos feitos ÷ pontos possíveis)
+    const scoring = d.scoring === "porcentagem" ? "porcentagem" : "pontos";
+    // dinheiro: quanto o 1º, 2º e 3º ganham e quanto o último, penúltimo e antepenúltimo pagam (em reais)
+    const reais = (v) => { const n = Math.round((+v || 0) * 100) / 100; return n > 0 && n <= 100000 ? n : 0; };
+    const three = (a) => [0, 1, 2].map((i) => reais(Array.isArray(a) ? a[i] : 0));
+    const money = { win: three(obj(d.money).win), pay: three(obj(d.money).pay) };
+    const kicked = Array.isArray(d.kicked) ? [...new Set(d.kicked.filter(isId))].filter((k) => k !== owner).slice(0, 100) : [];
     return {
       id, name, projectId: d.projectId, owner, helpers, desc: cleanLong(d.desc, 500), start, end,
-      status, req: normReq(d.req), participants: status === "ativa" ? participants : null, startedAt, joined,
+      status, req: normReq(d.req), participants: status === "ativa" ? participants : null, startedAt, joined, kicked, scoring, money,
       createdAt: Number(d.createdAt) || 0,
     };
   }
@@ -126,7 +138,14 @@ window.Liga = window.Liga || {};
   }
 
   function player(id, d) {
-    return { nick: clean(d.nick, NICK_MAX), done: obj(d.done), proofs: obj(d.proofs), notes: obj(d.notes), avatar: isPhotoId(d.avatar) ? d.avatar : "", weeks: d.weeks };
+    // proofAt[tarefa][dia] = quando a primeira foto ou comentário daquele dia foi colocado (ms)
+    const proofAt = {};
+    for (const t in obj(d.proofAt)) {
+      const m = obj(d.proofAt[t]), o = {};
+      for (const k in m) if (isKey(k) && Number.isFinite(+m[k]) && +m[k] > 0) o[k] = +m[k];
+      if (Object.keys(o).length) proofAt[t] = o;
+    }
+    return { nick: clean(d.nick, NICK_MAX), done: obj(d.done), proofs: obj(d.proofs), notes: obj(d.notes), proofAt, avatar: isPhotoId(d.avatar) ? d.avatar : "", weeks: d.weeks };
   }
 
   // justificativa de um dia/semana não feito: id = "<tarefa>_<dia>"; só vale se o dono/ajudante aceitar
@@ -154,7 +173,7 @@ window.Liga = window.Liga || {};
   }
 
   L.rules = {
-    OBR_PENALTY, DIFF, DIFF_KEYS, MAX_MARKS, DEFAULT_REQ, RECOMMENDED_DESVIO, normReq, NICK_MAX, TASK_MAX, isPhotoId,
+    OBR_PENALTY, DIFF, DIFF_KEYS, MAX_MARKS, DEFAULT_REQ, RECOMMENDED_DESVIO, normReq, NICK_MAX, TASK_MAX, PROOF_FROM, PROOF_GRACE, isPhotoId,
     checkUsername, checkEmail, checkPassword,
     sanitize: { project, sub, task, player, invite, friendship, request, notif, justification, contest },
   };

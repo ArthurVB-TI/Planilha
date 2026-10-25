@@ -119,12 +119,20 @@ window.Liga.pages = window.Liga.pages || {};
     return out;
   }
 
-  // tudo o que aconteceu, por pessoa e por dia: { uid: { dia: { done, miss, plus, minus } } }
+  // tudo o que aconteceu, por pessoa e por dia: { uid: { dia: { done, miss, plus, minus, poss } } }
+  // poss = pontos que dava para ganhar naquele dia (para a porcentagem)
   function events(tasks) {
     const by = {};
-    const cell = (uid, k) => ((by[uid] = by[uid] || {})[k] = by[uid][k] || { done: 0, miss: 0, plus: 0, minus: 0 });
+    const cell = (uid, k) => ((by[uid] = by[uid] || {})[k] = by[uid][k] || { done: 0, miss: 0, plus: 0, minus: 0, poss: 0, pplus: 0 });
+    // porcentagem: a semana entra no domingo dela (ou hoje, se ainda não acabou), para não aparecer antes da listRat
+    const today = todayKey();
+    const pkey = (t, k) => (t.kind === "daily" ? k : (addDays(k, 6) < today ? addDays(k, 6) : today));
     for (const t of tasks) {
       const r = L.score.taskResult(t), D = DIFF[t.diff];
+      if (t.type === "normal") {
+        for (const k of L.score.possibleKeys(t, r)) cell(t.assignee, pkey(t, k)).poss += D.pts;
+        for (const k of r.done) cell(t.assignee, pkey(t, k)).pplus += D.pts;
+      }
       for (const k of r.done) { const c = cell(t.assignee, k); c.done++; if (t.type === "normal") c.plus += D.pts; }
       if (t.type === "obrigatoria") for (const k of missedKeys(t, r.done)) { const c = cell(t.assignee, k); c.miss++; if (L.rules.OBR_PENALTY) c.minus += D.pen; }
     }
@@ -144,18 +152,25 @@ window.Liga.pages = window.Liga.pages || {};
   }
 
   /* ---------- 1. Pontuação: total acumulado por pessoa ---------- */
+  // ctx.pct: listRat por porcentagem → linha da porcentagem acumulada (pontos feitos ÷ possíveis até o dia)
   function scoreChart(ctx) {
     const { p, people, ev, keys, W } = ctx;
+    const pct = !!ctx.pct;
+    const F = pct ? L.score.fmtPct : fmtTotal;
     const series = people.map((uid) => {
       const e = ev[uid] || {};
-      let acc = 0;
-      for (const k in e) if (k < keys[0]) acc += e[k].plus - e[k].minus;
-      const base = acc;
-      const vals = keys.map((k) => { const c = e[k]; if (c) acc += c.plus - c.minus; return acc; });
-      return { uid, vals, base, color: colorOf(p, uid), name: L.ui.nameOf(uid) };
+      let acc = 0, poss = 0;
+      const val = () => (pct ? (poss ? Math.min(100, (acc / poss) * 100) : null) : acc);
+      const add = (c) => { acc += pct ? c.pplus : c.plus - c.minus; poss += c.poss; };
+      for (const k in e) if (k < keys[0]) add(e[k]);
+      const base = val();
+      const raw = keys.map((k) => { const c = e[k]; if (c) add(c); return val(); });
+      // sem nada possível ainda (porcentagem): desenha no zero
+      const vals = raw.map((v) => (v == null ? 0 : v));
+      return { uid, vals, raw, base, color: colorOf(p, uid), name: L.ui.nameOf(uid) };
     });
     const all = series.flatMap((s) => s.vals);
-    const ticks = niceTicks(Math.min(0, ...all), Math.max(0, ...all), 4);
+    const ticks = pct ? [0, 25, 50, 75, 100] : niceTicks(Math.min(0, ...all), Math.max(0, ...all), 4);
     const lo = ticks[0], hi = ticks[ticks.length - 1];
     const labelW = series.length <= 4 ? Math.min(130, Math.max(70, W * 0.16)) : 12;
     const m = { l: 46, r: labelW, t: 14, b: 28 };
@@ -164,10 +179,10 @@ window.Liga.pages = window.Liga.pages || {};
     const Y = (v) => m.t + ih - ((v - lo) / (hi - lo || 1)) * ih;
 
     const g = svg("svg", { width: W, height: H, viewBox: "0 0 " + W + " " + H, class: "chart", role: "img",
-      "aria-label": "Pontuação acumulada por pessoa de " + shortDate(keys[0]) + " a " + shortDate(keys[keys.length - 1]) });
+      "aria-label": (pct ? "Porcentagem acumulada" : "Pontuação acumulada") + " por pessoa de " + shortDate(keys[0]) + " a " + shortDate(keys[keys.length - 1]) });
     for (const v of ticks) {
       g.append(svg("line", { x1: m.l, x2: m.l + iw, y1: Y(v), y2: Y(v), class: v === 0 ? "zero" : "grid" }),
-        svg("text", { x: m.l - 8, y: Y(v) + 4, class: "tick", "text-anchor": "end" }, compact(v)));
+        svg("text", { x: m.l - 8, y: Y(v) + 4, class: "tick", "text-anchor": "end" }, pct ? v + "%" : compact(v)));
     }
     // datas no eixo x (umas 5)
     // quantas datas cabem sem encostar (uma a cada ~60px)
@@ -176,7 +191,13 @@ window.Liga.pages = window.Liga.pages || {};
     keys.forEach((k, i) => { if ((i % every === 0 && keys.length - 1 - i >= every / 2) || i === keys.length - 1) g.append(svg("text", { x: X(i), y: H - 8, class: "tick", "text-anchor": i === 0 ? "start" : i === keys.length - 1 ? "end" : "middle" }, shortDate(k))); });
 
     for (const s of series) {
-      const d = s.vals.map((v, i) => (i ? "L" : "M") + X(i).toFixed(1) + "," + Y(v).toFixed(1)).join("");
+      // sem nada para medir ainda (porcentagem): não desenha esse trecho
+      let d = "", pen = false;
+      s.raw.forEach((v, i) => {
+        if (v == null) { pen = false; return; }
+        d += (pen ? "L" : "M") + X(i).toFixed(1) + "," + Y(s.vals[i]).toFixed(1);
+        pen = true;
+      });
       g.append(svg("path", { d, class: "line", style: "stroke:" + s.color }));
       const li = s.vals.length - 1;
       g.append(svg("circle", { cx: X(li), cy: Y(s.vals[li]), r: 4.5, class: "dot", style: "fill:" + s.color }));
@@ -185,7 +206,7 @@ window.Liga.pages = window.Liga.pages || {};
     if (series.length <= 4) {
       const ends = series.map((s) => ({ s, y: Y(s.vals[s.vals.length - 1]) })).sort((a, b) => a.y - b.y);
       const clash = ends.some((e, i) => i && e.y - ends[i - 1].y < 14);
-      if (!clash) for (const e of ends) g.append(svg("text", { x: m.l + iw + 10, y: e.y + 4, class: "end-l" }, e.s.name + " " + fmtTotal(e.s.vals[e.s.vals.length - 1])));
+      if (!clash) for (const e of ends) g.append(svg("text", { x: m.l + iw + 10, y: e.y + 4, class: "end-l" }, e.s.name + " " + F(e.s.raw[e.s.raw.length - 1])));
     }
 
     // linha que acompanha o mouse + dica
@@ -200,7 +221,7 @@ window.Liga.pages = window.Liga.pages || {};
         const i = Math.max(0, Math.min(keys.length - 1, Math.round(((sx - m.l) / iw) * (keys.length - 1))));
         cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i)); cross.setAttribute("visibility", "visible");
         tip.show(x, y, dayLabel(keys[i]), series.slice().sort((a, b) => b.vals[i] - a.vals[i])
-          .map((s) => ({ color: s.color, label: s.name, value: fmtTotal(s.vals[i]) })));
+          .map((s) => ({ color: s.color, label: s.name, value: F(s.raw[i]) })));
       };
       hit.addEventListener("pointermove", move);
       hit.addEventListener("pointerdown", move);
@@ -208,9 +229,14 @@ window.Liga.pages = window.Liga.pages || {};
     };
     ctx.table = () => table(["Pessoa", "Início do período", "Agora", "Variação"],
       series.map((s) => {
-        const z = s.vals[s.vals.length - 1];
+        const z = s.raw[s.raw.length - 1];
+        if (pct) {
+          const d = z != null && s.base != null ? Math.round((z - s.base) * 10) / 10 : null;
+          return [s.name, F(s.base), F(z), d == null ? "—" : (d > 0 ? "+" : "") + d.toLocaleString("pt-BR") + " p.p."];
+        }
         return [s.name, fmtTotal(s.base), fmtTotal(z), L.text.fmtPts(z - s.base)];
       }));
+    if (pct) ctx.note = "Porcentagem = pontos feitos ÷ pontos que dava para fazer até cada dia (só tarefas normais). O dia de hoje só entra na conta quando a tarefa é feita.";
     ctx.legend = series.length >= 2;
     return g;
   }
@@ -480,8 +506,9 @@ window.Liga.pages = window.Liga.pages || {};
 
     const keys = rangeKeys(c, tasks);
     const W = Math.max(300, Math.min(1080, ($("view").clientWidth || 900) - 40));
-    const ctx = { p, tasks, people, keys, ev: events(tasks), W };
-    const titles = { pontos: "Pontuação acumulada", calendario: "Calendário de tarefas feitas", acoes: "Tarefas feitas", tarefas: "Por tarefa" };
+    const pctSub = c.sid && L.score.isPercent(S.subs[c.sid]);
+    const ctx = { p, tasks, people, keys, ev: events(tasks), W, pct: !!pctSub };
+    const titles = { pontos: pctSub ? "Porcentagem acumulada" : "Pontuação acumulada", calendario: "Calendário de tarefas feitas", acoes: "Tarefas feitas", tarefas: "Por tarefa" };
     const chart = c.type === "calendario" ? calendarChart(ctx) : c.type === "acoes" ? actionsChart(ctx) : c.type === "tarefas" ? tasksChart(ctx) : scoreChart(ctx);
 
     panel.append(el("div", { class: "panel-head" },

@@ -41,7 +41,8 @@ window.Liga = window.Liga || {};
   // resumo das inscrições: quem está pronto, desvio e se dá para começar
   function summary(s) {
     const p = S.projects[s.projectId];
-    const people = p ? p.members.map((id) => personStatus(s, id)) : [];
+    const kicked = s.kicked || [];
+    const people = p ? p.members.filter((id) => !kicked.includes(id)).map((id) => personStatus(s, id)) : [];
     const ready = people.filter((x) => x.ready);
     const pts = ready.map((x) => x.pts);
     const desvio = stdev(pts);

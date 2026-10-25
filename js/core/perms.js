@@ -7,7 +7,7 @@
    - Dono e ajudantes da listRat: mudam as regras de inscrição, começam a listRat e aceitam/recusam
      justificativas e provas de contestação.
    - Tarefas: cada pessoa só mexe nas PRÓPRIAS. Nas inscrições cria, edita e apaga;
-     depois que a listRat começa só dá para renomear (para ninguém mudar as regras do jogo no meio).
+     depois que a listRat começa não dá para mudar mais nada, nem o nome (para ninguém mudar as regras do jogo no meio).
    As mesmas regras estão no firestore.rules (é lá que elas valem de verdade). */
 window.Liga = window.Liga || {};
 (function (L) {
@@ -29,10 +29,13 @@ window.Liga = window.Liga || {};
   const canManageSub = (s) => !!s && (s.owner === S.myId || isProjectOwner(projOf(s)));
   const isHelper = (s) => !!s && s.helpers.includes(S.myId);
   // em inscrições, cada integrante do projeto cria, edita e apaga as próprias tarefas
-  const canFillOwn = (s) => !!s && s.status === "inscricoes" && isMember(projOf(s));
+  const isKicked = (s, uid) => !!s && !!s.kicked && s.kicked.includes(uid || S.myId);
+  const canFillOwn = (s) => !!s && s.status === "inscricoes" && isMember(projOf(s)) && !isKicked(s);
+  // tirar alguém da listRat: só o dono da listRat (ou o dono do projeto), e nunca o próprio dono da listRat
+  const canKick = (s, uid) => canManageSub(s) && !!uid && uid !== subOwner(s);
   const ownTask = (t) => !!t && t.assignee === S.myId && isMember(projOf(S.subs[t.subId]));
-  // editar: "full" (nome, tipo, frequência, dificuldade) nas inscrições, "name" depois que começou
-  const editLevel = (t) => (!ownTask(t) ? "" : S.subs[t.subId].status === "inscricoes" ? "full" : "name");
+  // editar: "full" (nome, tipo, frequência, dificuldade) só nas inscrições; depois que começa, nada
+  const editLevel = (t) => (ownTask(t) && S.subs[t.subId].status === "inscricoes" ? "full" : "");
   const canEditTask = (t) => !!editLevel(t);
   const canDeleteTask = (t) => editLevel(t) === "full";
   // regras de inscrição, começar a listRat, incluir participante e julgar: dono e ajudantes
@@ -44,5 +47,5 @@ window.Liga = window.Liga || {};
     return "";
   }
 
-  L.perms = { projOwner, isProjectOwner, isProjectHelper, projRole, isMember, canSeeProject, canCreateSub, subOwner, canManageSub, isHelper, canFillOwn, ownTask, editLevel, canEditTask, canDeleteTask, canRunSub, roleIn };
+  L.perms = { projOwner, isProjectOwner, isProjectHelper, projRole, isMember, canSeeProject, canCreateSub, subOwner, canManageSub, isHelper, canFillOwn, isKicked, canKick, ownTask, editLevel, canEditTask, canDeleteTask, canRunSub, roleIn };
 })(window.Liga);

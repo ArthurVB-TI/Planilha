@@ -39,7 +39,8 @@ window.Liga = window.Liga || {};
     return WD[d.getDay()] + " " + shortDate(k);
   };
 
-  // situação de um dia/semana: off | on | just (justificativa aceita) | jpend | jno | miss | open
+  // situação de um dia/semana: off | on | just (justificativa aceita) | pend (marcado, falta foto ou comentário)
+  // | noproof (marcado sem prova e o prazo passou) | jpend | jno | miss | open
   function dayState(task, k, r, sp, marked) {
     const daily = task.kind === "daily";
     const from = daily ? sp.from : weekOf(sp.from);
@@ -47,6 +48,8 @@ window.Liga = window.Liga || {};
     if (sp.prep || k < from || (endK && k > endK) || k > nowKey(task)) return "off";
     const j = R().justOf(task.id, k);
     if (r.done.has(k)) return marked.has(k) ? "on" : "just";
+    if (r.pend && r.pend.has(k)) return "pend";
+    if (r.unproven && r.unproven.has(k)) return "noproof";
     if (j && j.status === "pendente") return "jpend";
     if (j && j.status === "recusada" && task.type === "obrigatoria") return "jno";
     if (task.type === "obrigatoria" && k < nowKey(task)) return "miss";
@@ -55,6 +58,7 @@ window.Liga = window.Liga || {};
   const STATE_TEXT = {
     off: "fora do período", on: "feita", just: "justificada (aceita)", jpend: "justificativa esperando",
     jno: "justificativa recusada", miss: "não feita", open: "ainda não feita",
+    pend: "marcada, falta foto ou comentário", noproof: "sem foto nem comentário: não contou",
   };
 
   function openSheet(task, key) {
@@ -96,6 +100,10 @@ window.Liga = window.Liga || {};
     const pend = R().justsOfTask(task.id).filter((j) => j.status === "pendente").length;
     const done = r.done.has(nowKey(task));
     const unit = task.kind === "daily" ? "hoje" : "esta semana";
+    if (r.pend && r.pend.size) {
+      const lim = Math.min(...[...r.pend].map((k) => +parseKey(L.score.proofLimit(task, k))));
+      return ["warn", "Falta foto ou comentário" + (r.pend.size > 1 ? " em " + r.pend.size + (task.kind === "daily" ? " dias" : " semanas") : "") + " · até " + shortDate(L.dates.keyOf(new Date(lim)))];
+    }
     if (done) return ["good", "Feita " + unit];
     if (pend) return ["purple", plural(pend, "justificativa esperando", "justificativas esperando")];
     if (task.type === "obrigatoria") return ["bad", "Falta " + unit];
@@ -121,10 +129,17 @@ window.Liga = window.Liga || {};
           title: keyLabel(task, k) + " · " + STATE_TEXT[st] + (can ? (marked.has(k) ? " · tocar para desmarcar" : " · tocar para marcar") : ""),
           "aria-label": task.title + ", " + keyLabel(task, k) + ": " + STATE_TEXT[st],
           "aria-pressed": marked.has(k) ? "true" : "false",
-          onclick: (e) => { e.stopPropagation(); if (can && st !== "jpend") L.actions.toggleMark(task, k); else openSheet(task, k); },
+          onclick: (e) => {
+            e.stopPropagation();
+            if (!can || st === "jpend") return openSheet(task, k);
+            const wasMarked = marked.has(k);
+            L.actions.toggleMark(task, k);
+            // marcou e ainda precisa de prova: abre o painel do dia para pôr a foto ou o comentário
+            if (!wasMarked && L.score.needsProof(task, k) && !L.score.hasProof(task.assignee, task.id, k)) openSheet(task, k);
+          },
         }, daily
-          ? [el("span", null, WD[d.getDay()].charAt(0)), el("b", null, st === "on" || st === "just" ? icon("check") : String(d.getDate()))]
-          : [el("span", null, k === curWeek() ? "esta" : "sem."), el("b", null, st === "on" || st === "just" ? icon("check") : shortDate(k))]);
+          ? [el("span", null, WD[d.getDay()].charAt(0)), el("b", null, st === "on" || st === "just" ? icon("check") : st === "pend" ? icon("camera") : String(d.getDate()))]
+          : [el("span", null, k === curWeek() ? "esta" : "sem."), el("b", null, st === "on" || st === "just" ? icon("check") : st === "pend" ? icon("camera") : shortDate(k))]);
       }));
 
     const c = R().contestOf(task.id);
@@ -219,7 +234,7 @@ window.Liga = window.Liga || {};
         },
           el("span", null, task.kind === "daily" ? (k === todayKey() ? "hoje" : WD[d.getDay()].toLowerCase()) : (k === curWeek() ? "esta" : "semana")),
           el("b", null, task.kind === "daily" ? String(d.getDate()) : shortDate(k)),
-          el("i", null, st === "on" ? "feita" : st === "just" ? "justif." : st === "jpend" ? "esperando" : st === "miss" || st === "jno" ? "faltou" : st === "off" ? "—" : ""));
+          el("i", null, st === "on" ? "feita" : st === "just" ? "justif." : st === "jpend" ? "esperando" : st === "pend" ? "falta prova" : st === "noproof" ? "sem prova" : st === "miss" || st === "jno" ? "faltou" : st === "off" ? "—" : ""));
       }))));
 
     /* --- o dia escolhido --- */
@@ -247,9 +262,32 @@ window.Liga = window.Liga || {};
         !marked.has(k) && !j && sh.mode !== "justify"
           ? el("button", { type: "button", class: "btn ghost", onclick: () => { sh.mode = "justify"; rerender(); } }, icon("help"), "Não consegui fazer")
           : null));
-      if (!marked.has(k) && !proofs[k]) day.append(el("p", { class: "hint" }, "A foto já marca como feita."));
+      if (!marked.has(k) && !proofs[k]) day.append(el("p", { class: "hint" }, "A foto já marca como feita. Para contar, o dia precisa de uma foto ou de um comentário."));
     } else if (mine && !can && st !== "off") {
-      day.append(el("p", { class: "hint" }, sp.end && todayKey() > sp.end ? "A listRat terminou: não dá mais para mudar este dia." : "Este dia não pode ser mudado."));
+      day.append(el("p", { class: "hint" }, st === "noproof"
+        ? "O prazo para pôr a foto ou o comentário deste dia acabou."
+        : sp.end && todayKey() > sp.end ? "A listRat terminou: não dá mais para mudar este dia." : "Este dia já passou do prazo e não pode mais ser mudado."));
+    }
+
+    // falta prova: aviso com o prazo
+    if (st === "pend") {
+      const lim = L.score.proofLimit(task, k);
+      day.append(el("div", { class: "proof-due" }, icon("alert"),
+        el("span", null, mine ? "Coloque uma foto ou escreva um comentário até " : who + " ainda precisa pôr foto ou comentário até ",
+          el("b", null, (lim === todayKey() ? "hoje" : WD[parseKey(lim).getDay()].toLowerCase() + ", " + shortDate(lim)) + " (fim do dia)"),
+          ". Sem isso, " + (task.kind === "daily" ? "este dia" : "esta semana") + " não conta.")));
+    }
+
+    // quando a prova foi colocada (todo mundo vê)
+    const pf = L.score.proofOf(task.assignee, task.id, k);
+    if ((pf.photo || pf.note) && pf.at && marked.has(k)) {
+      const atKey = L.dates.keyOf(new Date(pf.at));
+      const late = Math.round((+parseKey(atKey) - +parseKey(L.score.dueKey(task, k))) / 864e5);
+      const hh = new Date(pf.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      day.append(el("p", { class: "proof-at" + (late > 0 ? " late" : "") }, icon("check"),
+        (pf.photo && pf.note ? "Foto e comentário" : pf.photo ? "Foto" : "Comentário") + " colocado" + (pf.photo && pf.note ? "s" : "") + " em " +
+        WD[parseKey(atKey).getDay()].toLowerCase() + ", " + shortDate(atKey) + " às " + hh +
+        (late > 0 ? " · " + plural(late, "dia", "dias") + " depois do prazo" : " · no prazo")));
     }
 
     if (proofs[k] && marked.has(k)) {
@@ -261,7 +299,7 @@ window.Liga = window.Liga || {};
       const cur = sh.note == null ? note : sh.note;
       day.append(el("div", { class: "sh-field" },
         el("label", { class: "sh-lbl", for: "shNote" }, icon("msg"), "Comentário"),
-        el("textarea", { id: "shNote", maxlength: "300", rows: "2", placeholder: "Como foi? (opcional)", value: cur, oninput: (e) => { sh.note = e.target.value; } }),
+        el("textarea", { id: "shNote", maxlength: "300", rows: "2", placeholder: proofs[k] ? "Como foi? (opcional, já tem foto)" : "Como foi? (sem foto, o comentário é a prova)", value: cur, oninput: (e) => { sh.note = e.target.value; } }),
         el("div", { class: "row" },
           el("button", { type: "button", class: "btn sm", onclick: () => run(sh, () => { L.actions.setNote(task, k, sh.note == null ? note : sh.note); sh.note = null; }, "Comentário salvo.") }, "Salvar comentário"),
           note ? el("button", { type: "button", class: "btn ghost sm", onclick: () => run(sh, () => { L.actions.setNote(task, k, ""); sh.note = null; }) }, "Apagar") : null)));
@@ -362,11 +400,11 @@ window.Liga = window.Liga || {};
           el("div", { class: "sh-lbl" }, "Editar tarefa"),
           el("div", { class: "field" }, el("label", { for: "shTitle" }, "Nome"),
             el("input", { id: "shTitle", maxlength: String(TASK_MAX), required: true, value: d.title, oninput: (e) => { d.title = e.target.value; } })),
-          lvl === "full" ? el("div", { class: "row" },
+          el("div", { class: "row" },
             el("div", { class: "field" }, el("span", { class: "lbl" }, "Tipo"), L.forms.seg(d, "type", [["normal", "Normal"], ["obrigatoria", "Obrigatória"]])),
-            el("div", { class: "field" }, el("span", { class: "lbl" }, "Frequência"), L.forms.seg(d, "kind", [["daily", "Diária"], ["weekly", "Semanal"]]))) : null,
-          lvl === "full" ? el("div", { class: "field" }, el("span", { class: "lbl" }, "Dificuldade"), L.forms.diffPick(d)) : null,
-          lvl === "name" ? el("p", { class: "hint" }, "Depois que a listRat começa, só dá para mudar o nome.") : null,
+            el("div", { class: "field" }, el("span", { class: "lbl" }, "Frequência"), L.forms.seg(d, "kind", [["daily", "Diária"], ["weekly", "Semanal"]]))),
+          el("div", { class: "field" }, el("span", { class: "lbl" }, "Dificuldade"), L.forms.diffPick(d)),
+          el("p", { class: "hint" }, "Dá para mudar até a listRat começar. Depois, a tarefa fica travada."),
           el("div", { class: "row" },
             el("button", { class: "btn sm", type: "submit" }, "Salvar"),
             el("button", { class: "btn ghost sm", type: "button", onclick: () => { sh.mode = ""; sh.edit = null; rerender(); } }, "Cancelar"))));
@@ -381,10 +419,13 @@ window.Liga = window.Liga || {};
           el("button", { type: "button", class: "btn ghost sm", onclick: () => { sh.confirm = ""; rerender(); } }, "Cancelar")));
       } else {
         foot.append(el("div", { class: "row" },
-          el("button", { type: "button", class: "btn ghost sm", onclick: () => { sh.mode = "edit"; sh.edit = { title: task.title, type: task.type, kind: task.kind, diff: task.diff }; rerender(); } }, icon("edit"), lvl === "name" ? "Mudar o nome" : "Editar tarefa"),
+          el("button", { type: "button", class: "btn ghost sm", onclick: () => { sh.mode = "edit"; sh.edit = { title: task.title, type: task.type, kind: task.kind, diff: task.diff }; rerender(); } }, icon("edit"), "Editar tarefa"),
           L.perms.canDeleteTask(task) ? el("button", { type: "button", class: "btn danger-ghost sm", onclick: () => { sh.confirm = "del"; rerender(); } }, icon("trash"), "Apagar tarefa") : null));
       }
       body.append(foot);
+    } else if (task.assignee === S.myId && S.subs[task.subId] && S.subs[task.subId].status !== "inscricoes") {
+      body.append(el("section", { class: "sh-sec sh-foot" },
+        el("p", { class: "hint" }, "A listRat já começou: esta tarefa não pode mais ser editada nem apagada.")));
     }
 
     if (sh.err) body.append(el("p", { class: "err", role: "alert" }, sh.err));
@@ -397,18 +438,20 @@ window.Liga = window.Liga || {};
   function results(s, p, final) {
     const st = Object.values(S.tasks).filter((t) => t.subId === s.id);
     const ids = p.members.filter((id) => L.score.isParticipant(s, id));
-    const rows = ids.map((id) => Object.assign({ id }, L.score.scoreFor(id, st))).sort((a, b) => b.total - a.total || L.ui.nameOf(a.id).localeCompare(L.ui.nameOf(b.id)));
+    const pct = L.score.isPercent(s);
+    const rows = ids.map((id) => Object.assign({ id }, L.score.standing(id, st, pct))).sort((a, b) => b.value - a.value || L.ui.nameOf(a.id).localeCompare(L.ui.nameOf(b.id)));
+    const money = L.score.moneyFor(s, rows);
     let last = null, rank = 0;
     const MEDAL = { 1: "gold", 2: "silver", 3: "bronze" };
     return el("ol", { class: "results" + (final ? " final" : "") }, rows.map((r, i) => {
-      if (r.total !== last) { rank = i + 1; last = r.total; }
+      if (r.value !== last) { rank = i + 1; last = r.value; }
       const m = MEDAL[rank] || "";
       return el("li", { class: m },
         el("span", { class: "rk" }, rank + "º"),
         L.ui.avatar(r.id),
-        el("span", { class: "nm" }, L.ui.userLink(r.id), r.id === S.myId ? el("span", { class: "you" }, "você") : null),
+        el("span", { class: "nm" }, L.ui.userLink(r.id), r.id === S.myId ? el("span", { class: "you" }, "você") : null, L.ui.moneyTag(money[r.id])),
         m ? el("span", { class: "medal", "aria-label": m === "gold" ? "ouro" : m === "silver" ? "prata" : "bronze" }, icon("trophy")) : null,
-        el("span", { class: "pt" + (r.total < 0 ? " neg" : "") }, fmtTotal(r.total)));
+        el("span", { class: "pt" + (r.neg ? " neg" : ""), title: r.detail || null }, r.text, pct ? el("small", null, r.detail) : null));
     }));
   }
 

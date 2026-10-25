@@ -40,7 +40,7 @@ Abra o site com `?teste` no fim do endereço (ex.: `https://arthurvb-ti.github.i
 
 ## Tarefas, justificativas e contestação
 
-- Cada pessoa só cria, edita e apaga as **próprias** tarefas (nas inscrições). Depois que a listRat começa, só dá para mudar o nome. Dono e ajudantes não mexem nas tarefas dos outros.
+- Cada pessoa só cria, edita e apaga as **próprias** tarefas (nas inscrições). Depois que a listRat começa, as tarefas ficam travadas (nem o nome muda). Dono e ajudantes não mexem nas tarefas dos outros.
 - Tocar numa tarefa abre o painel dela: escolher o dia, marcar como feita, mandar foto, comentar, editar/apagar e **"Não consegui fazer"** (justificativa: comentário obrigatório e foto opcional). A justificativa só conta como feita se o dono ou um ajudante da listRat aceitar (na tarefa ou em Gerenciar). Na própria tarefa, tocar num dia da faixa marca/desmarca direto.
 - Depois que a listRat termina, não dá mais para marcar. O **dia seguinte ao fim** é o dia de contestação: cada participante pode duvidar de até 3 tarefas de outras pessoas (cada tarefa só pode ser contestada uma vez). A pessoa contestada tem até o fim do dia para mandar uma prova (foto e/ou comentário); sem prova a tarefa perde os pontos (obrigatória passa a aparecer como não feita). Dono e ajudantes podem aceitar ou recusar a prova.
 - Depois do dia de contestação a aba **Resultado** mostra a pontuação final; o top 3 aparece em ouro, prata e bronze.

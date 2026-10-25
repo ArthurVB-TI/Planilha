@@ -23,7 +23,8 @@ window.Liga.pages = window.Liga.pages || {};
     const role = P.roleIn(s, S.myId);
     const st = tasksOf(s);
     const insc = s.status === "inscricoes";
-    const my = L.score.scoreFor(S.myId, st);
+    const pct = L.score.isPercent(s);
+    const mine = L.score.standing(S.myId, st, pct);
     L.ui.crumbs([
       { label: "Projetos", go: () => go({ page: "projects" }) },
       { label: p.name, go: () => go({ page: "project", pid: p.id }) },
@@ -37,11 +38,12 @@ window.Liga.pages = window.Liga.pages || {};
     v.append(L.ui.subHeader({
       kicker: "ListRat de " + p.name,
       title: s.name,
-      badges: [L.ui.periodTag(s), role ? el("span", { class: "role" }, "você é " + role) : null],
+      badges: [L.ui.periodTag(s), el("span", { class: "role mode", title: pct ? "Ganha quem fizer a maior parte do que dava para fazer" : "Ganha quem somar mais pontos" }, pct ? "por porcentagem" : "por pontos"),
+        role ? el("span", { class: "role" }, "você é " + role) : null],
       sub: L.ui.period(s).text || null,
       stats: [
         L.ui.stat("Tarefas", String(st.length)),
-        insc ? L.ui.stat("Prontos", String(L.enroll.summary(s).ready.length)) : L.ui.stat("Seus pontos", fmtTotal(my.total), my.total < 0 ? "neg" : ""),
+        insc ? L.ui.stat("Prontos", String(L.enroll.summary(s).ready.length)) : L.ui.stat(pct ? "Seu aproveitamento" : "Seus pontos", mine.text, mine.neg ? "neg" : ""),
       ],
     }, [
       t("geral", "Visão geral", "home"),
@@ -93,8 +95,9 @@ window.Liga.pages = window.Liga.pages || {};
     } else {
       const active = mine.filter((t) => L.score.activeNow(t) && L.score.counts(t));
       const pend = active.filter((t) => !L.score.doneNow(t));
-      const my = L.score.scoreFor(S.myId, st);
-      const board = participants(s, p).map((id) => ({ id, t: L.score.scoreFor(id, st).total })).sort((a, b) => b.t - a.t);
+      const pct = L.score.isPercent(s);
+      const my = L.score.standing(S.myId, st, pct);
+      const board = participants(s, p).map((id) => ({ id, t: L.score.standing(id, st, pct).value })).sort((a, b) => b.t - a.t);
       const pos = board.findIndex((r) => r.id === S.myId) + 1;
       cards.append(
         el("button", { type: "button", class: "card" + (pend.length ? " accent" : ""), onclick: () => go({ page: "sub", pid: p.id, sid: s.id, tab: "tarefas" }) },
@@ -102,9 +105,9 @@ window.Liga.pages = window.Liga.pages || {};
           el("div", { class: "v" }, String(pend.length)),
           el("div", { class: "d" }, active.length ? plural(active.length, "tarefa sua valendo", "tarefas suas valendo") : "Nenhuma tarefa sua valendo")),
         el("div", { class: "card" },
-          el("div", { class: "k" }, "Seus pontos aqui"),
-          el("div", { class: "v" + (my.total < 0 ? " neg" : "") }, fmtTotal(my.total)),
-          el("div", { class: "d" }, pos ? pos + "º de " + board.length : "Você não participa desta listRat")),
+          el("div", { class: "k" }, pct ? "Seu aproveitamento" : "Seus pontos aqui"),
+          el("div", { class: "v" + (my.neg ? " neg" : "") }, my.text),
+          el("div", { class: "d" }, pos ? pos + "º de " + board.length + (pct ? " · " + my.detail : "") : "Você não participa desta listRat")),
         el("button", { type: "button", class: "card", onclick: () => go({ page: "sub", pid: p.id, sid: s.id, tab: "inscricoes" }) },
           el("div", { class: "k" }, "Participantes"),
           el("div", { class: "v" }, String(board.length)),
@@ -124,11 +127,26 @@ window.Liga.pages = window.Liga.pages || {};
       pr.state === "fim" ? el("p", { class: "hint" }, "As tarefas desta listRat não valem mais pontos; o que foi feito continua no placar.") : null,
       pr.state === "antes" ? el("p", { class: "hint" }, "As tarefas começam a valer no dia do início.") : null,
       insc ? el("p", { class: "hint" }, "Nada vale pontos até a listRat começar.") : null,
+      el("p", { class: "small" }, L.score.isPercent(s)
+        ? [el("b", null, "Placar por porcentagem: "), "cada pessoa vale pelo que fez do total de pontos que dava para fazer com as próprias tarefas normais. Quem tem tarefas mais difíceis não sai na frente só por isso."]
+        : [el("b", null, "Placar por pontos: "), "ganha quem somar mais pontos com as tarefas normais."]),
+      L.score.hasMoney(s) ? moneyRules(s) : null,
       s.desc ? el("p", { class: "about-desc", text: s.desc }) : el("p", { class: "muted small" }, "Sem detalhes."),
       el("p", { class: "muted small" }, "Dono: " + L.ui.nameOf(P.subOwner(s)) + (s.helpers.length ? " · Ajudantes: " + s.helpers.map(L.ui.nameOf).join(", ") : ""))));
 
     right.append(L.ui.block("Placar da listRat", insc ? "Começa quando a listRat começar." : null,
-      L.ui.board(insc ? [] : participants(s, p), st, "s" + s.id)));
+      L.ui.board(insc ? [] : participants(s, p), st, "s" + s.id, { pct: L.score.isPercent(s), sub: s })));
+  }
+
+  // quanto o top 3 ganha e quanto os 3 piores pagam
+  function moneyRules(s) {
+    const B = L.score.fmtBRL, w = s.money.win, pay = s.money.pay;
+    const line = (label, v, cls) => (v > 0 ? el("div", { class: "mny " + cls }, el("span", null, label), el("b", null, B(v))) : null);
+    return el("div", { class: "mrules" },
+      el("div", { class: "mr-col" }, el("div", { class: "lbl" }, "Ganham"), line("1º lugar", w[0], "win"), line("2º lugar", w[1], "win"), line("3º lugar", w[2], "win"),
+        w.every((x) => !x) ? el("span", { class: "muted small" }, "Ninguém ganha dinheiro.") : null),
+      el("div", { class: "mr-col" }, el("div", { class: "lbl" }, "Pagam"), line("Último", pay[0], "pay"), line("Penúltimo", pay[1], "pay"), line("Antepenúltimo", pay[2], "pay"),
+        pay.every((x) => !x) ? el("span", { class: "muted small" }, "Ninguém paga.") : null));
   }
 
   /* ---------- Tarefas ---------- */
@@ -137,7 +155,7 @@ window.Liga.pages = window.Liga.pages || {};
     const d = S.draft.subView = S.draft.subView && S.draft.subView.sid === s.id ? S.draft.subView : { sid: s.id, only: false };
     if (P.canFillOwn(s)) v.append(L.forms.taskForm(p, s));
     else if (s.status !== "inscricoes" && P.isMember(p)) {
-      v.append(el("p", { class: "hint" }, "As tarefas são criadas nas inscrições. Agora cada pessoa só pode renomear as próprias. Toque numa tarefa para ver tudo dela; na sua, toque num dia para marcar."));
+      v.append(el("p", { class: "hint" }, "As tarefas são criadas e editadas só nas inscrições. Agora elas estão travadas. Toque numa tarefa para ver tudo dela; na sua, toque num dia para marcar."));
     }
 
     v.append(el("div", { class: "row", style: "align-items:center;justify-content:space-between" },
@@ -198,6 +216,8 @@ window.Liga.pages = window.Liga.pages || {};
     const ep = L.enrollUI.panel(s, p);
     v.append(ep || L.ui.block("Participantes", "Esta listRat foi criada antes das inscrições existirem: todos os integrantes do projeto participam.",
       el("div", { class: "people" }, p.members.map((id) => L.ui.personChip(id)))));
+    const kp = L.enrollUI.kickPanel(s, p);
+    if (kp) v.append(kp);
   }
 
   /* ---------- Equipe ---------- */
@@ -293,6 +313,10 @@ window.Liga.pages = window.Liga.pages || {};
     if (tab === "gerenciar" && !(P.canManageSub(s) || P.canRunSub(s))) tab = "geral";
     if (tab === "resultado" && !["contestacao", "final"].includes(L.review.phase(s))) tab = "geral";
     header(v, p, s, tab);
+    if (P.isKicked(s)) {
+      v.append(el("div", { class: "notice kicked-note", role: "status" },
+        el("b", null, "Você foi tirado desta listRat."), " Suas tarefas daqui não contam no placar e você não pode criar novas. Só o dono pode colocar você de volta."));
+    }
     ({ geral: overview, tarefas: tasks, inscricoes: enroll, resultado, equipe: team, editar, gerenciar }[tab] || overview)(v, p, s);
   };
 })(window.Liga);

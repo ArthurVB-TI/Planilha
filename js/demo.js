@@ -1,8 +1,8 @@
 /* demo.js — dados de exemplo do MODO DE TESTE (abra o site com ?teste no fim do endereço).
    Tudo fica só neste navegador, separado do resto. Cria 4 contas (voce, ana, bruno, carla; senha teste1234),
    um projeto e quatro listRats:
-     - "Semana encerrada": terminou ontem, então HOJE é o dia de contestação;
-     - "Semana retrasada": já passou da contestação, mostra o resultado final (ouro, prata, bronze);
+     - "Semana encerrada": terminou ontem, então HOJE é o dia de contestação (placar por porcentagem, com valores em reais);
+     - "Semana retrasada": já passou da contestação, mostra o resultado final (ouro, prata, bronze, com valores em reais);
      - "Semana atual": em andamento, para marcar, mandar foto, comentar e justificar;
      - "Inscrições abertas": para criar as próprias tarefas.
    Também já vem com justificativas esperando, contestações e amizades. */
@@ -64,8 +64,10 @@ window.Liga = window.Liga || {};
 
     // listRats
     const subs = {
-      A: { id: "sencerrada", name: "Semana encerrada", start: addDays(T, -7), end: addDays(T, -1), owner: ids.voce, helpers: [ids.ana], desc: "Terminou ontem: hoje é o dia de contestação. Cada um pode duvidar de até 3 tarefas dos outros." },
-      B: { id: "sretrasada", name: "Semana retrasada", start: addDays(T, -15), end: addDays(T, -9), owner: ids.ana, helpers: [], desc: "Já passou a contestação: veja o resultado final." },
+      A: { id: "sencerrada", name: "Semana encerrada", start: addDays(T, -7), end: addDays(T, -1), owner: ids.voce, helpers: [ids.ana],
+        scoring: "porcentagem", money: { win: [40, 20, 10], pay: [15, 0, 0] }, desc: "Terminou ontem: hoje é o dia de contestação. Cada um pode duvidar de até 3 tarefas dos outros." },
+      B: { id: "sretrasada", name: "Semana retrasada", start: addDays(T, -15), end: addDays(T, -9), owner: ids.ana, helpers: [],
+        money: { win: [50, 30, 20], pay: [25, 0, 0] }, desc: "Já passou a contestação: veja o resultado final." },
       C: { id: "satual", name: "Semana atual", start: addDays(T, -3), end: addDays(T, 3), owner: ids.voce, helpers: [ids.bruno], desc: "Em andamento: marque, mande foto, comente ou justifique." },
     };
     for (const s of Object.values(subs)) {
@@ -74,6 +76,7 @@ window.Liga = window.Liga || {};
       put("subprojetos/" + s.id, {
         projectId: pid, name: s.name, desc: s.desc, start: s.start, end: s.end, status: "ativa",
         req: L.rules.normReq({}), participants: all, startedAt: s.start, joined, owner: s.owner, helpers: s.helpers, createdAt: now - 20 * 864e5,
+        scoring: s.scoring || "pontos", money: s.money || { win: [0, 0, 0], pay: [0, 0, 0] },
       });
     }
     put("subprojetos/sinscricoes", {
@@ -123,6 +126,25 @@ window.Liga = window.Liga || {};
     addProof("ana", "A", "treino", addDays(T, -3), "treino", "Treino de perna.");
     addProof("ana", "A", "livro", weekOf(addDays(T, -1)), "livro", "");
     addProof("voce", "C", "treino", addDays(T, -1), "treino", "Corri 5 km.");
+    // prova (comentário) nas marcações: quase todas no mesmo dia, algumas no dia seguinte;
+    // algumas de hoje/ontem ficam sem prova para mostrar o "falta foto ou comentário"
+    const NOTES = ["Feito.", "Feito de manhã.", "Fiz depois da aula.", "Consegui hoje.", "Feito à noite."];
+    for (const [uid, doc] of Object.entries(players)) {
+      doc.proofAt = {};
+      for (const [id, days] of Object.entries(doc.done)) {
+        for (const day of days) {
+          const has = (doc.proofs[id] && doc.proofs[id][day]) || (doc.notes[id] && doc.notes[id][day]);
+          const recent = day >= addDays(T, -1);
+          if (!has && recent && rnd(id + day + "p") < 0.5) continue;
+          if (!has) (doc.notes[id] = doc.notes[id] || {})[day] = NOTES[Math.floor(rnd(id + day + "n") * NOTES.length)];
+          const late = rnd(id + day + "l") < 0.2 && addDays(day, 1) <= T ? 1 : 0;
+          // semanal: o prazo é o domingo da semana
+          const due = /_livro$/.test(id) ? addDays(day, 6) : day;
+          const at = new Date(addDays(due, late) + "T20:00:00").getTime();
+          (doc.proofAt[id] = doc.proofAt[id] || {})[day] = Math.min(at, now);
+        }
+      }
+    }
     for (const [uid, doc] of Object.entries(players)) put("players/" + uid, doc);
 
     // justificativas

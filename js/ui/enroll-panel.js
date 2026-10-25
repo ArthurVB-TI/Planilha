@@ -113,7 +113,7 @@ window.Liga = window.Liga || {};
   function activePanel(s, p) {
     const parts = (s.participants || []);
     const run = P.canRunSub(s);
-    const outside = p.members.filter((id) => !parts.includes(id));
+    const outside = p.members.filter((id) => !parts.includes(id) && !(s.kicked || []).includes(id));
     return el("section", { class: "panel enroll" },
       el("div", { class: "panel-head" },
         el("h2", null, "Participantes"),
@@ -133,6 +133,51 @@ window.Liga = window.Liga || {};
         : null);
   }
 
+  /* ---------- tirar pessoas da listRat (só o dono da listRat ou do projeto) ---------- */
+  function kickPanel(s, p) {
+    if (!P.canManageSub(s)) return null;
+    const kicked = s.kicked || [];
+    const inList = s.status === "inscricoes"
+      ? p.members.filter((id) => !kicked.includes(id))
+      : Array.isArray(s.participants) ? s.participants.filter((id) => p.members.includes(id)) : p.members.filter((id) => !kicked.includes(id));
+    const can = inList.filter((id) => P.canKick(s, id));
+    if (!can.length && !kicked.length) return null;
+    const ask = S.draft.kick && S.draft.kick.sid === s.id ? S.draft.kick.uid : "";
+    const act = async (fn, okText) => {
+      try { await fn(); L.app.setStatus(okText, false, { auto: true }); }
+      catch (e) { err(e, "Não deu certo agora."); }
+      S.draft.kick = null;
+      rerender();
+    };
+    const line = (id, right, sub) => el("div", { class: "cand kick-line" + (ask === id ? " asking" : "") },
+      L.ui.avatar(id),
+      el("div", { class: "pname", style: "display:grid;gap:0;justify-items:start;min-width:0" }, L.ui.userLink(id), sub ? el("span", { class: "small muted" }, sub) : null),
+      el("div", { class: "row kick-acts" }, right));
+
+    return el("section", { class: "panel kick", id: "kickPanel" },
+      el("div", { class: "panel-head" },
+        el("h2", null, "Tirar da listRat"),
+        el("span", { class: "muted small" }, "Só você, como dono, vê isto.")),
+      el("p", { class: "small muted" }, "Quem for tirado sai do placar, as tarefas dele param de contar, ele não pode criar tarefas aqui e deixa de ser ajudante. As tarefas ficam guardadas: dá para colocar a pessoa de volta depois."),
+      can.length ? el("div", { class: "cands" }, can.map((id) => {
+        if (ask === id) {
+          return line(id, [
+            el("button", { class: "btn danger sm", type: "button", onclick: () => act(() => L.actions.kickParticipant(s.id, id), L.ui.nameOf(id) + " foi tirado da listRat.") }, "Sim, tirar"),
+            el("button", { class: "btn ghost sm", type: "button", onclick: () => { S.draft.kick = null; rerender(); } }, "Não"),
+          ], "Tirar " + L.ui.nameOf(id) + " da listRat?");
+        }
+        const st = s.status === "inscricoes" ? E.personStatus(s, id) : null;
+        return line(id,
+          el("button", { class: "btn danger-ghost sm", type: "button", onclick: () => { S.draft.kick = { sid: s.id, uid: id }; rerender(); } }, "Tirar"),
+          st ? (st.count ? plural(st.count, "tarefa", "tarefas") + " · " + (st.ready ? "pronto" : st.text.toLowerCase()) : "sem tarefas ainda") : null);
+      })) : null,
+      kicked.length ? el("div", { class: "f" },
+        el("span", { class: "lbl" }, "Tirados da listRat"),
+        el("div", { class: "cands" }, kicked.map((id) => line(id,
+          el("button", { class: "btn ghost sm", type: "button", onclick: () => act(() => L.actions.readmitParticipant(s.id, id), L.ui.nameOf(id) + " voltou para a listRat.") }, "Colocar de volta"),
+          s.status === "inscricoes" ? "pode voltar a preencher as tarefas" : "volta a contar a partir do dia em que voltar")))) : null);
+  }
+
   // painel certo para a fase da listRat (ou nada, para listRats antigas sem inscrição)
   function panel(s, p) {
     if (s.status === "inscricoes") return prepPanel(s);
@@ -140,5 +185,5 @@ window.Liga = window.Liga || {};
     return null;
   }
 
-  L.enrollUI = { panel, reqText };
+  L.enrollUI = { panel, kickPanel, reqText };
 })(window.Liga);

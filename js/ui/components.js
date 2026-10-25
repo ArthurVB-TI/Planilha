@@ -181,26 +181,40 @@ window.Liga = window.Liga || {};
 
   /* ---------- placar ---------- */
 
-  function board(ids, tasks, boardKey) {
+  // placar; opts.pct = listRat por porcentagem (pontos feitos ÷ pontos possíveis)
+  function board(ids, tasks, boardKey, opts) {
     boardKey = boardKey || "geral";
-    const rows = ids.map((id) => Object.assign({ id }, L.score.scoreFor(id, tasks)))
-      .sort((a, b) => b.total - a.total || nameOf(a.id).localeCompare(nameOf(b.id)));
+    const pct = !!(opts && opts.pct);
+    const rows = ids.map((id) => Object.assign({ id }, L.score.standing(id, tasks, pct), pct ? {} : L.score.scoreFor(id, tasks)))
+      .sort((a, b) => b.value - a.value || nameOf(a.id).localeCompare(nameOf(b.id)));
     if (!rows.length) return empty("Ninguém no placar ainda.");
-    const ol = el("ol", { class: "board" });
+    const ol = el("ol", { class: "board" + (pct ? " pct" : "") });
+    // listRat com valores em dinheiro: quem ganha e quem paga (opts.sub)
+    const money = opts && opts.sub ? L.score.moneyFor(opts.sub, rows) : {};
     let last = null, rank = 0;
     rows.forEach((r, i) => {
-      if (r.total !== last) { rank = i + 1; last = r.total; }
-      const lead = rank === 1 && r.total > 0;
+      if (r.value !== last) { rank = i + 1; last = r.value; }
+      const lead = rank === 1 && r.value > 0;
       ol.append(el("li", { class: lead ? "first" : "" },
         el("div", { class: "rank" }, rank + "º"),
         avatar(r.id),
         el("div", { style: "min-width:0" },
           el("div", { class: "pname" }, userLink(r.id), r.id === S.myId ? el("span", { class: "you" }, "você") : null),
-          L.rules.OBR_PENALTY ? el("div", { class: "split" }, "+" + r.plus.toLocaleString("pt-BR") + "  −" + r.minus.toLocaleString("pt-BR")) : null),
-        el("div", { class: "pts" + (r.total < 0 ? " neg" : ""), "data-count": "board-" + boardKey + "-" + r.id },
-          L.fx.count("board-" + boardKey + "-" + r.id, r.total, fmtTotal))));
+          pct ? el("div", { class: "split" }, r.detail)
+            : L.rules.OBR_PENALTY ? el("div", { class: "split" }, "+" + r.plus.toLocaleString("pt-BR") + "  −" + r.minus.toLocaleString("pt-BR")) : null,
+          moneyTag(money[r.id])),
+        pct
+          ? el("div", { class: "pts" }, r.text)
+          : el("div", { class: "pts" + (r.total < 0 ? " neg" : ""), "data-count": "board-" + boardKey + "-" + r.id },
+              L.fx.count("board-" + boardKey + "-" + r.id, r.total, fmtTotal))));
     });
     return ol;
+  }
+
+  // "ganha R$ 50,00" / "paga R$ 20,00"
+  function moneyTag(m) {
+    if (!m) return null;
+    return el("span", { class: "money " + (m.win ? "win" : "pay") }, (m.win ? "ganha " : "paga ") + L.score.fmtBRL(m.win || m.pay));
   }
 
   /* ---------- tabela de dificuldades ---------- */
@@ -237,5 +251,5 @@ window.Liga = window.Liga || {};
     }));
   }
 
-  L.ui = { userLink, subHeader, block, modal, ago, fmtDate, period, periodTag, nameOf, avatar, personChip, empty, stat, pageHead, crumbs, diffText, confirmRow, taskCard, board, legend, visibleProjects, projectList };
+  L.ui = { moneyTag, userLink, subHeader, block, modal, ago, fmtDate, period, periodTag, nameOf, avatar, personChip, empty, stat, pageHead, crumbs, diffText, confirmRow, taskCard, board, legend, visibleProjects, projectList };
 })(window.Liga);

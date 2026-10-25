@@ -665,7 +665,8 @@ button.card:hover { border-color: var(--line-strong); background: var(--hover); 
 .dstate.st-miss, .dstate.st-jno { background: var(--neg-soft); color: var(--neg); }
 .sh-actions { gap: 8px; }
 .sh-field { display: grid; gap: 6px; }
-.sh-field textarea, .sh-card textarea { width: 100%; resize: vertical; }
+.sh-field textarea, .sh-card textarea { width: 100%; resize: vertical; background: var(--bg); color: var(--fg); border: 1px solid var(--line-strong); border-radius: var(--r); padding: 8px 10px; }
+.sh-field textarea:focus, .sh-card textarea:focus { outline: none; border-color: var(--accent-text); }
 .sh-note { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--sunk); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
 .sh-photo { width: 96px; height: 72px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); padding: 0; background: var(--sunk); cursor: zoom-in; color: var(--muted); font-size: 11px; }
 .sh-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -748,3 +749,53 @@ button.card:hover { border-color: var(--line-strong); background: var(--hover); 
 .citem .pts.neg { color: var(--neg); }
 .av.pic { cursor: zoom-in; }
 .av.pic:hover { outline: 2px solid var(--purple); outline-offset: 1px; }
+
+/* tirar da listRat */
+.kick { border-color: color-mix(in srgb, var(--neg) 30%, var(--line)); }
+.kick-acts { gap: 6px; justify-content: flex-end; flex-wrap: nowrap; }
+.kick-line.asking { border-color: color-mix(in srgb, var(--neg) 55%, var(--line)); background: var(--neg-soft); }
+.kicked-note { border-left: 3px solid var(--neg); color: var(--fg); }
+
+/* prova do dia: marcado sem foto/comentário, prazo e quando foi colocada */
+.cell.st-pend { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.cell.st-pend b { color: var(--warn); }
+.cell.st-pend b .ico { width: 14px; height: 14px; }
+.cell.st-noproof { background: var(--neg-soft); border-color: color-mix(in srgb, var(--neg) 60%, transparent); }
+.cell.st-noproof b { color: var(--neg); }
+.sday.st-pend { border-color: var(--warn); } .sday.st-pend i { color: var(--warn); }
+.sday.st-noproof i { color: var(--neg); }
+.dstate.st-pend { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.dstate.st-noproof { background: var(--neg-soft); color: var(--neg); }
+.proof-due {
+  display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px;
+  padding: 10px 12px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--warn) 55%, var(--line));
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+}
+.proof-due .ico { color: var(--warn); margin-top: 1px; }
+.proof-at { display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.proof-at .ico { width: 14px; height: 14px; color: var(--pos); }
+.proof-at.late { color: var(--warn); }
+.proof-at.late .ico { color: var(--warn); }
+
+/* dinheiro: quem ganha e quem paga */
+.money { display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 600; border-radius: 999px; padding: 0 8px; line-height: 19px; margin-left: 6px; white-space: nowrap; }
+.money.win { background: var(--accent-soft); color: var(--pos); }
+.money.pay { background: var(--neg-soft); color: var(--neg); }
+.board .money { margin: 4px 0 0; }
+.results .nm { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.results .nm .money { margin-left: 0; }
+.results .pt small { display: block; font-size: 11px; font-weight: 500; color: var(--muted); text-align: right; }
+.mrules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--sunk); }
+.mr-col { display: grid; gap: 4px; align-content: start; }
+.mny { display: flex; justify-content: space-between; gap: 8px; font-size: 13.5px; padding: 2px 0; }
+.mny.win b { color: var(--pos); } .mny.pay b { color: var(--neg); }
+.money-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.mg-col { display: grid; gap: 8px; align-content: start; }
+.money-f .rs { display: flex; align-items: center; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--bg); }
+.money-f .rs span { padding: 0 4px 0 10px; color: var(--muted); font-size: 14px; }
+.money-f .rs input { border: 0 !important; background: transparent !important; padding-left: 4px !important; }
+.money-f .rs:focus-within { border-color: var(--accent-text); }
+.role.mode { color: var(--purple-text); border-color: color-mix(in srgb, var(--purple) 50%, transparent); }
+@media (max-width: 420px) { .money-grid, .mrules { grid-template-columns: minmax(0, 1fr); } }
+.rules-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.rules-list li::marker { color: var(--purple-text); }

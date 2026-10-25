@@ -41,7 +41,7 @@ window.Liga = window.Liga || {};
     need_comment: "Escreva o motivo: o comentário é obrigatório na justificativa.",
     need_proof: "Mande uma foto ou escreva um comentário como prova.",
     cant_contest: "Não dá para contestar esta tarefa agora.",
-    task_locked: "Depois que a listRat começa, só dá para mudar o nome da tarefa.",
+    task_locked: "Depois que a listRat começa, as tarefas não podem mais ser mudadas.",
     day_locked: "Esse dia não pode mais ser mudado.",
     rules_old: "O Firebase recusou a foto: as regras do Firestore estão desatualizadas. Publique o arquivo firestore.rules de novo no Firebase (Firestore > Regras > Publicar).",
     owner_stays: "O dono do projeto não pode sair. Passe o projeto para outra pessoa antes.",
@@ -89,7 +89,19 @@ window.Liga = window.Liga || {};
       for (const k in m) { const t = L.text.cleanLong(m[k], 300); if (isKey(k) && t) o[k] = t; }
       if (Object.keys(o).length) notes[id] = o;
     }
+    // quando a prova (foto ou comentário) de cada dia foi colocada
+    const proofAt = {};
+    const asrc = S.mine.proofAt || {};
+    for (const id in asrc) {
+      if (S.loaded.tasks && !S.tasks[id]) continue;
+      const m = asrc[id];
+      if (!m || typeof m !== "object") continue;
+      const o = {};
+      for (const k in m) if (isKey(k) && +m[k] > 0 && ((proofs[id] && proofs[id][k]) || (notes[id] && notes[id][k]))) o[k] = +m[k];
+      if (Object.keys(o).length) proofAt[id] = o;
+    }
     const out = { nick: clean(S.mine.nick, NICK_MAX), done, proofs, notes, updatedAt: Date.now() };
+    if (Object.keys(proofAt).length) out.proofAt = proofAt;
     if (isPhotoId(S.mine.avatar)) out.avatar = S.mine.avatar;               // foto de perfil
     if (S.mine.weeks && typeof S.mine.weeks === "object") out.weeks = S.mine.weeks; // dados da versão 1
     return out;
@@ -110,11 +122,16 @@ window.Liga = window.Liga || {};
       try {
         await db().set("players/" + S.myId, doc);
       } catch (e1) {
-        // regras antigas não aceitam a foto de perfil: salva o resto mesmo assim
-        if (e1.code !== "denied" || !doc.avatar) throw e1;
-        delete doc.avatar;
-        await db().set("players/" + S.myId, doc);
-        setStatus(MESSAGES.rules_old, true);
+        // regras antigas não aceitam a foto de perfil ou a data das provas: salva o resto mesmo assim
+        if (e1.code !== "denied" || !(doc.avatar || doc.proofAt)) throw e1;
+        delete doc.proofAt;
+        try { await db().set("players/" + S.myId, doc); }
+        catch (e2) {
+          if (e2.code !== "denied" || !doc.avatar) throw e2;
+          delete doc.avatar;
+          await db().set("players/" + S.myId, doc);
+          setStatus(MESSAGES.rules_old, true);
+        }
       }
     } catch (e) {
       if (e.code === "denied") {
@@ -136,22 +153,32 @@ window.Liga = window.Liga || {};
     if (!S.mine.done || typeof S.mine.done !== "object") S.mine.done = {};
     if (!S.mine.proofs || typeof S.mine.proofs !== "object") S.mine.proofs = {};
     if (!S.mine.notes || typeof S.mine.notes !== "object") S.mine.notes = {};
+    if (!S.mine.proofAt || typeof S.mine.proofAt !== "object") S.mine.proofAt = {};
+  }
+  // guarda quando a primeira prova (foto ou comentário) do dia entrou; sem prova, apaga a data
+  function touchProof(task, key) {
+    const has = !!((S.mine.proofs[task.id] || {})[key] || (S.mine.notes[task.id] || {})[key]);
+    const m = S.mine.proofAt[task.id] = S.mine.proofAt[task.id] || {};
+    if (has && !m[key]) m[key] = Date.now();
+    if (!has) delete m[key];
   }
 
   function canMark(task) {
     return !S.readOnly && !!S.mine && task.assignee === S.myId;
   }
-  // dá para marcar/desmarcar, mandar foto ou justificar este dia (ou semana)?
-  // Só dentro do período da listRat, até hoje, e só enquanto a listRat não terminou.
+  // dá para marcar/desmarcar, mandar foto, comentar ou justificar este dia (ou semana)?
+  // Só dentro do período da listRat, até hoje, e até o fim do dia seguinte ao prazo
+  // (o dia para a diária, o domingo para a semanal). Por isso o último dia da listRat ainda pode
+  // receber foto ou comentário no dia seguinte ao fim.
   function canChangeDay(task, key) {
     if (!canMark(task) || !L.score.counts(task)) return false;
     const sp = L.score.span(task);
     if (sp.prep) return false;
     const t = todayKey();
-    if (sp.end && t > sp.end) return false;
+    if (t > L.score.proofLimit(task, key)) return false;
     if (task.kind === "daily") return key >= sp.from && key <= t && (!sp.end || key <= sp.end);
     const W = L.dates.weekOf;
-    return key === W(key) && key >= W(sp.from) && key <= W(t);
+    return key === W(key) && key >= W(sp.from) && key <= W(t) && (!sp.end || key <= W(sp.end));
   }
   const noteOf = (task, key) => {
     const p = L.score.playerDoc(task.assignee);
@@ -164,6 +191,7 @@ window.Liga = window.Liga || {};
     const t = L.text.cleanLong(text, 300);
     if (!S.mine.notes[task.id]) S.mine.notes[task.id] = {};
     if (t) S.mine.notes[task.id][key] = t; else delete S.mine.notes[task.id][key];
+    touchProof(task, key);
     render();
     scheduleSave();
   }
@@ -177,6 +205,7 @@ window.Liga = window.Liga || {};
       arr.splice(i, 1);
       const old = S.mine.proofs[task.id] && S.mine.proofs[task.id][key];
       if (old) { delete S.mine.proofs[task.id][key]; removePhoto(old); }
+      touchProof(task, key);
     } else {
       arr.push(key);
       L.fx.markDone(task, key);
@@ -196,6 +225,7 @@ window.Liga = window.Liga || {};
     if (!Array.isArray(S.mine.done[task.id])) S.mine.done[task.id] = [];
     if (!S.mine.done[task.id].includes(key)) { S.mine.done[task.id].push(key); L.fx.markDone(task, key); }
     if (old && old !== photoId) removePhoto(old);
+    touchProof(task, key);
     scheduleSave();
   }
 
@@ -223,7 +253,7 @@ window.Liga = window.Liga || {};
   }
 
   function join(nick) {
-    S.mine = { nick, done: {}, proofs: {}, notes: {} };
+    S.mine = { nick, done: {}, proofs: {}, notes: {}, proofAt: {} };
     S.pending = true;
     render();
     flush();
@@ -280,6 +310,11 @@ window.Liga = window.Liga || {};
       status: "inscricoes", req: L.rules.normReq(info.req), participants: [], startedAt: "", joined: {},
       owner: S.myId, helpers: [], createdAt: Date.now(),
     });
+    // o tipo de placar vai numa segunda gravação (o dono pode mudar qualquer campo; funciona até com regras antigas)
+    const extra = {};
+    if (info.scoring === "porcentagem") extra.scoring = "porcentagem";
+    if (info.money && [...info.money.win, ...info.money.pay].some((x) => x > 0)) extra.money = info.money;
+    if (Object.keys(extra).length) await db().update("subprojetos/" + id, extra);
     return id;
   }
   const setSubReq = (sid, req) => db().update("subprojetos/" + sid, { req: L.rules.normReq(req) });
@@ -305,8 +340,39 @@ window.Liga = window.Liga || {};
     const joined = Object.assign({}, s.joined, { [uid]: todayKey() });
     await db().update("subprojetos/" + sid, { participants: list, joined });
   }
-  const saveSub = (sid, info) => db().update("subprojetos/" + sid,
-    { name: info.name, desc: info.desc || "", start: info.start || "", end: info.end || "" });
+  // dono tira alguém da listRat: sai dos participantes e entra em "kicked".
+  // As tarefas da pessoa ficam guardadas (aparecem em "Fora da listRat") e voltam a contar se ela for readmitida.
+  async function kickParticipant(sid, uid) {
+    const s = S.subs[sid];
+    if (!s || !L.perms.canKick(s, uid)) throw fail("denied");
+    const patch = { kicked: [...new Set([...(s.kicked || []), uid])].slice(0, 100) };
+    if (Array.isArray(s.participants)) patch.participants = s.participants.filter((x) => x !== uid);
+    const joined = Object.assign({}, s.joined); delete joined[uid];
+    patch.joined = joined;
+    if ((s.helpers || []).includes(uid)) patch.helpers = s.helpers.filter((x) => x !== uid);   // deixa de ser ajudante
+    await db().update("subprojetos/" + sid, patch);
+    notify(uid, "projetos", "kicked", myName() + " tirou você da listRat " + s.name + ".", { projectId: s.projectId, sid });
+  }
+  // desfaz: volta a poder participar (se a listRat já começou, entra a partir de hoje)
+  async function readmitParticipant(sid, uid) {
+    const s = S.subs[sid];
+    if (!s || !L.perms.canManageSub(s)) throw fail("denied");
+    const patch = { kicked: (s.kicked || []).filter((x) => x !== uid) };
+    if (s.status !== "inscricoes") {
+      patch.participants = [...new Set([...(s.participants || []), uid])].slice(0, 100);
+      patch.joined = Object.assign({}, s.joined, { [uid]: todayKey() });
+    }
+    await db().update("subprojetos/" + sid, patch);
+    notify(uid, "projetos", "readmitted", myName() + " colocou você de volta na listRat " + s.name + ".", { projectId: s.projectId, sid });
+  }
+  function saveSub(sid, info) {
+    const patch = { name: info.name, desc: info.desc || "", start: info.start || "", end: info.end || "" };
+    const s = S.subs[sid];
+    // o tipo de placar só muda enquanto a listRat está em inscrições
+    if (s && s.status === "inscricoes" && info.scoring) patch.scoring = info.scoring;
+    if (s && s.status === "inscricoes" && info.money) patch.money = info.money;
+    return db().update("subprojetos/" + sid, patch);
+  }
   const renameSub = (sid, name) => db().update("subprojetos/" + sid, { name });
   const setSubHelpers = (sid, helpers) => db().update("subprojetos/" + sid, { helpers });
 
@@ -336,13 +402,11 @@ window.Liga = window.Liga || {};
       kind: d.kind, type: d.type, diff: d.diff, startKey: todayKey(), createdAt: Date.now(),
     });
   }
-  // só a própria pessoa edita; depois que a listRat começa, só o nome
+  // só a própria pessoa edita, e só nas inscrições
   async function saveTask(id, d) {
     const t = S.tasks[id];
-    const lvl = L.perms.editLevel(t);
-    if (!lvl) throw fail("denied");
+    if (!L.perms.editLevel(t)) throw fail(t && t.assignee === S.myId ? "task_locked" : "denied");
     checkDup(t.subId, t.assignee, d.title, id);
-    if (lvl === "name") return db().update("tarefas/" + id, { title: d.title });
     checkMax(S.subs[t.subId], t.assignee, d.type, id);
     await db().update("tarefas/" + id, { title: d.title, type: d.type, kind: d.kind, diff: d.diff });
   }
@@ -441,7 +505,7 @@ window.Liga = window.Liga || {};
   }
 
   L.actions = {
-    createInvite, deleteInvite, inviteUrl, peekInvite, joinByInvite, setSubReq, startSub, addParticipant,
+    createInvite, deleteInvite, inviteUrl, peekInvite, joinByInvite, setSubReq, startSub, addParticipant, kickParticipant, readmitParticipant,
     setSubRole, removeMember,
     errMsg, flush, scheduleSave, canMark, canChangeDay, noteOf, setNote, toggleMark, attachProof, removePhoto, setAvatar, join, setNick,
     createProject, transferProject, setProjectHelper, saveProject, deleteProject, createSub, saveSub, renameSub, setSubHelpers, deleteSub,

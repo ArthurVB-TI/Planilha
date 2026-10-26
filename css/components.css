@@ -800,3 +800,31 @@ button.card:hover { border-color: var(--line-strong); background: var(--hover); 
 .rules-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
 .rules-list li::marker { color: var(--purple-text); }
 .pick-people { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+
+/* prova em arquivo (PDF) */
+.file-badge { display: grid; place-items: center; align-content: center; gap: 2px; width: 100%; height: 100%; color: var(--purple-text); background: var(--purple-soft); }
+.file-badge .ico { width: 20px; height: 20px; }
+.file-badge b { font-size: 10px; letter-spacing: .06em; }
+.thumb .file-badge .ico { width: 16px; height: 16px; }
+.lb-stage.lb-file { touch-action: auto; }
+.file-card { display: grid; justify-items: center; gap: 8px; padding: 28px 22px; border-radius: 16px; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .14); color: #fff; text-align: center; min-width: min(320px, 90vw); }
+.file-card .fc-ic { width: 64px; height: 64px; border-radius: 16px; display: grid; place-items: center; background: var(--purple); color: #fff; }
+.file-card .fc-ic .ico { width: 30px; height: 30px; }
+.file-card b { font-size: 18px; }
+.file-card .muted { color: rgba(255, 255, 255, .6); }
+.file-card .btn.ghost { color: #fff; }
+a.btn { text-decoration: none; }
+.lightbox.is-file .lb-hint { display: none; }
+
+/* várias provas no mesmo dia */
+.sh-up { gap: 8px; }
+.sh-photos { display: flex; flex-wrap: wrap; gap: 8px; }
+.sh-ph { position: relative; }
+.sh-ph-x { position: absolute; top: -6px; right: -6px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; padding: 0; border: 1px solid var(--line-strong); background: var(--surface); color: var(--text); cursor: pointer; }
+.sh-ph-x .ico { width: 13px; height: 13px; }
+.sh-ph-x:hover { background: var(--hover); }
+.sh-photo.is-file { cursor: pointer; }
+.thumb .thumb-n { position: absolute; top: 2px; right: 2px; font-style: normal; font-size: 10px; font-family: var(--mono); line-height: 14px; padding: 0 4px; border-radius: 6px; background: rgba(0, 0, 0, .65); color: #fff; }
+.lb-nav { display: flex; align-items: center; gap: 12px; color: #fff; }
+.lb-nav .btn.ghost { color: #fff; }
+.lb-nav span { font-family: var(--mono); font-size: 13px; color: rgba(255, 255, 255, .7); }

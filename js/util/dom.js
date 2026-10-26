@@ -35,6 +35,9 @@ window.Liga = window.Liga || {};
   const ICONS = {
     check: "M4 12.5l5 5L20 6.5",
     camera: "M4 8h3l2-3h6l2 3h3v11H4z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+    upload: "M12 16V4 M7 9l5-5 5 5 M4 15v5h16v-5",
+    image: "M4 5h16v14H4z M4 16l5-5 4 4 3-3 4 4 M15.5 9.5h.01",
+    file: "M6 3h8l4 4v14H6z M14 3v4h4 M9 12h6 M9 16h6",
     home: "M4 11l8-7 8 7v9h-5v-6H9v6H4z",
     folder: "M3 6h7l2 2h9v11H3z",
     list: "M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01",
@@ -42,6 +45,8 @@ window.Liga = window.Liga || {};
     plus: "M12 5v14M5 12h14",
     close: "M6 6l12 12M18 6L6 18",
     chevron: "M9 6l6 6-6 6",
+    left: "M15 6l-6 6 6 6",
+    right: "M9 6l6 6-6 6",
     logout: "M15 4h4v16h-4 M10 8l-4 4 4 4 M6 12h10",
     menu: "M4 7h16M4 12h16M4 17h16",
     chart: "M4 20V10 M10 20V4 M16 20v-7 M21 20H3",

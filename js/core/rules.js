@@ -56,6 +56,9 @@ window.Liga = window.Liga || {};
   /* ---------- validação ---------- */
   const isId = (v) => typeof v === "string" && v.length > 0 && v.length < 200;
   const isPhotoId = (v) => typeof v === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(v);
+  // prova de um dia: até PROOF_PHOTOS fotos/arquivos. Aceita o formato antigo (um id só) e o novo (lista de ids)
+  const PROOF_PHOTOS = 6;
+  const photoList = (v) => [...new Set((Array.isArray(v) ? v : [v]).filter(isPhotoId))].slice(0, PROOF_PHOTOS);
   const obj = (v) => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
 
   function project(id, d) {
@@ -173,7 +176,7 @@ window.Liga = window.Liga || {};
   }
 
   L.rules = {
-    OBR_PENALTY, DIFF, DIFF_KEYS, MAX_MARKS, DEFAULT_REQ, RECOMMENDED_DESVIO, normReq, NICK_MAX, TASK_MAX, PROOF_FROM, PROOF_GRACE, isPhotoId,
+    OBR_PENALTY, DIFF, DIFF_KEYS, MAX_MARKS, DEFAULT_REQ, RECOMMENDED_DESVIO, normReq, NICK_MAX, TASK_MAX, PROOF_FROM, PROOF_GRACE, isPhotoId, photoList, PROOF_PHOTOS,
     checkUsername, checkEmail, checkPassword,
     sanitize: { project, sub, task, player, invite, friendship, request, notif, justification, contest },
   };

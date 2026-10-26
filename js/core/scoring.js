@@ -20,14 +20,22 @@ window.Liga = window.Liga || {};
   /* ---------- prova (foto ou comentário) ---------- */
   // último dia do período marcado (diária: o próprio dia; semanal: o domingo) e o último dia para pôr a prova
   const dueKey = (task, k) => (task.kind === "daily" ? k : addDays(k, 6));
-  const proofLimit = (task, k) => addDays(dueKey(task, k), L.rules.PROOF_GRACE);
+  // prazo para pôr a prova (e mexer no dia): até o dia seguinte ao fim da listRat, para qualquer dia dela.
+  // ListRat sem fim: até 7 dias depois do prazo do dia.
+  function proofLimit(task, k) {
+    const sp = span(task);
+    const base = addDays(dueKey(task, k), L.rules.PROOF_GRACE);
+    const lim = sp.end ? addDays(sp.end, L.rules.PROOF_GRACE) : addDays(dueKey(task, k), 7);
+    return lim > base ? lim : base;
+  }
   const needsProof = (task, k) => dueKey(task, k) >= L.rules.PROOF_FROM;
   function proofOf(pid, taskId, k) {
     const p = playerDoc(pid);
     const ph = p && p.proofs && p.proofs[taskId] && p.proofs[taskId][k];
     const nt = p && p.notes && p.notes[taskId] && p.notes[taskId][k];
     const at = p && p.proofAt && p.proofAt[taskId] && p.proofAt[taskId][k];
-    return { photo: L.rules.isPhotoId(ph) ? ph : "", note: typeof nt === "string" && nt.trim() ? nt : "", at: Number(at) || 0 };
+    const photos = L.rules.photoList(ph);
+    return { photos, photo: photos[0] || "", note: typeof nt === "string" && nt.trim() ? nt : "", at: Number(at) || 0 };
   }
   const hasProof = (pid, taskId, k) => { const x = proofOf(pid, taskId, k); return !!(x.photo || x.note); };
 

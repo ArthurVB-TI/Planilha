@@ -75,7 +75,8 @@ window.Liga = window.Liga || {};
       const m = psrc[id];
       if (!m || typeof m !== "object") continue;
       const o = {};
-      for (const k in m) if (isKey(k) && isPhotoId(m[k])) o[k] = m[k];
+      // uma foto: guarda o id (como antes); várias: lista de ids
+      for (const k in m) { const l = L.rules.photoList(m[k]); if (isKey(k) && l.length) o[k] = l.length === 1 ? l[0] : l; }
       if (Object.keys(o).length) proofs[id] = o;
     }
     // comentário de cada dia/semana feito: notes[tarefa][dia] = texto
@@ -203,8 +204,8 @@ window.Liga = window.Liga || {};
     const i = arr.indexOf(key);
     if (i >= 0) {
       arr.splice(i, 1);
-      const old = S.mine.proofs[task.id] && S.mine.proofs[task.id][key];
-      if (old) { delete S.mine.proofs[task.id][key]; removePhoto(old); }
+      const old = L.rules.photoList(S.mine.proofs[task.id] && S.mine.proofs[task.id][key]);
+      if (old.length) { delete S.mine.proofs[task.id][key]; old.forEach(removePhoto); }
       touchProof(task, key);
     } else {
       arr.push(key);
@@ -215,17 +216,36 @@ window.Liga = window.Liga || {};
     scheduleSave();
   }
 
-  // grava a foto já enviada como prova do dia/semana e marca a tarefa
+  // fotos/arquivos da prova de um dia (lista)
+  const myPhotos = (task, key) => L.rules.photoList(S.mine.proofs[task.id] && S.mine.proofs[task.id][key]);
+  const roomFor = (task, key) => (S.mine ? L.rules.PROOF_PHOTOS - myPhotos(task, key).length : 0);
+
+  // junta a foto já enviada às provas do dia/semana (até PROOF_PHOTOS) e marca a tarefa
   function attachProof(task, key, photoId) {
-    if (!canChangeDay(task, key)) { removePhoto(photoId); return; }
+    if (!canChangeDay(task, key)) { removePhoto(photoId); return false; }
     ensureMine();
     if (!S.mine.proofs[task.id]) S.mine.proofs[task.id] = {};
-    const old = S.mine.proofs[task.id][key];
-    S.mine.proofs[task.id][key] = photoId;
+    const list = myPhotos(task, key);
+    if (list.length >= L.rules.PROOF_PHOTOS) { removePhoto(photoId); return false; }
+    S.mine.proofs[task.id][key] = [...list, photoId];
     if (!Array.isArray(S.mine.done[task.id])) S.mine.done[task.id] = [];
     if (!S.mine.done[task.id].includes(key)) { S.mine.done[task.id].push(key); L.fx.markDone(task, key); }
-    if (old && old !== photoId) removePhoto(old);
     touchProof(task, key);
+    scheduleSave();
+    return true;
+  }
+  // tira uma das fotos/arquivos da prova (o dia continua marcado)
+  function removeProof(task, key, photoId) {
+    if (!canChangeDay(task, key)) throw fail("day_locked");
+    ensureMine();
+    const list = myPhotos(task, key);
+    if (!list.includes(photoId)) return;
+    const rest = list.filter((x) => x !== photoId);
+    if (!S.mine.proofs[task.id]) S.mine.proofs[task.id] = {};
+    if (rest.length) S.mine.proofs[task.id][key] = rest; else delete S.mine.proofs[task.id][key];
+    removePhoto(photoId);
+    touchProof(task, key);
+    render();
     scheduleSave();
   }
 
@@ -369,7 +389,15 @@ window.Liga = window.Liga || {};
     const patch = { name: info.name, desc: info.desc || "", start: info.start || "", end: info.end || "" };
     const s = S.subs[sid];
     // o tipo de placar só muda enquanto a listRat está em inscrições
-    if (s && s.status === "inscricoes" && info.scoring) patch.scoring = info.scoring;
+    // tipo de placar: dá para trocar até o fim da listRat (só muda a conta)
+    if (s && info.scoring && ["inscricoes", "andamento"].includes(L.review.phase(s)) && info.scoring !== s.scoring) {
+      patch.scoring = info.scoring;
+      if (s.status !== "inscricoes") {
+        const ids = (s.participants || []).filter((id) => id !== S.myId);
+        const txt = myName() + " mudou o placar da listRat " + s.name + " para " + (info.scoring === "porcentagem" ? "porcentagem" : "pontos") + ".";
+        for (const id of ids) notify(id, "projetos", "scoring", txt, { projectId: s.projectId, sid });
+      }
+    }
     if (s && s.status === "inscricoes" && info.money) patch.money = info.money;
     return db().update("subprojetos/" + sid, patch);
   }
@@ -507,7 +535,7 @@ window.Liga = window.Liga || {};
   L.actions = {
     createInvite, deleteInvite, inviteUrl, peekInvite, joinByInvite, setSubReq, startSub, addParticipant, kickParticipant, readmitParticipant,
     setSubRole, removeMember,
-    errMsg, flush, scheduleSave, canMark, canChangeDay, noteOf, setNote, toggleMark, attachProof, removePhoto, setAvatar, join, setNick,
+    errMsg, flush, scheduleSave, canMark, canChangeDay, noteOf, setNote, toggleMark, attachProof, removeProof, roomFor, removePhoto, setAvatar, join, setNick,
     createProject, transferProject, setProjectHelper, saveProject, deleteProject, createSub, saveSub, renameSub, setSubHelpers, deleteSub,
     createTask, saveTask, deleteTask,
   };

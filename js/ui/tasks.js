@@ -58,7 +58,7 @@ window.Liga = window.Liga || {};
   const STATE_TEXT = {
     off: "fora do período", on: "feita", just: "justificada (aceita)", jpend: "justificativa esperando",
     jno: "justificativa recusada", miss: "não feita", open: "ainda não feita",
-    pend: "marcada, falta foto ou comentário", noproof: "sem foto nem comentário: não contou",
+    pend: "marcada, falta foto, arquivo ou comentário", noproof: "sem prova: não contou",
   };
 
   function openSheet(task, key) {
@@ -102,7 +102,7 @@ window.Liga = window.Liga || {};
     const unit = task.kind === "daily" ? "hoje" : "esta semana";
     if (r.pend && r.pend.size) {
       const lim = Math.min(...[...r.pend].map((k) => +parseKey(L.score.proofLimit(task, k))));
-      return ["warn", "Falta foto ou comentário" + (r.pend.size > 1 ? " em " + r.pend.size + (task.kind === "daily" ? " dias" : " semanas") : "") + " · até " + shortDate(L.dates.keyOf(new Date(lim)))];
+      return ["warn", "Falta a prova" + (r.pend.size > 1 ? " em " + r.pend.size + (task.kind === "daily" ? " dias" : " semanas") : "") + " · até " + shortDate(L.dates.keyOf(new Date(lim)))];
     }
     if (done) return ["good", "Feita " + unit];
     if (pend) return ["purple", plural(pend, "justificativa esperando", "justificativas esperando")];
@@ -177,21 +177,29 @@ window.Liga = window.Liga || {};
     rerender();
   }
 
-  function photoThumb(id, caption) {
+  // miniatura de uma prova (foto ou PDF); list = as outras do mesmo dia, para passar na foto grande
+  function photoThumb(id, caption, list) {
     const img = el("img", { alt: "", loading: "lazy" });
-    const b = el("button", { type: "button", class: "sh-photo", "aria-label": "Ver foto", onclick: () => L.photos.openPhoto(id, caption) }, img);
-    L.photos.loadInto(img, id, () => { b.classList.add("broken"); b.textContent = "foto indisponível"; });
+    const b = el("button", { type: "button", class: "sh-photo", "aria-label": "Ver prova", onclick: () => L.photos.openPhoto(id, caption, list) }, img);
+    L.photos.loadInto(img, id, () => { b.classList.add("broken"); b.textContent = "indisponível"; },
+      () => { b.classList.add("is-file"); img.replaceWith(L.photos.fileBadge()); });
     return b;
   }
-  // botão de escolher foto que guarda o id no rascunho do painel
+  // botões de escolher foto (câmera), da galeria ou PDF, que guardam o id no rascunho do painel
   function pickBtn(sh, field, tag) {
     const busy = S.uploading === tag;
+    const go = (mode) => L.photos.pick(tag, (id) => {
+      if (sh[field]) S.backend.photos.remove(sh[field]).catch(() => {});
+      sh[field] = id;
+    }, { gallery: mode === "gallery", file: mode === "file" });
     return el("div", { class: "row", style: "align-items:center" },
-      el("button", { type: "button", class: "btn ghost sm", disabled: !!S.uploading, onclick: () => L.photos.pick(tag, (id) => {
-        if (sh[field]) S.backend.photos.remove(sh[field]).catch(() => {});
-        sh[field] = id;
-      }) }, icon("camera"), busy ? "Enviando…" : sh[field] ? "Trocar foto" : "Adicionar foto (opcional)"),
-      sh[field] ? photoThumb(sh[field], "Foto escolhida") : null);
+      busy ? el("span", { class: "small muted" }, "Enviando…") : [
+        el("button", { type: "button", class: "btn ghost sm", disabled: !!S.uploading, onclick: () => go("camera") }, icon("camera"), "Tirar foto"),
+        el("button", { type: "button", class: "btn ghost sm", disabled: !!S.uploading, onclick: () => go("gallery") }, icon("image"), "Galeria"),
+        el("button", { type: "button", class: "btn ghost sm", disabled: !!S.uploading, onclick: () => go("file") }, icon("upload"), "Arquivo (PDF)"),
+      ],
+      sh[field] ? photoThumb(sh[field], "Prova escolhida") : null,
+      !sh[field] ? el("span", { class: "hint" }, "(opcional)") : null);
   }
 
   function sheet() {
@@ -257,12 +265,26 @@ window.Liga = window.Liga || {};
               L.actions.toggleMark(task, k);
               if (j && j.status === "pendente") R().removeJustification(j).catch(() => {});
             } }, icon("check"), "Marcar como feita"),
-        el("button", { type: "button", class: "btn ghost", disabled: !!S.uploading, onclick: () => L.photos.startPhoto(task, k) },
-          icon("camera"), S.uploading === task.id + "|" + k ? "Enviando…" : proofs[k] ? "Trocar foto" : "Mandar foto"),
         !marked.has(k) && !j && sh.mode !== "justify"
           ? el("button", { type: "button", class: "btn ghost", onclick: () => { sh.mode = "justify"; rerender(); } }, icon("help"), "Não consegui fazer")
           : null));
-      if (!marked.has(k) && !proofs[k]) day.append(el("p", { class: "hint" }, "A foto já marca como feita. Para contar, o dia precisa de uma foto ou de um comentário."));
+      // enviar prova: câmera, galeria (dá para escolher várias de uma vez) ou PDF
+      const nph = (proofs[k] || []).length, room = L.rules.PROOF_PHOTOS - nph;
+      const upBusy = S.uploading === task.id + "|" + k;
+      day.append(el("div", { class: "sh-field" },
+        el("div", { class: "sh-lbl" }, icon("camera"), "Prova" + (nph ? " (" + nph + " de " + L.rules.PROOF_PHOTOS + ")" : "")),
+        upBusy
+          ? el("p", { class: "small muted", "aria-busy": "true" }, "Enviando" + (S.uploadInfo ? " " + S.uploadInfo : "") + "…")
+          : room > 0
+            ? el("div", { class: "row sh-up" },
+                el("button", { type: "button", class: "btn ghost", disabled: !!S.uploading, onclick: () => L.photos.startPhoto(task, k, "camera") },
+                  icon("camera"), nph ? "Tirar outra foto" : "Tirar foto"),
+                el("button", { type: "button", class: "btn ghost", disabled: !!S.uploading, onclick: () => L.photos.startPhoto(task, k, "gallery") },
+                  icon("image"), "Escolher da galeria"),
+                el("button", { type: "button", class: "btn ghost", disabled: !!S.uploading, onclick: () => L.photos.startPhoto(task, k, "file") },
+                  icon("upload"), "Enviar PDF"))
+            : el("p", { class: "hint" }, "Já tem " + L.rules.PROOF_PHOTOS + " fotos ou arquivos neste dia (o máximo). Apague um para pôr outro."),
+        !nph ? el("p", { class: "hint" }, "Na galeria dá para escolher várias fotos de uma vez (até " + L.rules.PROOF_PHOTOS + " por dia). Mandar foto ou arquivo já marca como feita; para contar, o dia precisa de uma foto, um arquivo ou um comentário.") : null));
     } else if (mine && !can && st !== "off") {
       day.append(el("p", { class: "hint" }, st === "noproof"
         ? "O prazo para pôr a foto ou o comentário deste dia acabou."
@@ -273,7 +295,7 @@ window.Liga = window.Liga || {};
     if (st === "pend") {
       const lim = L.score.proofLimit(task, k);
       day.append(el("div", { class: "proof-due" }, icon("alert"),
-        el("span", null, mine ? "Coloque uma foto ou escreva um comentário até " : who + " ainda precisa pôr foto ou comentário até ",
+        el("span", null, mine ? "Mande uma foto, um arquivo ou escreva um comentário até " : who + " ainda precisa pôr foto, arquivo ou comentário até ",
           el("b", null, (lim === todayKey() ? "hoje" : WD[parseKey(lim).getDay()].toLowerCase() + ", " + shortDate(lim)) + " (fim do dia)"),
           ". Sem isso, " + (task.kind === "daily" ? "este dia" : "esta semana") + " não conta.")));
     }
@@ -285,13 +307,25 @@ window.Liga = window.Liga || {};
       const late = Math.round((+parseKey(atKey) - +parseKey(L.score.dueKey(task, k))) / 864e5);
       const hh = new Date(pf.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
       day.append(el("p", { class: "proof-at" + (late > 0 ? " late" : "") }, icon("check"),
-        (pf.photo && pf.note ? "Foto e comentário" : pf.photo ? "Foto" : "Comentário") + " colocado" + (pf.photo && pf.note ? "s" : "") + " em " +
+        (() => {
+          const what = !pf.photo ? "" : pf.photos.length > 1 ? "Fotos" : L.photos.isFile(pf.photo) ? "Arquivo" : "Foto";
+          if (what && pf.note) return what + " e comentário colocados";
+          return !what ? "Comentário colocado" : what === "Fotos" ? "Fotos colocadas" : what === "Foto" ? "Foto colocada" : "Arquivo colocado";
+        })() + " em " +
         WD[parseKey(atKey).getDay()].toLowerCase() + ", " + shortDate(atKey) + " às " + hh +
         (late > 0 ? " · " + plural(late, "dia", "dias") + " depois do prazo" : " · no prazo")));
     }
 
+    // fotos e arquivos do dia (o dono pode apagar cada um enquanto o dia ainda pode mudar)
     if (proofs[k] && marked.has(k)) {
-      day.append(el("div", { class: "sh-field" }, el("div", { class: "sh-lbl" }, "Foto"), photoThumb(proofs[k], task.title + " — " + who + " — " + keyLabel(task, k))));
+      const list = proofs[k];
+      const cap = task.title + " — " + who + " — " + keyLabel(task, k);
+      day.append(el("div", { class: "sh-field" },
+        el("div", { class: "sh-lbl" }, list.length > 1 ? "Fotos e arquivos (" + list.length + ")" : L.photos.isFile(list[0]) ? "Arquivo" : "Foto"),
+        el("div", { class: "sh-photos" }, list.map((id) => el("div", { class: "sh-ph" },
+          photoThumb(id, cap, list),
+          mine && can ? el("button", { type: "button", class: "sh-ph-x", title: "Apagar", "aria-label": "Apagar esta prova", disabled: !!S.uploading,
+            onclick: () => run(sh, () => L.actions.removeProof(task, k, id), "Prova apagada.") }, icon("close")) : null)))));
     }
 
     // comentário
@@ -299,7 +333,7 @@ window.Liga = window.Liga || {};
       const cur = sh.note == null ? note : sh.note;
       day.append(el("div", { class: "sh-field" },
         el("label", { class: "sh-lbl", for: "shNote" }, icon("msg"), "Comentário"),
-        el("textarea", { id: "shNote", maxlength: "300", rows: "2", placeholder: proofs[k] ? "Como foi? (opcional, já tem foto)" : "Como foi? (sem foto, o comentário é a prova)", value: cur, oninput: (e) => { sh.note = e.target.value; } }),
+        el("textarea", { id: "shNote", maxlength: "300", rows: "2", placeholder: proofs[k] ? "Como foi? (opcional, já tem prova)" : "Como foi? (sem foto ou arquivo, o comentário é a prova)", value: cur, oninput: (e) => { sh.note = e.target.value; } }),
         el("div", { class: "row" },
           el("button", { type: "button", class: "btn sm", onclick: () => run(sh, () => { L.actions.setNote(task, k, sh.note == null ? note : sh.note); sh.note = null; }, "Comentário salvo.") }, "Salvar comentário"),
           note ? el("button", { type: "button", class: "btn ghost sm", onclick: () => run(sh, () => { L.actions.setNote(task, k, ""); sh.note = null; }) }, "Apagar") : null)));

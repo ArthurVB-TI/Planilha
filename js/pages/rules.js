@@ -31,7 +31,7 @@ window.Liga.pages = window.Liga.pages || {};
               ? "Tarefa obrigatória: não dá pontos; cada dia (ou semana) sem ela tira os pontos da dificuldade."
               : "Tarefa obrigatória: não vale pontos. É o compromisso mínimo para entrar, e o dia sem ela aparece como \"faltou\" para todo mundo ver.",
           ]),
-          el("p", null, el("b", null, "Cada listRat escolhe o tipo de placar"), " na hora de criar (não muda depois de começar):"),
+          el("p", null, el("b", null, "Cada listRat escolhe o tipo de placar"), " (o dono pode trocar até a listRat terminar; trocar só muda a conta):"),
           list([
             "Por pontos: ganha quem somar mais pontos.",
             "Por porcentagem: ganha quem fizer a maior parte do que dava para fazer. A conta é pontos feitos ÷ pontos possíveis das próprias tarefas normais (ex.: 150 de 200 = 75%). Assim não importa se alguém escolheu tarefas que valem mais ou menos. O dia de hoje só entra na conta depois de feito.",
@@ -39,10 +39,10 @@ window.Liga.pages = window.Liga.pages || {};
           "O placar do Início e o do projeto somam os pontos de todas as listRats. O gráfico de pontuação mostra a porcentagem quando você escolhe uma listRat por porcentagem."),
 
         sec("Marcar e provar",
-          "Cada pessoa só marca as próprias tarefas. Dá para marcar o dia de hoje e o de ontem (na tarefa semanal, a semana atual e a anterior até segunda-feira).",
-          el("p", null, el("b", null, "Um dia marcado só conta com prova: uma foto ou um comentário"), " (pelo menos um dos dois). Mandar a foto já marca o dia."),
-          "Você tem até o fim do dia seguinte ao prazo para pôr a prova (" + (grace === 1 ? "1 dia" : grace + " dias") + " depois; na semanal, até a segunda-feira depois da semana). Enquanto falta, o dia aparece como \"falta foto ou comentário\" e não dá pontos. Depois do prazo, ele não conta.",
-          "Todo mundo vê as fotos, os comentários e em que dia e hora cada prova foi colocada."),
+          "Cada pessoa só marca as próprias tarefas. Dá para marcar e pôr foto em qualquer dia da listRat, até o dia seguinte ao fim dela.",
+          el("p", null, el("b", null, "Um dia marcado só conta com prova: uma foto, um arquivo ou um comentário"), " (pelo menos um). A foto pode ser tirada na hora ou escolhida da galeria (um print também vale), e o arquivo pode ser um PDF de até uns 650 KB. Dá para mandar até " + L.rules.PROOF_PHOTOS + " fotos ou arquivos no mesmo dia (na galeria, várias de uma vez). Mandar a foto ou o arquivo já marca o dia."),
+          "Você tem até o fim do dia seguinte ao fim da listRat para pôr a prova de qualquer dia. Enquanto falta, o dia aparece como \"falta a prova\" e não dá pontos. Depois do prazo, ele não conta.",
+          "Todo mundo vê as fotos, os arquivos, os comentários e em que dia e hora cada prova foi colocada."),
 
         sec("Não consegui fazer",
           "Quem não fez um dia pode mandar uma justificativa (comentário obrigatório, foto opcional). Ela só conta como feita se o dono ou um ajudante da listRat aceitar."),
@@ -59,7 +59,7 @@ window.Liga.pages = window.Liga.pages || {};
         sec("Quem faz o quê",
           list([
             "Dono do projeto: edita e apaga o projeto, convida e tira integrantes, cria links de convite, passa o projeto para outra pessoa e mexe em todas as listRats dele.",
-            "Dono da listRat: edita as datas e os detalhes (tipo de placar, valores e regras só antes de começar), apaga, escolhe ajudantes e pode tirar pessoas da listRat.",
+            "Dono da listRat: edita as datas, os detalhes e o tipo de placar (valores e regras só antes de começar), apaga, escolhe ajudantes e pode tirar pessoas da listRat.",
             "Ajudantes da listRat: mudam as regras de inscrição, começam a listRat, incluem participantes e aceitam ou recusam justificativas e provas.",
             "Cada pessoa: cria, edita e apaga só as próprias tarefas, e só nas inscrições.",
           ]))),

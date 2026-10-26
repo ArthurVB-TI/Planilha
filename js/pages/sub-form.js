@@ -160,15 +160,19 @@ window.Liga.pages = window.Liga.pages || {};
           value: d.desc, oninput: (e) => { d.desc = e.target.value; const c = $("sfCount"); if (c) c.textContent = e.target.value.length + "/500"; } }),
         el("div", { class: "hint", id: "sfCount", style: "text-align:right" }, (d.desc || "").length + "/500")),
 
-      // como o placar é calculado (só dá para trocar antes de a listRat começar)
-      !editing || s.status === "inscricoes"
+      // como o placar é calculado: dá para trocar até o fim da listRat (só muda a conta, nada é apagado);
+      // depois do fim (contestação e resultado) fica fixo
+      !editing || ["inscricoes", "andamento"].includes(L.review.phase(s))
         ? el("fieldset", { class: "period" },
             el("legend", { class: "lbl" }, "Placar"),
             L.forms.seg(d, "scoring", [["pontos", "Por pontos"], ["porcentagem", "Por porcentagem"]]),
             el("p", { class: "hint" }, d.scoring === "porcentagem"
               ? "Ganha quem fizer a maior parte do que dava para fazer. Cada pessoa vale pelos pontos que fez ÷ pontos possíveis das próprias tarefas normais (ex.: 150 de 200 = 75%). Não importa se alguém escolheu tarefas que valem mais ou menos pontos."
-              : "Ganha quem somar mais pontos. Quem escolhe tarefas mais difíceis (que valem mais) pode somar mais."))
-        : el("p", { class: "hint" }, "Placar " + (s.scoring === "porcentagem" ? "por porcentagem" : "por pontos") + " (não dá para trocar depois que a listRat começa)."),
+              : "Ganha quem somar mais pontos. Quem escolhe tarefas mais difíceis (que valem mais) pode somar mais."),
+            editing && s.status !== "inscricoes"
+              ? el("p", { class: "hint" }, "A listRat já começou: trocar só muda como o placar é calculado. As tarefas e o que já foi marcado continuam iguais, e todo mundo recebe um aviso.")
+              : null)
+        : el("p", { class: "hint" }, "Placar " + (s.scoring === "porcentagem" ? "por porcentagem" : "por pontos") + " (não dá para trocar depois que a listRat termina)."),
 
       // dinheiro: top 3 ganha, 3 piores pagam (só antes de começar)
       !editing || s.status === "inscricoes"

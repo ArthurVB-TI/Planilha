@@ -679,9 +679,21 @@ button.card:hover { border-color: var(--line-strong); background: var(--hover); 
 .sh-cardhead .ico { width: 15px; height: 15px; }
 .sh-foot { border-top: 1px solid var(--line); padding-top: 14px; }
 @media (max-width: 520px) {
-  .sheet-back { padding: 0; padding-top: 0; align-items: end; }
-  .sheet { border-radius: 14px 14px 0 0; margin-bottom: 0; max-height: 100vh; overflow-y: auto; }
+  /* celular: o painel sobe de baixo e cabe na parte visível da tela (100dvh desconta as barras do navegador
+     e o espaço da câmera/relógio no topo). Fecha no X, tocando fora ou no botão voltar do celular */
+  .sheet-back { --sh-top: calc(10px + env(safe-area-inset-top, 0px)); padding: var(--sh-top) 0 0; align-items: end; overflow: hidden; }
+  .sheet {
+    border-radius: 16px 16px 0 0; margin-bottom: 0; overflow-y: auto; overscroll-behavior: contain;
+    max-height: calc(100vh - var(--sh-top)); max-height: calc(100dvh - var(--sh-top));
+    -webkit-overflow-scrolling: touch;
+  }
+  .sh-head { position: relative; padding: 16px 14px 12px; }
+  .sh-head::before { content: ""; position: absolute; top: 6px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 4px; background: var(--line-strong); }
+  .sh-title { font-size: 19px; }
+  .sh-body { padding: 14px 14px 20px; }
+  .sh-day { padding: 12px; }
   .sh-days { gap: 4px; }
+  .sh-up > .btn { flex: 1 1 100%; justify-content: flex-start; }
 }
 
 /* ---------- contestação e resultado ---------- */

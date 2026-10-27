@@ -74,7 +74,12 @@
   .btn { min-height: 40px; }
   .btn.sm { min-height: 36px; padding: 6px 12px; }
   .link { min-height: 36px; padding: 6px 12px; }
-  .icon-btn { width: 40px; height: 40px; }
+  .icon-btn, .icon-btn.sm-ico, .icon-btn.caret { width: 40px; height: 40px; }
+  /* nomes que abrem o perfil: área de toque maior sem mudar o desenho */
+  .ulink { padding: 6px 2px; margin: -6px -2px; }
+  input[type=checkbox], input[type=radio] { width: 20px; height: 20px; }
+  /* aviso flutuante: largura toda */
+  .status { left: 12px; right: 12px; transform: none; width: auto; max-width: none; animation-name: toastInM; }
   .nav-item { padding: 10px 10px; font-size: 15px; }
   .nav-sub .nav-item { padding: 8px 8px; font-size: 14.5px; }
   /* campos com 16px: o iPhone não dá zoom ao tocar */
@@ -103,6 +108,10 @@
     max-width: none; border-radius: 16px 16px 0 0; border-bottom: 0;
     padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
     animation: sheetUp .22s ease-out;
+    /* janela grande não passa do topo visível da tela */
+    max-height: calc(100vh - 10px - env(safe-area-inset-top, 0px));
+    max-height: calc(100dvh - 10px - env(safe-area-inset-top, 0px));
+    overflow-y: auto; overscroll-behavior: contain;
   }
   .modal-actions { flex-direction: column-reverse; align-items: stretch; }
   .modal-actions .btn { width: 100%; }
@@ -137,6 +146,7 @@
   .modal-back:not(.sheet-back) .modal, .sheet { animation: none; }
 }
 @keyframes sheetUp { from { transform: translateY(40px); opacity: .4; } }
+@keyframes toastInM { from { opacity: 0; transform: translateY(-8px); } }
 @media (max-width: 760px) {
   /* filtro das tarefas: os três botões cabem numa linha */
   .seg button { padding-left: 10px; padding-right: 10px; }

@@ -88,8 +88,22 @@
 
 .notice { font-size: 13px; padding: 9px 12px; border: 1px solid var(--line); border-radius: var(--r); color: var(--muted); }
 .notice b { color: var(--fg); font-weight: 600; }
-.status { font-size: 13.5px; padding: 9px 12px; border-radius: var(--r); background: var(--sunk); color: var(--muted); }
-.status.warn { color: var(--fg); border-left: 3px solid var(--gold); }
+/* aviso flutuante: fica por cima de tudo (painel da tarefa e foto grande também). Tocar fecha */
+.status {
+  position: fixed; z-index: 120; left: 50%; transform: translateX(-50%);
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  width: max-content; max-width: min(560px, calc(100vw - 24px));
+  display: flex; gap: 10px; align-items: flex-start;
+  font-size: 14px; line-height: 1.4; padding: 11px 14px; border-radius: var(--r-lg);
+  background: var(--surface); color: var(--fg); border: 1px solid var(--line-strong);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .4); cursor: pointer;
+  animation: toastIn .22s ease-out;
+}
+.status[hidden] { display: none; }
+.status::after { content: "×"; flex: none; color: var(--muted); font-size: 18px; line-height: 1; margin-top: -1px; }
+.status.warn { border-left: 3px solid var(--gold); }
+@keyframes toastIn { from { opacity: 0; transform: translate(-50%, -8px); } }
+@media (prefers-reduced-motion: reduce) { .status { animation: none; } }
 
 .stack { display: grid; gap: 18px; min-width: 0; align-content: start; }
 .grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; align-items: start; }

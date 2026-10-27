@@ -12,17 +12,75 @@ window.Liga = window.Liga || {};
   /* ---------- navegação e avisos ---------- */
 
   let statusTimer = 0;
-  // msg com { auto: true } some sozinha depois de alguns segundos
+  // aviso flutuante, por cima de tudo (até do painel da tarefa). Tocar fecha.
+  // Aviso comum some sozinho; aviso de erro (warn) fica até tocar (com { auto: true } também some)
   function setStatus(msg, warn, opts) {
     const s = $("status");
     clearTimeout(statusTimer);
-    if (opts && opts.auto) statusTimer = setTimeout(() => { if (s.textContent === msg) setStatus(""); }, 7000);
+    if (msg && (!warn || (opts && opts.auto))) statusTimer = setTimeout(() => { if (s.textContent === msg) setStatus(""); }, warn ? 9000 : 5000);
     s.textContent = msg || "";
     s.classList.toggle("warn", !!warn);
     s.hidden = !msg;
   }
 
-  function go(v) {
+  /* ---------- botão voltar (celular e navegador) ----------
+     Cada tela entra no histórico. O painel da tarefa, a foto grande, a caixa de convite e o menu do
+     celular ganham uma entrada só deles: "voltar" fecha o que está aberto em vez de sair do site. */
+  let ovPushed = false;   // existe uma entrada no histórico para o que está aberto por cima
+  let skipPop = 0;        // voltas que o próprio site pediu (ao fechar pelo X)
+  let backTimer = 0;      // volta marcada para logo depois (cancelada se outra tela ou painel abrir no mesmo toque)
+  const sameView = (a, b) => JSON.stringify(a || {}) === JSON.stringify(b || {});
+  const lbOpen = () => !$("lightbox").hidden;
+  const overlayOpen = () => !!(S.sheet || S.invitePrompt || S.navOpen || lbOpen());
+  function hist(fn, state) { try { history[fn](state, ""); } catch (e) { /* ignora */ } }
+  function cancelBack() { if (!backTimer) return false; clearTimeout(backTimer); backTimer = 0; return true; }
+  function syncHistory() {
+    if (!S.myId) return;
+    const open = overlayOpen();
+    if (open && !ovPushed) {
+      // fechou e abriu de novo no mesmo toque: aproveita a entrada que já existe
+      if (!cancelBack()) hist("pushState", { liga: 1, view: S.view, ov: 1 });
+      ovPushed = true;
+    } else if (!open && ovPushed) {
+      ovPushed = false;
+      backTimer = setTimeout(() => { backTimer = 0; skipPop++; try { history.back(); } catch (e) { skipPop--; } }, 0);
+    }
+  }
+  // fecha o que está por cima, um de cada vez (a foto grande antes do painel)
+  function closeTop() {
+    if (lbOpen()) { L.photos.closePhoto(); return; }
+    if (S.navOpen) { L.shell.closeDrawer(); return; }
+    if (S.invitePrompt) { S.invitePrompt = null; dropInvite(); return; }
+    S.sheet = null;
+  }
+  window.addEventListener("popstate", (e) => {
+    if (skipPop > 0) { skipPop--; return; }
+    if (ovPushed) { ovPushed = false; closeTop(); render(); return; }
+    const st = e.state;
+    if (S.myId && st && st.liga && st.view) {
+      go(st.view, true);
+      const y = st.y || 0;
+      requestAnimationFrame(() => window.scrollTo({ top: y }));
+    }
+  });
+  // primeira entrada: a tela aberta. Se não for o Início, o Início fica antes dela (voltar leva para ele)
+  function initHistory() {
+    if (S.view && S.view.page && S.view.page !== "home") {
+      hist("replaceState", { liga: 1, view: { page: "home" } });
+      hist("pushState", { liga: 1, view: S.view });
+    } else hist("replaceState", { liga: 1, view: S.view || { page: "home" } });
+  }
+
+  // fromHistory: veio do botão voltar/avançar (não cria entrada nova)
+  function go(v, fromHistory) {
+    if (!fromHistory) {
+      // a entrada do painel (ou do menu) que acabou de fechar vira a tela nova
+      if (ovPushed || cancelBack()) { hist("replaceState", { liga: 1, view: v }); ovPushed = false; }
+      else if (!sameView(S.view, v)) {
+        hist("replaceState", Object.assign({}, history.state, { liga: 1, view: S.view, y: window.scrollY }));
+        hist("pushState", { liga: 1, view: v });
+      }
+    }
     S.view = v;
     S.confirm = null;
     S.sheet = null;
@@ -35,7 +93,7 @@ window.Liga = window.Liga || {};
     S.draft.req = null;
     store.set("liga.view", v);
     render();
-    window.scrollTo({ top: 0 });
+    if (!fromHistory) window.scrollTo({ top: 0 });
   }
 
   L.pages.notFound = function (v) {
@@ -77,6 +135,7 @@ window.Liga = window.Liga || {};
     L.fx.afterRender();
     L.shell.afterRender();
     L.photos.refresh();
+    syncHistory();
 
     if (aid) {
       const n = $(aid);
@@ -99,7 +158,7 @@ window.Liga = window.Liga || {};
     }
   }
 
-  L.app = { render, go, setStatus, refreshUser };
+  L.app = { render, go, setStatus, refreshUser, syncHistory };
 
   /* ---------- dados ---------- */
 
@@ -291,6 +350,8 @@ window.Liga = window.Liga || {};
     L.photos.setup();
     L.shell.setup();
     readInvite();
+    initHistory();
+    $("status").addEventListener("click", () => setStatus(""));
 
     const cfg = window.LIGA_CONFIG || {};
     const testing = L.data.local.isTest;

@@ -93,24 +93,36 @@ window.Liga = window.Liga || {};
   // reduz a foto (lado maior até 1280 px, JPEG) até caber no limite; PDF vai como está
   function prepare(file) {
     if (isPdfFile(file)) return readPdf(file);
+    return decode(file).then(({ src, w, h }) => {
+      const tries = [[1280, 0.8], [1080, 0.7], [900, 0.6], [720, 0.55]];
+      for (const [max, q] of tries) {
+        const sc = Math.min(1, max / Math.max(w, h));
+        const c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(w * sc));
+        c.height = Math.max(1, Math.round(h * sc));
+        c.getContext("2d").drawImage(src, 0, 0, c.width, c.height);
+        const data = c.toDataURL("image/jpeg", q);
+        if (data.length > 30 && data.length <= MAX_BYTES) return data;
+      }
+      throw Object.assign(new Error("grande demais"), { code: "too_large" });
+    });
+  }
+  // abre a imagem do arquivo; se o <img> não conseguir (alguns formatos do celular), tenta createImageBitmap
+  const isHeic = (f) => /hei[cf]/i.test((f && (f.type + " " + f.name)) || "");
+  function decode(file) {
     return new Promise((resolve, reject) => {
       const url = URL.createObjectURL(file);
       const img = new Image();
-      img.onload = () => {
+      img.onload = () => { URL.revokeObjectURL(url); resolve({ src: img, w: img.naturalWidth, h: img.naturalHeight }); };
+      img.onerror = async () => {
         URL.revokeObjectURL(url);
-        const tries = [[1280, 0.8], [1080, 0.7], [900, 0.6], [720, 0.55]];
-        for (const [max, q] of tries) {
-          const sc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
-          const c = document.createElement("canvas");
-          c.width = Math.max(1, Math.round(img.naturalWidth * sc));
-          c.height = Math.max(1, Math.round(img.naturalHeight * sc));
-          c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-          const data = c.toDataURL("image/jpeg", q);
-          if (data.length <= MAX_BYTES) return resolve(data);
+        try {
+          const bm = await createImageBitmap(file);
+          resolve({ src: bm, w: bm.width, h: bm.height });
+        } catch (e) {
+          reject(Object.assign(new Error("formato"), { code: isHeic(file) ? "heic" : "unsupported_type" }));
         }
-        reject(Object.assign(new Error("grande demais"), { code: "too_large" }));
       };
-      img.onerror = () => { URL.revokeObjectURL(url); reject(Object.assign(new Error("formato"), { code: "unsupported_type" })); };
       img.src = url;
     });
   }
@@ -144,6 +156,7 @@ window.Liga = window.Liga || {};
     L.app.setStatus(
       c === "too_large" ? "A foto é grande demais. Tente outra." :
       c === "file_too_large" ? "O arquivo é grande demais (máximo de uns 650 KB). Tente um PDF menor ou mande uma foto." :
+      c === "heic" ? "Essa foto está em HEIC e o navegador não abriu. Tire um print dela e mande o print, ou no iPhone mude em Ajustes > Câmera > Formatos > Mais compatível." :
       c === "unsupported_type" ? "Esse formato não é aceito. Use uma foto (JPG ou PNG) ou um PDF." :
       c === "quota_exceeded" ? "O espaço de fotos acabou." :
       L.actions.errMsg(e, "Não deu para enviar a foto. Tente de novo."), true);
@@ -164,18 +177,19 @@ window.Liga = window.Liga || {};
         const id = await S.backend.photos.save(data, S.myId);
         S.photoCache[id] = data;
         await tgt.cb(id);
-      } catch (e) { uploadErr(e); }
+      } catch (e) { uploadErr(e); console.error("foto", e && (e.original || e)); }
       S.uploading = null;
       L.app.render();
       return;
     }
     const task = S.tasks[tgt.taskId];
-    if (!task) return;
+    if (!task) { L.app.setStatus("Essa tarefa não existe mais. A foto não foi enviada.", true); return; }
     // várias fotos de uma vez: envia uma por uma, até encher o limite do dia
     const room = L.actions.roomFor(task, tgt.key);
     const list = files.slice(0, Math.max(0, room));
     S.uploading = tgt.taskId + "|" + tgt.key;
-    let sent = 0, err = null;
+    let sent = 0, err = null, locked = 0;
+    L.app.setStatus(list.length > 1 ? "Enviando " + list.length + " fotos…" : "Enviando a foto…");
     for (let i = 0; i < list.length; i++) {
       S.uploadInfo = list.length > 1 ? (i + 1) + " de " + list.length : "";
       L.app.render();
@@ -183,14 +197,15 @@ window.Liga = window.Liga || {};
         const data = await prepare(list[i]);
         const id = await S.backend.photos.save(data, S.myId);
         S.photoCache[id] = data;
-        if (L.actions.attachProof(task, tgt.key, id)) sent++;
-      } catch (e) { err = e; }
+        if (L.actions.attachProof(task, tgt.key, id)) sent++; else locked++;
+      } catch (e) { err = e; console.error("foto", e && (e.original || e)); }
     }
     S.uploading = null;
     S.uploadInfo = "";
     if (err) uploadErr(err);
+    else if (locked && !sent) L.app.setStatus("Este dia não pode mais mudar (prazo da prova acabou). A foto não foi guardada.", true);
     else if (files.length > list.length) L.app.setStatus("Só cabem " + L.rules.PROOF_PHOTOS + " fotos ou arquivos por dia: " + (sent ? "foram enviados " + sent + "." : "nenhum foi enviado."), true);
-    else L.app.setStatus(sent > 1 ? sent + " fotos enviadas." : "");
+    else L.app.setStatus(sent > 1 ? sent + " fotos enviadas." : sent ? "Foto enviada." : "");
     L.app.render();
   }
 
@@ -207,6 +222,7 @@ window.Liga = window.Liga || {};
     lb.style.removeProperty("--lb-fade");
     delete lb.dataset.uid;
     document.documentElement.classList.remove("lb-open");
+    L.app.syncHistory();   // tira a entrada do botão voltar
   }
 
   /* gestos: pinça e roda do mouse dão zoom, toque duplo (ou clique duplo) aproxima e afasta,
@@ -350,6 +366,7 @@ window.Liga = window.Liga || {};
     document.documentElement.classList.add("lb-open");
     if (!reduced()) { lb.classList.add("lb-in"); setTimeout(() => lb.classList.remove("lb-in"), 260); }
     $("lbClose").focus({ preventScroll: true });
+    L.app.syncHistory();   // "voltar" fecha a foto
     return lb;
   }
 

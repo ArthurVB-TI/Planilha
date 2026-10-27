@@ -16,6 +16,7 @@ window.Liga = window.Liga || {};
       S.navOpen = !S.navOpen;
       root.classList.toggle("nav-open", S.navOpen);
       renderTabbar();
+      L.app.syncHistory();   // "voltar" fecha o menu
     } else {
       const closed = !root.classList.contains("nav-closed");
       root.classList.toggle("nav-closed", closed);
@@ -23,9 +24,11 @@ window.Liga = window.Liga || {};
     }
   }
   function closeDrawer() {
+    if (!S.navOpen) return;
     S.navOpen = false;
     root.classList.remove("nav-open");
     renderTabbar();
+    L.app.syncHistory();
   }
 
   function go(v) {
@@ -162,5 +165,5 @@ window.Liga = window.Liga || {};
     setTheme(theme());
   }
 
-  L.shell = { renderMenu, renderUserBox, renderTabbar, afterRender, setup, theme, setTheme };
+  L.shell = { renderMenu, renderUserBox, renderTabbar, afterRender, setup, theme, setTheme, closeDrawer };
 })(window.Liga);

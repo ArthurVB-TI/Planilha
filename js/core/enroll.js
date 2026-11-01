@@ -11,7 +11,7 @@ window.Liga = window.Liga || {};
   const { DIFF } = L.rules;
   const { plural } = L.text;
 
-  const weekly = (t) => (t.type === "normal" ? DIFF[t.diff].pts * (t.kind === "daily" ? 7 : 1) : 0);
+  const weekly = (t) => (t.type === "normal" ? L.rules.ptsOf(t) * (t.kind === "daily" ? 7 : 1) : 0);
 
   // situação de uma pessoa na listRat
   function personStatus(s, uid) {

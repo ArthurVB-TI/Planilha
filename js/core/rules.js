@@ -7,10 +7,17 @@ window.Liga = window.Liga || {};
   const { isKey } = L.dates;
 
   const DIFF = {
-    facil:   { label: "Fácil",   pts: 10, pen: 5,  dots: "●○○" },
-    media:   { label: "Média",   pts: 25, pen: 10, dots: "●●○" },
-    dificil: { label: "Difícil", pts: 50, pen: 20, dots: "●●●" },
+    facil:   { label: "Fácil",   pts: 10, pen: 5,  w: 1, dots: "●○○" },
+    media:   { label: "Média",   pts: 25, pen: 10, w: 2, dots: "●●○" },
+    dificil: { label: "Difícil", pts: 50, pen: 20, w: 3, dots: "●●●" },
   };
+  // tarefa semanal vale 3× a diária (pontos e perda)
+  const WEEKLY_MULT = 3;
+  const mult = (t) => (t && t.kind === "weekly" ? WEEKLY_MULT : 1);
+  const ptsOf = (t) => DIFF[t.diff].pts * mult(t);   // pontos por dia (ou semana) feito
+  const penOf = (t) => DIFF[t.diff].pen * mult(t);   // perda por dia (ou semana) de obrigatória não feita
+  // período de contestação depois do fim da listRat (em dias); listRat antiga sem o campo = 1 dia
+  const CONTEST_DAYS = 3, CONTEST_MAX = 7;
   const DIFF_KEYS = Object.keys(DIFF);
   const MAX_MARKS = 800;
   // regras de inscrição padrão de uma listRat (dono e ajudantes mudam)
@@ -34,10 +41,9 @@ window.Liga = window.Liga || {};
   // Dias antes de PROOF_FROM (quando a regra entrou) continuam valendo sem prova.
   const PROOF_FROM = "2026-10-25";
   const PROOF_GRACE = 1;   // dias depois do prazo para colocar a foto ou o comentário
-  // tarefas obrigatórias NÃO contam na pontuação (não dão nem tiram pontos).
-  // Continuam sendo exigidas para entrar na listRat e aparecem como "faltou" quando não feitas.
-  // (true = volta ao jeito antigo: cada dia sem fazer tira os pontos da dificuldade)
-  const OBR_PENALTY = false;
+  // tarefa obrigatória não dá pontos, mas cada dia (ou semana) sem ela TIRA os pontos da dificuldade do total
+  // (false = obrigatórias não tiram nada, só aparecem como "faltou")
+  const OBR_PENALTY = true;
 
   /* ---------- contas ---------- */
   const USER_RE = /^[A-Za-z0-9_.]{3,20}$/;
@@ -94,10 +100,12 @@ window.Liga = window.Liga || {};
     const reais = (v) => { const n = Math.round((+v || 0) * 100) / 100; return n > 0 && n <= 100000 ? n : 0; };
     const three = (a) => [0, 1, 2].map((i) => reais(Array.isArray(a) ? a[i] : 0));
     const money = { win: three(obj(d.money).win), pay: three(obj(d.money).pay) };
+    const cd = Math.round(+d.contestDays);
+    const contestDays = cd >= 1 && cd <= CONTEST_MAX ? cd : 1;
     const kicked = Array.isArray(d.kicked) ? [...new Set(d.kicked.filter(isId))].filter((k) => k !== owner).slice(0, 100) : [];
     return {
       id, name, projectId: d.projectId, owner, helpers, desc: cleanLong(d.desc, 500), start, end,
-      status, req: normReq(d.req), participants: status === "ativa" ? participants : null, startedAt, joined, kicked, scoring, money,
+      status, req: normReq(d.req), participants: status === "ativa" ? participants : null, startedAt, joined, kicked, scoring, money, contestDays,
       createdAt: Number(d.createdAt) || 0,
     };
   }
@@ -148,7 +156,19 @@ window.Liga = window.Liga || {};
       for (const k in m) if (isKey(k) && Number.isFinite(+m[k]) && +m[k] > 0) o[k] = +m[k];
       if (Object.keys(o).length) proofAt[t] = o;
     }
-    return { nick: clean(d.nick, NICK_MAX), done: obj(d.done), proofs: obj(d.proofs), notes: obj(d.notes), proofAt, avatar: isPhotoId(d.avatar) ? d.avatar : "", weeks: d.weeks };
+    // log[tarefa][dia] = { done, photo, note }: quando marcou, quando pôs a última foto/arquivo e o comentário (ms)
+    const log = {};
+    for (const t in obj(d.log)) {
+      const m = obj(d.log[t]), o = {};
+      for (const k in m) {
+        if (!isKey(k)) continue;
+        const e = obj(m[k]), x = {};
+        for (const f of ["done", "photo", "note"]) if (Number.isFinite(+e[f]) && +e[f] > 0) x[f] = +e[f];
+        if (Object.keys(x).length) o[k] = x;
+      }
+      if (Object.keys(o).length) log[t] = o;
+    }
+    return { nick: clean(d.nick, NICK_MAX), done: obj(d.done), proofs: obj(d.proofs), notes: obj(d.notes), proofAt, log, avatar: isPhotoId(d.avatar) ? d.avatar : "", weeks: d.weeks };
   }
 
   // justificativa de um dia/semana não feito: id = "<tarefa>_<dia>"; só vale se o dono/ajudante aceitar
@@ -176,7 +196,7 @@ window.Liga = window.Liga || {};
   }
 
   L.rules = {
-    OBR_PENALTY, DIFF, DIFF_KEYS, MAX_MARKS, DEFAULT_REQ, RECOMMENDED_DESVIO, normReq, NICK_MAX, TASK_MAX, PROOF_FROM, PROOF_GRACE, isPhotoId, photoList, PROOF_PHOTOS,
+    OBR_PENALTY, DIFF, DIFF_KEYS, WEEKLY_MULT, ptsOf, penOf, CONTEST_DAYS, CONTEST_MAX, MAX_MARKS, DEFAULT_REQ, RECOMMENDED_DESVIO, normReq, NICK_MAX, TASK_MAX, PROOF_FROM, PROOF_GRACE, isPhotoId, photoList, PROOF_PHOTOS,
     checkUsername, checkEmail, checkPassword,
     sanitize: { project, sub, task, player, invite, friendship, request, notif, justification, contest },
   };

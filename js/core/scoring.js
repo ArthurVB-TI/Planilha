@@ -98,8 +98,7 @@ window.Liga = window.Liga || {};
     for (const k of done) pend.delete(k);
     const voided = !(opts && opts.raw) && !!R && R.taskLost(task);
     if (voided) done = new Set();
-    const D = DIFF[task.diff];
-    if (task.type === "normal") return { done, pend, unproven, plus: D.pts * done.size, minus: 0, missed: 0, voided };
+    if (task.type === "normal") return { done, pend, unproven, plus: L.rules.ptsOf(task) * done.size, minus: 0, missed: 0, voided };
 
     let missed = 0;
     const sp = span(task);
@@ -110,7 +109,7 @@ window.Liga = window.Liga || {};
       const end = minKey(addDays(curWeek(), -7), sp.end && weekOf(sp.end));
       for (let k = weekOf(sp.from), i = 0; k <= end && i < 600; k = addDays(k, 7), i++) if (!done.has(k) && !pend.has(k)) missed++;
     }
-    return { done, pend, unproven, plus: 0, minus: L.rules.OBR_PENALTY ? D.pen * missed : 0, missed, voided };
+    return { done, pend, unproven, plus: 0, minus: L.rules.OBR_PENALTY ? L.rules.penOf(task) * missed : 0, missed, voided };
   }
 
   const periodKey = (task) => (task.kind === "daily" ? todayKey() : curWeek());
@@ -167,17 +166,19 @@ window.Liga = window.Liga || {};
     }
     return out;
   }
-  // porcentagem de uma pessoa: pontos feitos ÷ pontos que dava para ter feito (só tarefas normais;
-  // obrigatórias não valem pontos). pct = null quando ainda não dava para ter feito nada.
+  // porcentagem de uma pessoa: (pontos feitos − pontos perdidos nas obrigatórias) ÷ pontos que dava para ter feito
+  // com as tarefas normais. pct = null quando ainda não dava para ter feito nada.
   function percentFor(pid, tasks) {
-    let earned = 0, possible = 0;
+    let earned = 0, possible = 0, minus = 0;
     for (const t of tasks) {
-      if (t.assignee !== pid || t.type !== "normal" || !counts(t)) continue;
-      const r = taskResult(t), pts = DIFF[t.diff].pts;
+      if (t.assignee !== pid || !counts(t)) continue;
+      const r = taskResult(t);
+      if (t.type !== "normal") { minus += r.minus; continue; }
+      const pts = L.rules.ptsOf(t);
       earned += r.done.size * pts;
       possible += possibleKeys(t, r).length * pts;
     }
-    return { earned, possible, pct: possible ? Math.min(100, (earned / possible) * 100) : null };
+    return { earned, possible, minus, pct: possible ? Math.min(100, ((earned - minus) / possible) * 100) : null };
   }
   const isPercent = (s) => !!s && s.scoring === "porcentagem";
   const fmtPct = (n) => (n == null ? "—" : (Math.round(n * 10) / 10).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + "%");
@@ -185,10 +186,57 @@ window.Liga = window.Liga || {};
   function standing(pid, tasks, pct) {
     if (pct) {
       const x = percentFor(pid, tasks);
-      return { value: x.pct == null ? -1 : x.pct, text: fmtPct(x.pct), detail: x.earned.toLocaleString("pt-BR") + " de " + x.possible.toLocaleString("pt-BR") + " pts", neg: false, pct: x };
+      return { value: x.pct == null ? -1e9 : x.pct, text: fmtPct(x.pct), neg: x.pct != null && x.pct < 0, pct: x,
+        detail: x.earned.toLocaleString("pt-BR") + " de " + x.possible.toLocaleString("pt-BR") + " pts" + (x.minus ? " · −" + x.minus.toLocaleString("pt-BR") + " obrig." : "") };
     }
     const sc = scoreFor(pid, tasks);
     return { value: sc.total, text: L.text.fmtTotal(sc.total), detail: "", neg: sc.total < 0, sc };
+  }
+
+  /* ---------- desempate ---------- */
+  // dados de desempate de uma pessoa: soma da dificuldade das tarefas (difícil 3, média 2, fácil 1),
+  // quantidade de tarefas (normais + obrigatórias) e quantidade de tarefas diárias
+  function tieInfo(pid, tasks) {
+    let diff = 0, n = 0, daily = 0;
+    for (const t of tasks) {
+      if (t.assignee !== pid || !counts(t)) continue;
+      n++; diff += DIFF[t.diff].w;
+      if (t.kind === "daily") daily++;
+    }
+    return { diff, n, daily };
+  }
+  // sorte: número fixo para cada pessoa em cada listRat (todo mundo vê o mesmo resultado)
+  function luck(sid, uid) {
+    let h = 2166136261;
+    for (const ch of String(sid) + "|" + String(uid)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+    return h;
+  }
+  const r1 = (x) => (x == null ? -1e9 : Math.round(x * 10) / 10);   // porcentagem no mesmo arredondamento do placar
+  const TB_LABEL = { pct: "porcentagem", diff: "dificuldade das tarefas", n: "quantidade de tarefas", daily: "tarefas diárias", pts: "pontos", luck: "sorte" };
+  /* placar de uma listRat com desempate. Por porcentagem: porcentagem → dificuldade → nº de tarefas → diárias → pontos → sorte.
+     Por pontos: pontos → porcentagem → dificuldade → nº de tarefas → diárias → sorte.
+     Devolve as linhas em ordem, cada uma com rank (1, 2, 3…, sem empate) e tb = critério que a separou de quem está logo acima. */
+  function ranking(ids, tasks, s) {
+    const pct = isPercent(s);
+    const sid = s ? s.id : "";
+    const rows = ids.map((id) => {
+      const st = standing(id, tasks, pct);
+      const sc = st.sc || scoreFor(id, tasks);
+      const pc = st.pct || percentFor(id, tasks);
+      return Object.assign({ id }, st, { sc, plus: sc.plus, minus: sc.minus, total: sc.total, k: Object.assign({ main: pct ? r1(pc.pct) : sc.total, pct: r1(pc.pct), pts: sc.total, luck: luck(sid, id) }, tieInfo(id, tasks)) });
+    });
+    const order = pct ? ["main", "diff", "n", "daily", "pts", "luck"] : ["main", "pct", "diff", "n", "daily", "luck"];
+    const decide = (a, b) => { for (const c of order) if (a.k[c] !== b.k[c]) return c; return ""; };
+    rows.sort((a, b) => { const c = decide(a, b); return c ? b.k[c] - a.k[c] : 0; });
+    rows.forEach((r, i) => {
+      r.rank = i + 1;
+      const c = i ? decide(rows[i - 1], r) : "";
+      r.tb = c && c !== "main" ? c : "";
+      r.tbText = r.tb ? "desempate: " + TB_LABEL[r.tb] : "";
+    });
+    // quem está logo abaixo também mostra o critério que separou do de cima; o de cima mostra o mesmo
+    rows.forEach((r, i) => { if (!r.tb && rows[i + 1] && rows[i + 1].tb) r.tbText = "desempate: " + TB_LABEL[rows[i + 1].tb]; });
+    return rows;
   }
 
   /* ---------- dinheiro do top 3 e dos 3 piores ---------- */
@@ -198,11 +246,12 @@ window.Liga = window.Liga || {};
   function moneyFor(s, rows) {
     const out = {};
     if (!hasMoney(s) || !rows.length) return out;
-    const rankOf = (list) => { const r = {}; let last = null, rank = 0; list.forEach((x, i) => { if (x.value !== last) { rank = i + 1; last = x.value; } r[x.id] = rank; }); return r; };
+    // rows com rank (placar com desempate): cada posição é de uma pessoa só
+    const rankOf = (list) => { const r = {}; let last = null, rank = 0; list.forEach((x, i) => { if (x.rank || x.value !== last) { rank = i + 1; last = x.value; } r[x.id] = rank; }); return r; };
     const top = rankOf(rows);
     for (const x of rows) if (top[x.id] <= 3 && s.money.win[top[x.id] - 1] > 0) out[x.id] = { win: s.money.win[top[x.id] - 1], place: top[x.id] };
     const rest = rows.filter((x) => top[x.id] > 3).reverse();
-    const bottom = rankOf(rest.map((x) => ({ id: x.id, value: -x.value })));
+    const bottom = rankOf(rest.map((x) => ({ id: x.id, value: -x.value, rank: x.rank })));
     for (const x of rest) if (bottom[x.id] <= 3 && s.money.pay[bottom[x.id] - 1] > 0) out[x.id] = { pay: s.money.pay[bottom[x.id] - 1], place: bottom[x.id] };
     return out;
   }
@@ -211,5 +260,5 @@ window.Liga = window.Liga || {};
   const myTasks = () => Object.values(S.tasks).filter((t) => t.assignee === S.myId && counts(t));
   const pendingMandatory = () => myTasks().filter((t) => t.type === "obrigatoria" && activeNow(t) && !doneNow(t)).length;
 
-  L.score = { hasMoney, moneyFor, fmtBRL, possibleKeys, percentFor, isPercent, fmtPct, standing, dueKey, proofLimit, needsProof, proofOf, hasProof, span, activeNow, isParticipant, playerDoc, marksOf, validMarks, taskResult, periodKey, doneNow, tasksOfProject, counts, scoreFor, myTasks, pendingMandatory };
+  L.score = { ranking, tieInfo, TB_LABEL, hasMoney, moneyFor, fmtBRL, possibleKeys, percentFor, isPercent, fmtPct, standing, dueKey, proofLimit, needsProof, proofOf, hasProof, span, activeNow, isParticipant, playerDoc, marksOf, validMarks, taskResult, periodKey, doneNow, tasksOfProject, counts, scoreFor, myTasks, pendingMandatory };
 })(window.Liga);

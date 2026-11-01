@@ -46,6 +46,7 @@ window.Liga = window.Liga || {};
     close: "M6 6l12 12M18 6L6 18",
     chevron: "M9 6l6 6-6 6",
     left: "M15 6l-6 6 6 6",
+    clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 7v5l3 2",
     right: "M9 6l6 6-6 6",
     logout: "M15 4h4v16h-4 M10 8l-4 4 4 4 M6 12h10",
     menu: "M4 7h16M4 12h16M4 17h16",

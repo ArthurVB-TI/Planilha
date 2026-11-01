@@ -4,14 +4,15 @@
    e pode mandar uma foto. Ela só vale como "feita" se o dono ou um ajudante da listRat aceitar.
      justificativas/<tarefa>_<dia> { taskId, subId, projectId, uid, key, comment, photo, status: pendente|aceita|recusada, decidedBy }
 
-   Contestação: no dia seguinte ao fim da listRat, cada participante pode duvidar de até 3 tarefas
-   de outras pessoas (cada tarefa só pode ser contestada uma vez). A pessoa contestada tem até o fim
-   desse dia para mandar uma prova (foto e/ou comentário). Sem prova, a tarefa perde os pontos
+   Contestação: nos dias seguintes ao fim da listRat (s.contestDays, 3 por padrão nas listRats novas),
+   cada participante pode duvidar de até 3 tarefas de outras pessoas (cada tarefa só pode ser contestada
+   uma vez). A contestação é anônima: ninguém vê quem contestou (só a própria pessoa).
+   A pessoa contestada tem até o fim do período para mandar uma prova (foto e/ou comentário). Sem prova, a tarefa perde os pontos
    (e, se for obrigatória, passa a contar como não feita). O dono ou um ajudante pode recusar a prova.
      contestacoes/<tarefa> { taskId, subId, projectId, by, accused, status: aberta|provada|aceita|recusada, proofPhoto, proofComment }
 
    Fases de uma listRat com data de fim:
-     andamento (até o fim) -> contestacao (o dia seguinte ao fim) -> final (resultado fechado). */
+     andamento (até o fim) -> contestacao (os dias depois do fim) -> final (resultado fechado). */
 window.Liga = window.Liga || {};
 (function (L) {
   "use strict";
@@ -26,14 +27,16 @@ window.Liga = window.Liga || {};
   const notify = (...a) => (L.social ? L.social.notify(...a) : Promise.resolve());
 
   /* ---------- fases ---------- */
-  const contestDay = (s) => (s && s.end ? addDays(s.end, 1) : "");
+  const contestDays = (s) => (s && s.contestDays >= 1 ? s.contestDays : 1);
+  const contestDay = (s) => (s && s.end ? addDays(s.end, 1) : "");                // primeiro dia de contestação
+  const contestEnd = (s) => (s && s.end ? addDays(s.end, contestDays(s)) : "");   // último dia de contestação
   function phase(s) {
     if (!s) return "";
     if (s.status === "inscricoes") return "inscricoes";
     if (!s.end) return "andamento";
     const t = todayKey();
     if (t <= s.end) return "andamento";
-    return t === contestDay(s) ? "contestacao" : "final";
+    return t <= contestEnd(s) ? "contestacao" : "final";
   }
   // quem julga justificativas e provas: dono da listRat, ajudantes e dono do projeto
   const isJudge = (s) => L.perms.canRunSub(s);
@@ -109,9 +112,19 @@ window.Liga = window.Liga || {};
       taskId: task.id, subId: s.id, projectId: s.projectId, by: S.myId, accused: task.assignee, status: "aberta",
       proofPhoto: "", proofComment: "", proofAt: 0, decidedBy: "", createdAt: Date.now(),
     });
-    notify(task.assignee, "projetos", "contest", name(S.myId) + " contestou sua tarefa \"" + task.title + "\" em " + s.name + ". Mande uma prova até o fim do dia ou ela perde os pontos.", { projectId: s.projectId, sid: s.id });
+    // anônima: o aviso não diz quem contestou
+    notify(task.assignee, "projetos", "contest", "Alguém contestou sua tarefa \"" + task.title + "\" em " + s.name + ". Mande uma prova até " + untilText(s) + " ou ela perde os pontos.", { projectId: s.projectId, sid: s.id });
   }
-  // a pessoa contestada manda a prova (foto e/ou comentário) até o fim do dia de contestação
+  // até quando dá para contestar e mandar a prova ("o fim de hoje" ou "o fim de dom, 01/11")
+  function untilText(s) {
+    const e = contestEnd(s);
+    if (!e) return "o fim da contestação";
+    if (e === todayKey()) return "o fim de hoje";
+    return "o fim de " + L.dates.WD[L.dates.parseKey(e).getDay()].toLowerCase() + ", " + L.dates.shortDate(e);
+  }
+  // quem contestou, para mostrar: só a própria pessoa sabe que foi ela
+  const byText = (c) => (c.by === S.myId ? "você" : "");
+  // a pessoa contestada manda a prova (foto e/ou comentário) até o fim do período de contestação
   async function sendProof(c, photo, comment) {
     const s = S.subs[c.subId];
     if (c.accused !== S.myId || phase(s) !== "contestacao") throw fail("denied");
@@ -144,7 +157,7 @@ window.Liga = window.Liga || {};
   const contestText = (c) => (lost(c) && c.status === "aberta" ? "sem prova: perdeu os pontos" : STATUS_TEXT[c.status]);
 
   L.review = {
-    MAX_CONTESTS, phase, contestDay, isJudge,
+    MAX_CONTESTS, phase, contestDay, contestEnd, contestDays, untilText, byText, isJudge,
     justOf, justsOfTask, acceptedKeys, pendingFor, sendJustification, removeJustification, judgeJustification,
     contestOf, contestsOf, myContests, left, lost, taskLost, canContest, openContest, sendProof, judgeContest, cancelContest, contestText,
   };

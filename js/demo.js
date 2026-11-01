@@ -65,7 +65,7 @@ window.Liga = window.Liga || {};
     // listRats
     const subs = {
       A: { id: "sencerrada", name: "Semana encerrada", start: addDays(T, -7), end: addDays(T, -1), owner: ids.voce, helpers: [ids.ana],
-        scoring: "porcentagem", money: { win: [40, 20, 10], pay: [15, 0, 0] }, desc: "Terminou ontem: hoje é o dia de contestação. Cada um pode duvidar de até 3 tarefas dos outros." },
+        scoring: "porcentagem", contestDays: 3, money: { win: [40, 20, 10], pay: [15, 0, 0] }, desc: "Terminou ontem: a contestação vai até depois de amanhã. Cada um pode duvidar de até 3 tarefas dos outros, sem ninguém saber quem foi." },
       B: { id: "sretrasada", name: "Semana retrasada", start: addDays(T, -15), end: addDays(T, -9), owner: ids.ana, helpers: [],
         money: { win: [50, 30, 20], pay: [25, 0, 0] }, desc: "Já passou a contestação: veja o resultado final." },
       C: { id: "satual", name: "Semana atual", start: addDays(T, -3), end: addDays(T, 3), owner: ids.voce, helpers: [ids.bruno], desc: "Em andamento: marque, mande foto, comente ou justifique." },
@@ -76,7 +76,7 @@ window.Liga = window.Liga || {};
       put("subprojetos/" + s.id, {
         projectId: pid, name: s.name, desc: s.desc, start: s.start, end: s.end, status: "ativa",
         req: L.rules.normReq({}), participants: all, startedAt: s.start, joined, owner: s.owner, helpers: s.helpers, createdAt: now - 20 * 864e5,
-        scoring: s.scoring || "pontos", money: s.money || { win: [0, 0, 0], pay: [0, 0, 0] },
+        scoring: s.scoring || "pontos", contestDays: s.contestDays || 1, money: s.money || { win: [0, 0, 0], pay: [0, 0, 0] },
       });
     }
     put("subprojetos/sinscricoes", {

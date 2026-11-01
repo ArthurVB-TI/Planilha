@@ -101,8 +101,25 @@ window.Liga = window.Liga || {};
       for (const k in m) if (isKey(k) && +m[k] > 0 && ((proofs[id] && proofs[id][k]) || (notes[id] && notes[id][k]))) o[k] = +m[k];
       if (Object.keys(o).length) proofAt[id] = o;
     }
+    // histórico de cada dia: quando marcou, quando pôs a última foto/arquivo e o comentário
+    const log = {};
+    const lsrc = S.mine.log || {};
+    for (const id in lsrc) {
+      if (S.loaded.tasks && !S.tasks[id]) continue;
+      const m = lsrc[id];
+      if (!m || typeof m !== "object") continue;
+      const o = {};
+      for (const k in m) {
+        const e = m[k], x = {};
+        if (!isKey(k) || !e || typeof e !== "object") continue;
+        for (const f of ["done", "photo", "note"]) if (+e[f] > 0) x[f] = +e[f];
+        if (Object.keys(x).length) o[k] = x;
+      }
+      if (Object.keys(o).length) log[id] = o;
+    }
     const out = { nick: clean(S.mine.nick, NICK_MAX), done, proofs, notes, updatedAt: Date.now() };
     if (Object.keys(proofAt).length) out.proofAt = proofAt;
+    if (Object.keys(log).length) out.log = log;
     if (isPhotoId(S.mine.avatar)) out.avatar = S.mine.avatar;               // foto de perfil
     if (S.mine.weeks && typeof S.mine.weeks === "object") out.weeks = S.mine.weeks; // dados da versão 1
     return out;
@@ -122,8 +139,12 @@ window.Liga = window.Liga || {};
     try {
       try {
         await db().set("players/" + S.myId, doc);
-      } catch (e1) {
-        // regras antigas não aceitam a foto de perfil ou a data das provas: salva o resto mesmo assim
+      } catch (e0) {
+        // regras antigas não aceitam o histórico, a foto de perfil ou a data das provas: salva o resto mesmo assim
+        if (e0.code !== "denied" || !(doc.log || doc.avatar || doc.proofAt)) throw e0;
+        delete doc.log;
+        try { await db().set("players/" + S.myId, doc); }
+        catch (e1) {
         if (e1.code !== "denied" || !(doc.avatar || doc.proofAt)) throw e1;
         delete doc.proofAt;
         try { await db().set("players/" + S.myId, doc); }
@@ -132,6 +153,7 @@ window.Liga = window.Liga || {};
           delete doc.avatar;
           await db().set("players/" + S.myId, doc);
           setStatus(MESSAGES.rules_old, true);
+        }
         }
       }
     } catch (e) {
@@ -155,6 +177,14 @@ window.Liga = window.Liga || {};
     if (!S.mine.proofs || typeof S.mine.proofs !== "object") S.mine.proofs = {};
     if (!S.mine.notes || typeof S.mine.notes !== "object") S.mine.notes = {};
     if (!S.mine.proofAt || typeof S.mine.proofAt !== "object") S.mine.proofAt = {};
+    if (!S.mine.log || typeof S.mine.log !== "object") S.mine.log = {};
+  }
+  // histórico do dia: logSet(task, dia, "done" | "photo" | "note", true = agora / false = apaga)
+  function logSet(task, key, field, on) {
+    const t = S.mine.log[task.id] = S.mine.log[task.id] || {};
+    const e = t[key] = t[key] || {};
+    if (on) e[field] = Date.now(); else delete e[field];
+    if (!Object.keys(e).length) delete t[key];
   }
   // guarda quando a primeira prova (foto ou comentário) do dia entrou; sem prova, apaga a data
   function touchProof(task, key) {
@@ -191,7 +221,9 @@ window.Liga = window.Liga || {};
     ensureMine();
     const t = L.text.cleanLong(text, 300);
     if (!S.mine.notes[task.id]) S.mine.notes[task.id] = {};
+    const before = S.mine.notes[task.id][key] || "";
     if (t) S.mine.notes[task.id][key] = t; else delete S.mine.notes[task.id][key];
+    if (t !== before) logSet(task, key, "note", !!t);
     touchProof(task, key);
     render();
     scheduleSave();
@@ -207,8 +239,11 @@ window.Liga = window.Liga || {};
       const old = L.rules.photoList(S.mine.proofs[task.id] && S.mine.proofs[task.id][key]);
       if (old.length) { delete S.mine.proofs[task.id][key]; old.forEach(removePhoto); }
       touchProof(task, key);
+      logSet(task, key, "done", false);
+      logSet(task, key, "photo", false);
     } else {
       arr.push(key);
+      logSet(task, key, "done", true);
       L.fx.markDone(task, key);
     }
     S.mine.done[task.id] = arr;
@@ -229,7 +264,8 @@ window.Liga = window.Liga || {};
     if (list.length >= L.rules.PROOF_PHOTOS) { removePhoto(photoId); return false; }
     S.mine.proofs[task.id][key] = [...list, photoId];
     if (!Array.isArray(S.mine.done[task.id])) S.mine.done[task.id] = [];
-    if (!S.mine.done[task.id].includes(key)) { S.mine.done[task.id].push(key); L.fx.markDone(task, key); }
+    if (!S.mine.done[task.id].includes(key)) { S.mine.done[task.id].push(key); L.fx.markDone(task, key); logSet(task, key, "done", true); }
+    logSet(task, key, "photo", true);
     touchProof(task, key);
     scheduleSave();
     return true;
@@ -242,7 +278,7 @@ window.Liga = window.Liga || {};
     if (!list.includes(photoId)) return;
     const rest = list.filter((x) => x !== photoId);
     if (!S.mine.proofs[task.id]) S.mine.proofs[task.id] = {};
-    if (rest.length) S.mine.proofs[task.id][key] = rest; else delete S.mine.proofs[task.id][key];
+    if (rest.length) S.mine.proofs[task.id][key] = rest; else { delete S.mine.proofs[task.id][key]; logSet(task, key, "photo", false); }
     removePhoto(photoId);
     touchProof(task, key);
     render();
@@ -273,7 +309,7 @@ window.Liga = window.Liga || {};
   }
 
   function join(nick) {
-    S.mine = { nick, done: {}, proofs: {}, notes: {}, proofAt: {} };
+    S.mine = { nick, done: {}, proofs: {}, notes: {}, proofAt: {}, log: {} };
     S.pending = true;
     render();
     flush();
@@ -331,7 +367,7 @@ window.Liga = window.Liga || {};
       owner: S.myId, helpers: [], createdAt: Date.now(),
     });
     // o tipo de placar vai numa segunda gravação (o dono pode mudar qualquer campo; funciona até com regras antigas)
-    const extra = {};
+    const extra = { contestDays: info.contestDays || L.rules.CONTEST_DAYS };
     if (info.scoring === "porcentagem") extra.scoring = "porcentagem";
     if (info.money && [...info.money.win, ...info.money.pay].some((x) => x > 0)) extra.money = info.money;
     if (Object.keys(extra).length) await db().update("subprojetos/" + id, extra);
@@ -399,6 +435,8 @@ window.Liga = window.Liga || {};
       }
     }
     if (s && s.status === "inscricoes" && info.money) patch.money = info.money;
+    // dias de contestação: até a listRat terminar
+    if (s && info.end && info.contestDays && ["inscricoes", "andamento"].includes(L.review.phase(s)) && info.contestDays !== s.contestDays) patch.contestDays = info.contestDays;
     return db().update("subprojetos/" + sid, patch);
   }
   const renameSub = (sid, name) => db().update("subprojetos/" + sid, { name });

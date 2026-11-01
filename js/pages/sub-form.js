@@ -37,8 +37,8 @@ window.Liga.pages = window.Liga.pages || {};
     const key = s ? "e:" + s.id : "n:" + S.view.pid;
     if (!S.draft.subForm || S.draft.subForm.key !== key) {
       S.draft.subForm = s
-        ? { key, name: s.name, desc: s.desc, start: s.start || "", end: s.end || "", hasEnd: !!s.end, scoring: s.scoring || "pontos", money: { win: s.money.win.map(String), pay: s.money.pay.map(String) }, req: Object.assign({}, s.req, { maxTasks: s.req.maxTasks || "" }) }
-        : { key, name: "", desc: "", start: todayKey(), end: "", hasEnd: false, scoring: "pontos", money: { win: ["", "", ""], pay: ["", "", ""] }, req: Object.assign({}, L.rules.DEFAULT_REQ, { maxTasks: "" }) };
+        ? { key, name: s.name, desc: s.desc, start: s.start || "", end: s.end || "", hasEnd: !!s.end, scoring: s.scoring || "pontos", contestDays: String(s.contestDays || 1), money: { win: s.money.win.map(String), pay: s.money.pay.map(String) }, req: Object.assign({}, s.req, { maxTasks: s.req.maxTasks || "" }) }
+        : { key, name: "", desc: "", start: todayKey(), end: "", hasEnd: false, scoring: "pontos", contestDays: String(L.rules.CONTEST_DAYS), money: { win: ["", "", ""], pay: ["", "", ""] }, req: Object.assign({}, L.rules.DEFAULT_REQ, { maxTasks: "" }) };
     }
     return S.draft.subForm;
   }
@@ -105,7 +105,9 @@ window.Liga.pages = window.Liga.pages || {};
       const bad = [...d.money.win, ...d.money.pay].some((x) => String(x || "").trim() && !(parseFloat(String(x).replace(",", ".")) >= 0));
       if (bad) return setErr("Os valores em reais precisam ser números (ex.: 20 ou 12,50). Deixe em branco para nada.");
       const money = { win: d.money.win.map(num), pay: d.money.pay.map(num) };
-      const info = { name, desc: cleanLong(d.desc, 500), start, end, req, money, scoring: d.scoring === "porcentagem" ? "porcentagem" : "pontos" };
+      const cd = Math.round(+d.contestDays);
+      if (end && !(cd >= 1 && cd <= L.rules.CONTEST_MAX)) return setErr("Os dias de contestação precisam ser de 1 a " + L.rules.CONTEST_MAX + ".");
+      const info = { name, desc: cleanLong(d.desc, 500), start, end, req, money, scoring: d.scoring === "porcentagem" ? "porcentagem" : "pontos", contestDays: cd >= 1 && cd <= L.rules.CONTEST_MAX ? cd : L.rules.CONTEST_DAYS };
       try {
         if (editing) {
           await L.actions.saveSub(s.id, info);
@@ -174,6 +176,17 @@ window.Liga.pages = window.Liga.pages || {};
               : null)
         : el("p", { class: "hint" }, "Placar " + (s.scoring === "porcentagem" ? "por porcentagem" : "por pontos") + " (não dá para trocar depois que a listRat termina)."),
 
+      // contestação: quantos dias depois do fim (só com data de fim; dá para mudar até a listRat terminar)
+      d.hasEnd && (!editing || ["inscricoes", "andamento"].includes(L.review.phase(s)))
+        ? el("fieldset", { class: "period" },
+            el("legend", { class: "lbl" }, "Contestação"),
+            el("div", { class: "field nfield" }, el("label", { for: "sfContest" }, "Dias de contestação depois do fim"),
+              el("input", { id: "sfContest", type: "number", inputmode: "numeric", min: "1", max: String(L.rules.CONTEST_MAX), step: "1",
+                value: d.contestDays, oninput: (e) => { d.contestDays = e.target.value; } })),
+            el("p", { class: "hint" }, "Quando a listRat termina, cada participante pode contestar (de forma anônima) até " + L.review.MAX_CONTESTS +
+              " tarefas dos outros durante esses dias, e quem for contestado manda a prova até o último deles. Padrão: " + L.rules.CONTEST_DAYS + " dias."))
+        : editing && s.end ? el("p", { class: "hint" }, "Contestação: " + plural(L.review.contestDays(s), "dia", "dias") + " depois do fim.") : null,
+
       // dinheiro: top 3 ganha, 3 piores pagam (só antes de começar)
       !editing || s.status === "inscricoes"
         ? el("fieldset", { class: "period" },
@@ -183,7 +196,7 @@ window.Liga.pages = window.Liga.pages || {};
                 ["1º lugar", "2º lugar", "3º lugar"].map((lab, i) => moneyField("sfW" + i, lab, d.money.win, i))),
               el("div", { class: "mg-col" }, el("div", { class: "small", style: "font-weight:600" }, "Quanto paga"),
                 ["Último", "Penúltimo", "Antepenúltimo"].map((lab, i) => moneyField("sfP" + i, lab, d.money.pay, i)))),
-            el("p", { class: "hint" }, "Deixe em branco o que não tiver valor. Quem fica no top 3 não paga; os 3 piores são contados entre os outros. Com empate, os dois levam o valor da posição. O site só mostra os valores: o pagamento é combinado entre vocês."))
+            el("p", { class: "hint" }, "Deixe em branco o que não tiver valor. Quem fica no top 3 não paga; os 3 piores são contados entre os outros. O empate é decidido pelos critérios de desempate. O site só mostra os valores: o pagamento é combinado entre vocês."))
         : L.score.hasMoney(s) ? el("p", { class: "hint" }, "Os valores em reais não mudam depois que a listRat começa.") : null,
 
       // regras de inscrição (só enquanto a listRat não começou)

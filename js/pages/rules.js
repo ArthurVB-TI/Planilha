@@ -26,15 +26,22 @@ window.Liga.pages = window.Liga.pages || {};
 
         sec("Pontos e placar",
           list([
-            "Tarefa normal: ganha os pontos da dificuldade (fácil " + D.facil.pts + ", média " + D.media.pts + ", difícil " + D.dificil.pts + ") em cada dia (ou semana) feito.",
+            "Tarefa normal: ganha os pontos da dificuldade (fácil " + D.facil.pts + ", média " + D.media.pts + ", difícil " + D.dificil.pts + ") em cada dia feito.",
+            "Tarefa semanal vale " + L.rules.WEEKLY_MULT + "× a diária (fácil " + D.facil.pts * L.rules.WEEKLY_MULT + ", média " + D.media.pts * L.rules.WEEKLY_MULT + ", difícil " + D.dificil.pts * L.rules.WEEKLY_MULT + " por semana feita).",
             L.rules.OBR_PENALTY
-              ? "Tarefa obrigatória: não dá pontos; cada dia (ou semana) sem ela tira os pontos da dificuldade."
+              ? "Tarefa obrigatória: não dá pontos, mas cada dia sem ela TIRA do total (fácil −" + D.facil.pen + ", média −" + D.media.pen + ", difícil −" + D.dificil.pen + "; na semanal, " + L.rules.WEEKLY_MULT + "× isso por semana). Vale nos dois tipos de placar."
               : "Tarefa obrigatória: não vale pontos. É o compromisso mínimo para entrar, e o dia sem ela aparece como \"faltou\" para todo mundo ver.",
           ]),
           el("p", null, el("b", null, "Cada listRat escolhe o tipo de placar"), " (o dono pode trocar até a listRat terminar; trocar só muda a conta):"),
           list([
             "Por pontos: ganha quem somar mais pontos.",
-            "Por porcentagem: ganha quem fizer a maior parte do que dava para fazer. A conta é pontos feitos ÷ pontos possíveis das próprias tarefas normais (ex.: 150 de 200 = 75%). Assim não importa se alguém escolheu tarefas que valem mais ou menos. O dia de hoje só entra na conta depois de feito.",
+            "Por porcentagem: ganha quem fizer a maior parte do que dava para fazer. A conta é (pontos feitos − pontos perdidos nas obrigatórias) ÷ pontos possíveis das próprias tarefas normais (ex.: 150 de 200 = 75%; faltando uma obrigatória fácil, 145 de 200 = 72,5%). Assim não importa se alguém escolheu tarefas que valem mais ou menos. O dia de hoje só entra na conta depois de feito.",
+          ]),
+          el("p", null, el("b", null, "Desempate"), " (quando duas pessoas ficam iguais, vai para o próximo critério):"),
+          list([
+            "Por porcentagem: 1) dificuldade das tarefas (soma de todas: difícil 3, média 2, fácil 1); 2) quantidade de tarefas (normais + obrigatórias); 3) quantidade de tarefas diárias; 4) pontos; 5) sorte.",
+            "Por pontos: 1) porcentagem; 2) dificuldade das tarefas; 3) quantidade de tarefas; 4) quantidade de tarefas diárias; 5) sorte.",
+            "Ganha quem tiver mais em cada critério. A sorte é sorteada uma vez para cada pessoa na listRat e é igual para todo mundo que olha o placar.",
           ]),
           "O placar do Início e o do projeto somam os pontos de todas as listRats. O gráfico de pontuação mostra a porcentagem quando você escolhe uma listRat por porcentagem."),
 
@@ -42,19 +49,20 @@ window.Liga.pages = window.Liga.pages || {};
           "Cada pessoa só marca as próprias tarefas. Dá para marcar e pôr foto em qualquer dia da listRat, até o dia seguinte ao fim dela.",
           el("p", null, el("b", null, "Um dia marcado só conta com prova: uma foto, um arquivo ou um comentário"), " (pelo menos um). A foto pode ser tirada na hora ou escolhida da galeria (um print também vale), e o arquivo pode ser um PDF de até uns 650 KB. Dá para mandar até " + L.rules.PROOF_PHOTOS + " fotos ou arquivos no mesmo dia (na galeria, várias de uma vez). Mandar a foto ou o arquivo já marca o dia."),
           "Você tem até o fim do dia seguinte ao fim da listRat para pôr a prova de qualquer dia. Enquanto falta, o dia aparece como \"falta a prova\" e não dá pontos. Depois do prazo, ele não conta.",
-          "Todo mundo vê as fotos, os arquivos, os comentários e em que dia e hora cada prova foi colocada."),
+          "Todo mundo vê as fotos, os arquivos, os comentários e o histórico de cada dia: quando a tarefa foi marcada como feita, quando a foto e o comentário foram colocados e quando foi justificada."),
 
         sec("Não consegui fazer",
           "Quem não fez um dia pode mandar uma justificativa (comentário obrigatório, foto opcional). Ela só conta como feita se o dono ou um ajudante da listRat aceitar."),
 
         sec("Fim da listRat: contestação e resultado",
-          "No dia seguinte ao fim é o dia de contestação: cada participante pode duvidar de até " + L.review.MAX_CONTESTS + " tarefas de outras pessoas, e cada tarefa só pode ser contestada uma vez.",
-          "Quem for contestado tem até o fim do dia para mandar uma prova. Sem prova (ou se o dono ou um ajudante recusar), a tarefa perde os pontos.",
+          "Depois do fim vem a contestação (" + L.rules.CONTEST_DAYS + " dias, ou o que o dono escolheu ao criar a listRat): cada participante pode duvidar de até " + L.review.MAX_CONTESTS + " tarefas de outras pessoas, e cada tarefa só pode ser contestada uma vez.",
+          "A contestação é anônima: ninguém fica sabendo quem contestou.",
+          "Quem for contestado tem até o último dia da contestação para mandar uma prova. Sem prova (ou se o dono ou um ajudante recusar), a tarefa perde os pontos.",
           "Depois aparece o resultado final, com ouro, prata e bronze."),
 
         sec("Valores em reais",
           "Quem cria a listRat pode definir quanto o 1º, o 2º e o 3º ganham e quanto o último, o penúltimo e o antepenúltimo pagam. Os valores aparecem no placar e no resultado.",
-          "Quem está no top 3 não paga: os 3 piores são contados entre os outros. Com empate, os dois levam o valor da posição. O site só mostra os valores; o pagamento é combinado entre vocês."),
+          "Quem está no top 3 não paga: os 3 piores são contados entre os outros. O empate é decidido pelos critérios de desempate. O site só mostra os valores; o pagamento é combinado entre vocês."),
 
         sec("Quem faz o quê",
           list([

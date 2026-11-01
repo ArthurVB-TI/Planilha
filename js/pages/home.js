@@ -66,9 +66,9 @@ window.Liga.pages = window.Liga.pages || {};
         onclick: () => L.app.go({ page: "sub", pid: p.id, sid: s.id, tab: ph === "contestacao" ? "resultado" : "gerenciar" }) },
         L.dom.icon(ph === "contestacao" ? "flag" : "help"),
         el("div", null,
-          el("b", null, ph === "contestacao" ? "Dia de contestação em " + s.name : plural(pendJ, "justificativa esperando", "justificativas esperando") + " em " + s.name),
+          el("b", null, ph === "contestacao" ? "Contestação em " + s.name : plural(pendJ, "justificativa esperando", "justificativas esperando") + " em " + s.name),
           el("span", null, ph === "contestacao"
-            ? (contra ? "Contestaram " + plural(contra, "tarefa sua", "tarefas suas") + ": mande a prova até o fim do dia. " : "") + "Você pode contestar " + L.review.left(s) + " de " + L.review.MAX_CONTESTS + "."
+            ? (contra ? "Contestaram " + plural(contra, "tarefa sua", "tarefas suas") + ": mande a prova até " + L.review.untilText(s) + ". " : "") + "Você pode contestar " + L.review.left(s) + " de " + L.review.MAX_CONTESTS + "."
             : "Aceite ou recuse em Gerenciar.")),
         el("span", { class: "go" }, L.dom.icon("chevron"))));
     }

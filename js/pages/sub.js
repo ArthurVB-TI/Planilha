@@ -69,9 +69,9 @@ window.Liga.pages = window.Liga.pages || {};
       v.append(el("button", { type: "button", class: "banner " + (ph === "contestacao" ? "hot" : "done"), onclick: () => go({ page: "sub", pid: p.id, sid: s.id, tab: "resultado" }) },
         icon(ph === "contestacao" ? "flag" : "trophy"),
         el("div", null,
-          el("b", null, ph === "contestacao" ? "Hoje é o dia de contestação" : "A listRat terminou"),
+          el("b", null, ph === "contestacao" ? "Contestação aberta até " + L.review.untilText(s).replace(/^o fim de /, "") : "A listRat terminou"),
           el("span", null, ph === "contestacao"
-            ? (contra.length ? "Contestaram " + plural(contra.length, "tarefa sua", "tarefas suas") + ": mande a prova até o fim do dia. " : "") +
+            ? (contra.length ? "Contestaram " + plural(contra.length, "tarefa sua", "tarefas suas") + ": mande a prova até " + L.review.untilText(s) + ". " : "") +
               "Você pode duvidar de até " + L.review.MAX_CONTESTS + " tarefas dos outros (restam " + L.review.left(s) + ")."
             : "Veja o resultado final.")),
         el("span", { class: "go" }, icon("chevron"))));
@@ -97,7 +97,7 @@ window.Liga.pages = window.Liga.pages || {};
       const pend = active.filter((t) => !L.score.doneNow(t));
       const pct = L.score.isPercent(s);
       const my = L.score.standing(S.myId, st, pct);
-      const board = participants(s, p).map((id) => ({ id, t: L.score.standing(id, st, pct).value })).sort((a, b) => b.t - a.t);
+      const board = L.score.ranking(participants(s, p), st, s);
       const pos = board.findIndex((r) => r.id === S.myId) + 1;
       cards.append(
         el("button", { type: "button", class: "card" + (pend.length ? " accent" : ""), onclick: () => go({ page: "sub", pid: p.id, sid: s.id, tab: "tarefas" }) },
@@ -128,8 +128,8 @@ window.Liga.pages = window.Liga.pages || {};
       pr.state === "antes" ? el("p", { class: "hint" }, "As tarefas começam a valer no dia do início.") : null,
       insc ? el("p", { class: "hint" }, "Nada vale pontos até a listRat começar.") : null,
       el("p", { class: "small" }, L.score.isPercent(s)
-        ? [el("b", null, "Placar por porcentagem: "), "cada pessoa vale pelo que fez do total de pontos que dava para fazer com as próprias tarefas normais. Quem tem tarefas mais difíceis não sai na frente só por isso."]
-        : [el("b", null, "Placar por pontos: "), "ganha quem somar mais pontos com as tarefas normais."]),
+        ? [el("b", null, "Placar por porcentagem: "), "cada pessoa vale pelo que fez do total de pontos que dava para fazer com as próprias tarefas normais, menos o que perdeu nas obrigatórias. Empate: dificuldade das tarefas, quantidade de tarefas, tarefas diárias, pontos e, por fim, sorte."]
+        : [el("b", null, "Placar por pontos: "), "ganha quem somar mais pontos com as tarefas normais, menos o que perdeu nas obrigatórias. Empate: porcentagem, dificuldade das tarefas, quantidade de tarefas, tarefas diárias e, por fim, sorte."]),
       L.score.hasMoney(s) ? moneyRules(s) : null,
       s.desc ? el("p", { class: "about-desc", text: s.desc }) : el("p", { class: "muted small" }, "Sem detalhes."),
       el("p", { class: "muted small" }, "Dono: " + L.ui.nameOf(P.subOwner(s)) + (s.helpers.length ? " · Ajudantes: " + s.helpers.map(L.ui.nameOf).join(", ") : ""))));
@@ -198,8 +198,8 @@ window.Liga.pages = window.Liga.pages || {};
     const R = L.review;
     const cs = R.contestsOf(s);
     if (ph === "contestacao") {
-      v.append(L.ui.block("Dia de contestação", "Hoje (dia seguinte ao fim) cada participante pode duvidar de até " + R.MAX_CONTESTS +
-        " tarefas de outras pessoas, e cada tarefa só pode ser contestada uma vez. Quem for contestado tem até o fim do dia para mandar uma prova; sem prova, a tarefa perde os pontos. Para contestar, abra a tarefa na aba Tarefas.",
+      v.append(L.ui.block("Contestação", "Até " + R.untilText(s) + " cada participante pode duvidar de até " + R.MAX_CONTESTS +
+        " tarefas de outras pessoas, e cada tarefa só pode ser contestada uma vez. A contestação é anônima: ninguém sabe quem contestou. Quem for contestado tem até " + R.untilText(s) + " para mandar uma prova; sem prova, a tarefa perde os pontos. Para contestar, abra a tarefa na aba Tarefas.",
         el("div", { class: "row", style: "align-items:center" },
           el("span", { class: "badge" }, "Você ainda pode contestar " + R.left(s) + " de " + R.MAX_CONTESTS),
           el("button", { type: "button", class: "btn purple", onclick: () => go({ page: "sub", pid: p.id, sid: s.id, tab: "tarefas" }) }, icon("list"), "Ver as tarefas"))));
@@ -210,7 +210,7 @@ window.Liga.pages = window.Liga.pages || {};
     v.append(grid);
 
     left.append(L.ui.block(ph === "final" ? "Resultado final" : "Placar parcial",
-      ph === "final" ? "Pontos de cada participante depois das contestações." : "Pode mudar até o fim do dia, conforme as contestações.",
+      ph === "final" ? "Pontos de cada participante depois das contestações." : "Pode mudar até " + R.untilText(s) + ", conforme as contestações.",
       L.tasksUI.results(s, p, ph === "final")));
 
     right.append(L.ui.block("Contestações", cs.length ? plural(cs.length, "tarefa contestada", "tarefas contestadas") : null,
@@ -221,7 +221,7 @@ window.Liga.pages = window.Liga.pages || {};
             return el("button", { type: "button", class: "citem" + (lost ? " lost" : ""), onclick: () => t && L.tasksUI.openSheet(t) },
               el("div", { style: "min-width:0" },
                 el("div", { class: "t", text: t ? t.title : "tarefa apagada" }),
-                el("div", { class: "small muted" }, (c.by === S.myId ? "Você" : L.ui.nameOf(c.by)) + " contestou " + (c.accused === S.myId ? "você" : L.ui.nameOf(c.accused)))),
+                el("div", { class: "small muted" }, (c.by === S.myId ? "Você contestou " : "Contestaram ") + (c.accused === S.myId ? "você" : L.ui.nameOf(c.accused)))),
               el("span", { class: "dstate " + (lost ? "st-miss" : c.status === "aberta" ? "st-jpend" : "st-on") }, R.contestText(c)));
           }))
         : L.ui.empty(ph === "contestacao" ? "Ninguém contestou nada ainda." : "Ninguém contestou nada.")));

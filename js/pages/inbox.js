@@ -132,7 +132,7 @@ window.Liga.pages = window.Liga.pages || {};
         el("div", { class: "ilist" }, g.items.map((i) => {
           const b = itemBody(i);
           return el("article", { class: "inote" + (i.read ? "" : " unread") + " c-" + i.cat },
-            el("div", { class: "inote-ic", "aria-hidden": "true" }, i.from ? L.ui.avatar(i.from) : el("img", { src: "assets/icon.svg", alt: "", width: "28", height: "28" })),
+            el("div", { class: "inote-ic", "aria-hidden": "true" }, i.from && i.kind !== "contest" ? L.ui.avatar(i.from) : el("img", { src: "assets/icon.svg", alt: "", width: "28", height: "28" })),
             el("div", { class: "inote-main" },
               el("div", { class: "inote-meta" }, el("span", { class: "ctag c-" + i.cat }, CAT_LABEL[i.cat] || "Aviso"), el("span", { class: "muted" }, hour(i.createdAt || Date.now())),
                 i.read ? null : el("span", { class: "dot", title: "Não lida" })),

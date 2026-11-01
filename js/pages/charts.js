@@ -128,13 +128,13 @@ window.Liga.pages = window.Liga.pages || {};
     const today = todayKey();
     const pkey = (t, k) => (t.kind === "daily" ? k : (addDays(k, 6) < today ? addDays(k, 6) : today));
     for (const t of tasks) {
-      const r = L.score.taskResult(t), D = DIFF[t.diff];
+      const r = L.score.taskResult(t), pts = L.rules.ptsOf(t), pen = L.rules.penOf(t);
       if (t.type === "normal") {
-        for (const k of L.score.possibleKeys(t, r)) cell(t.assignee, pkey(t, k)).poss += D.pts;
-        for (const k of r.done) cell(t.assignee, pkey(t, k)).pplus += D.pts;
+        for (const k of L.score.possibleKeys(t, r)) cell(t.assignee, pkey(t, k)).poss += pts;
+        for (const k of r.done) cell(t.assignee, pkey(t, k)).pplus += pts;
       }
-      for (const k of r.done) { const c = cell(t.assignee, k); c.done++; if (t.type === "normal") c.plus += D.pts; }
-      if (t.type === "obrigatoria") for (const k of missedKeys(t, r.done)) { const c = cell(t.assignee, k); c.miss++; if (L.rules.OBR_PENALTY) c.minus += D.pen; }
+      for (const k of r.done) { const c = cell(t.assignee, k); c.done++; if (t.type === "normal") c.plus += pts; }
+      if (t.type === "obrigatoria") for (const k of missedKeys(t, new Set([...r.done, ...(r.pend || [])]))) { const c = cell(t.assignee, k); c.miss++; if (L.rules.OBR_PENALTY) { c.minus += pen; const pc = cell(t.assignee, pkey(t, k)); pc.pminus = (pc.pminus || 0) + pen; } }
     }
     return by;
   }
@@ -161,7 +161,7 @@ window.Liga.pages = window.Liga.pages || {};
       const e = ev[uid] || {};
       let acc = 0, poss = 0;
       const val = () => (pct ? (poss ? Math.min(100, (acc / poss) * 100) : null) : acc);
-      const add = (c) => { acc += pct ? c.pplus : c.plus - c.minus; poss += c.poss; };
+      const add = (c) => { acc += pct ? c.pplus - (c.pminus || 0) : c.plus - c.minus; poss += c.poss; };
       for (const k in e) if (k < keys[0]) add(e[k]);
       const base = val();
       const raw = keys.map((k) => { const c = e[k]; if (c) add(c); return val(); });

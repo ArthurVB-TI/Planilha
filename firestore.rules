@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Regras de segurança do listRats (v11).
+// Regras de segurança do listRats (v12).
 // Cole este arquivo inteiro em: Firebase > Firestore Database > Regras > Publicar.
 //
 // Resumo:
@@ -17,8 +17,8 @@ rules_version = '2';
 // - TAREFAS: cada pessoa só cria, edita e apaga as PRÓPRIAS (nas inscrições); depois que a listRat começa, ficam travadas;
 //   ninguém (nem dono nem ajudante) mexe na tarefa de outra pessoa; o dono da listRat/projeto só apaga ao apagar a listRat;
 // - justificativas: quem não fez justifica; dono/ajudantes da listRat aceitam ou recusam;
-// - contestações: no dia seguinte ao fim da listRat, participante contesta tarefa de outro (uma vez por tarefa);
-//   o contestado manda a prova até o fim do dia; dono/ajudantes aceitam ou recusam a prova;
+// - contestações: nos dias depois do fim da listRat (contestDays, 1 a 7; sem o campo = 1), participante contesta
+//   tarefa de outro (uma vez por tarefa); o contestado manda a prova até o último dia; dono/ajudantes aceitam ou recusam;
 // - quem tem um link de convite válido pode se colocar como integrante do projeto do convite;
 // - só o dono do projeto cria links de convite; cada um só vê os links que criou;
 // - cada jogador só grava o próprio documento players/<seu uid>;
@@ -201,7 +201,7 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if signedIn()
         && (isProjectMember(request.resource.data.projectId) || isProjectOwner(request.resource.data.projectId))
-        && request.resource.data.keys().hasOnly(['projectId', 'name', 'desc', 'start', 'end', 'status', 'req', 'participants', 'startedAt', 'joined', 'owner', 'helpers', 'createdAt', 'scoring', 'money', 'kicked'])
+        && request.resource.data.keys().hasOnly(['projectId', 'name', 'desc', 'start', 'end', 'status', 'req', 'participants', 'startedAt', 'joined', 'owner', 'helpers', 'createdAt', 'scoring', 'money', 'kicked', 'contestDays'])
         && request.resource.data.owner == request.auth.uid
         && request.resource.data.name is string && request.resource.data.name.size() <= 60
         && subInfoOk(request.resource.data)
@@ -273,15 +273,19 @@ service cloud.firestore {
         || ownsSub(resource.data.subId);
     }
 
-    // dia de contestação = dia seguinte ao fim da listRat (folga de algumas horas por causa do fuso)
+    // contestação = os contestDays dias seguintes ao fim da listRat (folga de algumas horas por causa do fuso)
     function endOf(sid) {
       let e = sub(sid).get('end', '').split('-');
       return timestamp.date(int(e[0]), int(e[1]), int(e[2]));
     }
+    function contestDays(sid) {
+      let d = sub(sid).get('contestDays', 1);
+      return d is int && d >= 1 && d <= 7 ? d : 1;
+    }
     function inContestDay(sid) {
       return sub(sid).get('end', '') != ''
         && request.time > endOf(sid) + duration.value(1, 'd')
-        && request.time < endOf(sid) + duration.value(54, 'h');
+        && request.time < endOf(sid) + duration.value(24 * contestDays(sid) + 30, 'h');
     }
 
     // contestação: id = id da tarefa (cada tarefa só pode ser contestada uma vez)
@@ -317,7 +321,7 @@ service cloud.firestore {
     match /players/{uid} {
       allow read: if signedIn();
       allow create, update: if signedIn() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['nick', 'done', 'proofs', 'notes', 'proofAt', 'avatar', 'updatedAt', 'weeks'])
+        && request.resource.data.keys().hasOnly(['nick', 'done', 'proofs', 'notes', 'proofAt', 'log', 'avatar', 'updatedAt', 'weeks'])
         && request.resource.data.nick is string
         && request.resource.data.nick.size() >= 1
         && request.resource.data.nick.size() <= 20
@@ -325,6 +329,7 @@ service cloud.firestore {
         && request.resource.data.proofs is map
         && request.resource.data.get('notes', {}) is map
         && request.resource.data.get('proofAt', {}) is map
+        && request.resource.data.get('log', {}) is map
         && request.resource.data.get('avatar', '') is string && request.resource.data.get('avatar', '').size() <= 64;
       allow delete: if signedIn() && request.auth.uid == uid;
     }

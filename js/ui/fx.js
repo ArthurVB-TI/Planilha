@@ -27,8 +27,7 @@ window.Liga = window.Liga || {};
   /* ---------- marcar tarefa ---------- */
   let flash = null;
   function markDone(task, key) {
-    const D = L.rules.DIFF[task.diff];
-    flash = { id: task.id + "|" + key, text: task.type === "normal" ? "+" + D.pts : "feita", taskId: task.id };
+    flash = { id: task.id + "|" + key, text: task.type === "normal" ? "+" + L.rules.ptsOf(task) : "feita", taskId: task.id };
   }
   const isFlashing = (taskId, key) => !!flash && flash.id === taskId + "|" + key;
   const isFlashTask = (taskId) => !!flash && flash.taskId === taskId;

@@ -19,20 +19,62 @@ window.Liga = window.Liga || {};
   const R = () => L.review;
 
   /* ---------- dias que aparecem ---------- */
-  // listRat que já terminou mostra os últimos dias dela; senão, os últimos 7 dias até hoje
+  // diária: a semana de domingo a sábado (a de hoje; listRat que já terminou mostra a semana do fim).
+  // semanal: a semana atual e a próxima (listRat que já terminou: a anterior e a do fim).
+  // off = quantas semanas para trás (no painel dá para voltar e ver as semanas anteriores)
   function anchor(task) {
     const sp = L.score.span(task), t = todayKey();
     return sp.end && sp.end < t ? sp.end : t;
   }
-  function windowKeys(task) {
-    const a = anchor(task);
-    if (task.kind === "daily") return [6, 5, 4, 3, 2, 1, 0].map((i) => addDays(a, -i));
-    const w = weekOf(a);
-    return [addDays(w, -7), w];
+  const ended = (task) => { const sp = L.score.span(task); return !!sp.end && sp.end < todayKey(); };
+  function windowKeys(task, off) {
+    const a = anchor(task), o = 7 * (off || 0);
+    if (task.kind === "daily") {
+      const sun = addDays(a, -parseKey(a).getDay() + o);
+      return [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(sun, i));
+    }
+    const w = addDays(weekOf(a), o);
+    return ended(task) ? [addDays(w, -7), w] : [w, addDays(w, 7)];
+  }
+  // quantas semanas voltar para o dia/semana k aparecer no painel
+  function offFor(task, k) {
+    for (let off = 0; off > -200; off--) {
+      const keys = windowKeys(task, off);
+      if (keys.includes(k)) return off;
+      if (keys[0] < k) break;
+    }
+    return 0;
+  }
+  // dá para voltar mais uma semana no painel? (só até o começo da tarefa)
+  function canGoBack(task, off) {
+    const sp = L.score.span(task);
+    if (sp.prep) return false;
+    const first = windowKeys(task, off)[0];
+    return first > (task.kind === "daily" ? sp.from : weekOf(sp.from));
+  }
+  // "dom, 01/11 às 14:20"
+  function fmtWhen(ms) {
+    const d = new Date(ms);
+    return WD[d.getDay()].toLowerCase() + ", " + shortDate(L.dates.keyOf(d)) + " às " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  }
+  // histórico do dia (quando marcou, pôs foto, comentou, justificou): [ms, texto], em ordem
+  function dayLog(task, k) {
+    const p = L.score.playerDoc(task.assignee);
+    const lg = (p && p.log && p.log[task.id] && p.log[task.id][k]) || {};
+    const pf = L.score.proofOf(task.assignee, task.id, k);
+    const out = [];
+    if (lg.done) out.push([lg.done, "Marcou como feita"]);
+    if (lg.photo) out.push([lg.photo, pf.photos.length > 1 ? "Pôs a última foto ou arquivo (" + pf.photos.length + " no total)" : L.photos.isFile(pf.photo) ? "Pôs o arquivo" : "Pôs a foto"]);
+    if (lg.note) out.push([lg.note, "Escreveu o comentário"]);
+    if (!lg.photo && !lg.note && pf.at && (pf.photo || pf.note)) out.push([pf.at, "Pôs a prova (" + (pf.photo && pf.note ? "foto e comentário" : pf.photo ? "foto" : "comentário") + ")"]);
+    const j = R().justOf(task.id, k);
+    if (j && j.createdAt) out.push([j.createdAt, "Justificou que não conseguiu fazer"]);
+    if (j && j.decidedAt && j.status !== "pendente") out.push([j.decidedAt, "Justificativa " + (j.status === "aceita" ? "aceita" : "recusada") + " por " + L.ui.nameOf(j.decidedBy)]);
+    return out.sort((a, b) => a[0] - b[0]);
   }
   const nowKey = (task) => (task.kind === "daily" ? todayKey() : curWeek());
   const keyLabel = (task, k) => {
-    if (task.kind !== "daily") return (k === curWeek() ? "Esta semana" : "Semana de " + shortDate(k));
+    if (task.kind !== "daily") return (k === curWeek() ? "Esta semana" : k === addDays(curWeek(), 7) ? "Próxima semana (" + shortDate(k) + ")" : "Semana de " + shortDate(k));
     if (k === todayKey()) return "Hoje";
     if (k === addDays(todayKey(), -1)) return "Ontem";
     const d = parseKey(k);
@@ -45,7 +87,8 @@ window.Liga = window.Liga || {};
     const daily = task.kind === "daily";
     const from = daily ? sp.from : weekOf(sp.from);
     const endK = sp.end ? (daily ? sp.end : weekOf(sp.end)) : null;
-    if (sp.prep || k < from || (endK && k > endK) || k > nowKey(task)) return "off";
+    if (sp.prep || k < from || (endK && k > endK)) return "off";
+    if (k > nowKey(task)) return "soon";
     const j = R().justOf(task.id, k);
     if (r.done.has(k)) return marked.has(k) ? "on" : "just";
     if (r.pend && r.pend.has(k)) return "pend";
@@ -56,20 +99,22 @@ window.Liga = window.Liga || {};
     return "open";
   }
   const STATE_TEXT = {
-    off: "fora do período", on: "feita", just: "justificada (aceita)", jpend: "justificativa esperando",
+    off: "fora do período", soon: "ainda não chegou", on: "feita", just: "justificada (aceita)", jpend: "justificativa esperando",
     jno: "justificativa recusada", miss: "não feita", open: "ainda não feita",
     pend: "marcada, falta foto, arquivo ou comentário", noproof: "sem prova: não contou",
   };
 
-  function openSheet(task, key) {
-    const keys = windowKeys(task), sp = L.score.span(task), r = L.score.taskResult(task);
+  // dia padrão de uma janela: hoje (ou esta semana), senão o último dia que vale
+  function pickKey(task, keys) {
+    const sp = L.score.span(task), r = L.score.taskResult(task);
     const marked = new Set(L.score.marksOf(task.assignee, task.id));
-    let k = key;
-    if (!k) {
-      const valid = keys.filter((x) => dayState(task, x, r, sp, marked) !== "off");
-      k = valid.includes(nowKey(task)) ? nowKey(task) : valid[valid.length - 1] || keys[keys.length - 1];
-    }
-    S.sheet = { id: task.id, key: k, mode: "", note: null, jText: "", jPhoto: "", pText: "", pPhoto: "", err: "", confirm: "", edit: null };
+    const valid = keys.filter((x) => !["off", "soon"].includes(dayState(task, x, r, sp, marked)));
+    return valid.includes(nowKey(task)) ? nowKey(task) : valid[valid.length - 1] || keys[0];
+  }
+  function openSheet(task, key) {
+    const off = key ? offFor(task, key) : 0;
+    const k = key || pickKey(task, windowKeys(task, 0));
+    S.sheet = { id: task.id, key: k, off, mode: "", note: null, jText: "", jPhoto: "", pText: "", pPhoto: "", err: "", confirm: "", edit: null };
     rerender();
   }
 
@@ -80,7 +125,7 @@ window.Liga = window.Liga || {};
       el("span", { class: "tc " + (isObr ? "c-obr" : "c-norm") }, isObr ? "Obrigatória" : "Normal"),
       el("span", { class: "tc" }, task.kind === "daily" ? "Diária" : "Semanal"),
       el("span", { class: "tc c-diff" }, el("i", { class: "dots", "aria-hidden": "true" }, D.dots), D.label),
-      el("span", { class: "tc c-pts" }, isObr ? (L.rules.OBR_PENALTY ? "−" + D.pen + " se faltar" : "não vale pontos") : "+" + D.pts + " por vez"),
+      el("span", { class: "tc c-pts" }, isObr ? (L.rules.OBR_PENALTY ? "−" + L.rules.penOf(task) + " se faltar" : "não vale pontos") : "+" + L.rules.ptsOf(task) + " por vez"),
       extra || null);
   }
 
@@ -89,12 +134,12 @@ window.Liga = window.Liga || {};
     const s = S.subs[task.subId];
     const c = R().contestOf(task.id);
     if (r.voided) return ["bad", "Perdeu a contestação: não vale pontos"];
-    if (c) return ["warn", "Contestada por " + L.ui.nameOf(c.by) + ": " + R().contestText(c)];
+    if (c) return ["warn", "Contestada" + (R().byText(c) ? " por você" : "") + ": " + R().contestText(c)];
     if (sp.prep) return ["", "Vale quando a listRat começar"];
     const t = todayKey();
     if (sp.end && t > sp.end) {
       const ph = R().phase(s);
-      return ["", ph === "contestacao" ? "Encerrada · hoje é o dia de contestação" : "Encerrada"];
+      return ["", ph === "contestacao" ? "Encerrada · contestação até " + L.dates.shortDate(R().contestEnd(s)) : "Encerrada"];
     }
     if ((task.kind === "daily" ? sp.from : weekOf(sp.from)) > nowKey(task)) return ["", "Começa em " + L.ui.fmtDate(sp.from)];
     const pend = R().justsOfTask(task.id).filter((j) => j.status === "pendente").length;
@@ -124,9 +169,10 @@ window.Liga = window.Liga || {};
         const st = dayState(task, k, r, sp, marked);
         const can = L.actions.canChangeDay(task, k);
         const d = parseKey(k);
+        const lg = dayLog(task, k).find((x) => x[1] === "Marcou como feita");
         return el("button", {
           type: "button", class: "cell st-" + st + (k === nowKey(task) ? " now" : "") + (r.done.has(k) && L.fx.isFlashing(task.id, k) ? " pop" : ""),
-          title: keyLabel(task, k) + " · " + STATE_TEXT[st] + (can ? (marked.has(k) ? " · tocar para desmarcar" : " · tocar para marcar") : ""),
+          title: keyLabel(task, k) + " · " + STATE_TEXT[st] + (lg && marked.has(k) ? " em " + fmtWhen(lg[0]) : "") + (can ? (marked.has(k) ? " · tocar para desmarcar" : " · tocar para marcar") : ""),
           "aria-label": task.title + ", " + keyLabel(task, k) + ": " + STATE_TEXT[st],
           "aria-pressed": marked.has(k) ? "true" : "false",
           onclick: (e) => {
@@ -139,7 +185,7 @@ window.Liga = window.Liga || {};
           },
         }, daily
           ? [el("span", null, WD[d.getDay()].charAt(0)), el("b", null, st === "on" || st === "just" ? icon("check") : st === "pend" ? icon("camera") : String(d.getDate()))]
-          : [el("span", null, k === curWeek() ? "esta" : "sem."), el("b", null, st === "on" || st === "just" ? icon("check") : st === "pend" ? icon("camera") : shortDate(k))]);
+          : [el("span", null, k === curWeek() ? "esta" : k > curWeek() ? "próx." : "sem."), el("b", null, st === "on" || st === "just" ? icon("check") : st === "pend" ? icon("camera") : shortDate(k))]);
       }));
 
     const c = R().contestOf(task.id);
@@ -230,9 +276,21 @@ window.Liga = window.Liga || {};
     body.append(el("div", { class: "tr-status " + tone }, text));
 
     /* --- escolher o dia --- */
-    const keys = windowKeys(task);
+    const off = sh.off || 0;
+    const keys = windowKeys(task, off);
+    const moveWeek = (d) => {
+      sh.off = off + d;
+      const nk = windowKeys(task, sh.off);
+      if (!nk.includes(sh.key)) sh.key = pickKey(task, nk);
+      sh.mode = ""; sh.note = null; sh.err = ""; sh.confirm = "";
+      rerender();
+    };
+    const back = canGoBack(task, off), fwd = off < 0;
     body.append(el("section", { class: "sh-sec" },
-      el("div", { class: "sh-lbl" }, task.kind === "daily" ? "Escolha o dia" : "Escolha a semana"),
+      el("div", { class: "sh-lbl sh-navrow" }, el("span", null, task.kind === "daily" ? "Escolha o dia" : "Escolha a semana"),
+        back || fwd ? el("span", { class: "sh-nav" },
+          el("button", { type: "button", class: "icon-btn sm-ico", disabled: !back, title: "Semana anterior", "aria-label": "Semana anterior", onclick: () => moveWeek(-1) }, icon("left")),
+          el("button", { type: "button", class: "icon-btn sm-ico", disabled: !fwd, title: "Próxima semana", "aria-label": "Próxima semana", onclick: () => moveWeek(1) }, icon("right"))) : null),
       el("div", { class: "sh-days" + (task.kind === "daily" ? "" : " wk") }, keys.map((k) => {
         const st = dayState(task, k, r, sp, marked);
         const d = parseKey(k);
@@ -240,9 +298,9 @@ window.Liga = window.Liga || {};
           type: "button", class: "sday st-" + st + (k === sh.key ? " sel" : ""), "aria-pressed": k === sh.key ? "true" : "false",
           onclick: () => { sh.key = k; sh.mode = ""; sh.note = null; sh.err = ""; sh.confirm = ""; rerender(); },
         },
-          el("span", null, task.kind === "daily" ? (k === todayKey() ? "hoje" : WD[d.getDay()].toLowerCase()) : (k === curWeek() ? "esta" : "semana")),
+          el("span", null, task.kind === "daily" ? (k === todayKey() ? "hoje" : WD[d.getDay()].toLowerCase()) : (k === curWeek() ? "esta" : k === addDays(curWeek(), 7) ? "próxima" : "semana")),
           el("b", null, task.kind === "daily" ? String(d.getDate()) : shortDate(k)),
-          el("i", null, st === "on" ? "feita" : st === "just" ? "justif." : st === "jpend" ? "esperando" : st === "pend" ? "falta prova" : st === "noproof" ? "sem prova" : st === "miss" || st === "jno" ? "faltou" : st === "off" ? "—" : ""));
+          el("i", null, st === "on" ? "feita" : st === "just" ? "justif." : st === "jpend" ? "esperando" : st === "pend" ? "falta prova" : st === "noproof" ? "sem prova" : st === "miss" || st === "jno" ? "faltou" : st === "off" || st === "soon" ? "—" : ""));
       }))));
 
     /* --- o dia escolhido --- */
@@ -285,7 +343,7 @@ window.Liga = window.Liga || {};
                   icon("upload"), "Enviar PDF"))
             : el("p", { class: "hint" }, "Já tem " + L.rules.PROOF_PHOTOS + " fotos ou arquivos neste dia (o máximo). Apague um para pôr outro."),
         !nph ? el("p", { class: "hint" }, "Na galeria dá para escolher várias fotos de uma vez (até " + L.rules.PROOF_PHOTOS + " por dia). Mandar foto ou arquivo já marca como feita; para contar, o dia precisa de uma foto, um arquivo ou um comentário.") : null));
-    } else if (mine && !can && st !== "off") {
+    } else if (mine && !can && st !== "off" && st !== "soon") {
       day.append(el("p", { class: "hint" }, st === "noproof"
         ? "O prazo para pôr a foto ou o comentário deste dia acabou."
         : sp.end && todayKey() > sp.end ? "A listRat terminou: não dá mais para mudar este dia." : "Este dia já passou do prazo e não pode mais ser mudado."));
@@ -314,6 +372,14 @@ window.Liga = window.Liga || {};
         })() + " em " +
         WD[parseKey(atKey).getDay()].toLowerCase() + ", " + shortDate(atKey) + " às " + hh +
         (late > 0 ? " · " + plural(late, "dia", "dias") + " depois do prazo" : " · no prazo")));
+    }
+
+    // histórico do dia: quando marcou, pôs foto, comentou ou justificou (todo mundo vê)
+    const hist = dayLog(task, k);
+    if (hist.length) {
+      day.append(el("div", { class: "sh-field" },
+        el("div", { class: "sh-lbl" }, icon("clock"), "Histórico"),
+        el("ul", { class: "sh-log" }, hist.map(([ms, txt]) => el("li", null, el("b", null, fmtWhen(ms)), el("span", null, txt))))));
     }
 
     // fotos e arquivos do dia (o dono pode apagar cada um enquanto o dia ainda pode mudar)
@@ -379,10 +445,10 @@ window.Liga = window.Liga || {};
     if (c) {
       const canProve = c.accused === S.myId && ph === "contestacao";
       const sec = el("section", { class: "sh-sec sh-card c-" + c.status + (R().lost(c) ? " lost" : "") },
-        el("div", { class: "sh-cardhead" }, el("b", null, icon("flag"), "Contestada por " + (c.by === S.myId ? "você" : L.ui.nameOf(c.by))),
+        el("div", { class: "sh-cardhead" }, el("b", null, icon("flag"), c.by === S.myId ? "Contestada por você" : "Contestada (anônimo)"),
           el("span", { class: "dstate " + (R().lost(c) ? "st-miss" : c.status === "aberta" ? "st-jpend" : "st-on") }, R().contestText(c))),
         c.status === "aberta" && ph === "contestacao"
-          ? el("p", { class: "muted small" }, (c.accused === S.myId ? "Você tem" : who + " tem") + " até o fim de hoje para mandar uma prova. Sem prova, a tarefa perde os pontos.")
+          ? el("p", { class: "muted small" }, (c.accused === S.myId ? "Você tem" : who + " tem") + " até " + R().untilText(s) + " para mandar uma prova. Sem prova, a tarefa perde os pontos.")
           : null,
         c.proofComment ? el("p", { class: "sh-note", text: c.proofComment }) : null,
         c.proofPhoto ? photoThumb(c.proofPhoto, "Prova — " + task.title) : null);
@@ -412,7 +478,7 @@ window.Liga = window.Liga || {};
         cc.ok
           ? (sh.confirm === "contest"
               ? el("div", { class: "row", style: "align-items:center" },
-                  el("span", { class: "small" }, "Duvidar que " + who + " fez esta tarefa? Isso usa 1 contestação."),
+                  el("span", { class: "small" }, "Duvidar que " + who + " fez esta tarefa? Isso usa 1 contestação. Ninguém vai saber que foi você."),
                   el("button", { type: "button", class: "btn danger sm", onclick: () => run(sh, async () => { await R().openContest(task); sh.confirm = ""; }, "Tarefa contestada.") }, "Contestar"),
                   el("button", { type: "button", class: "btn ghost sm", onclick: () => { sh.confirm = ""; rerender(); } }, "Cancelar"))
               : el("div", null, el("button", { type: "button", class: "btn ghost", onclick: () => { sh.confirm = "contest"; rerender(); } }, icon("flag"), "Duvidar desta tarefa")))
@@ -473,21 +539,21 @@ window.Liga = window.Liga || {};
     const st = Object.values(S.tasks).filter((t) => t.subId === s.id);
     const ids = p.members.filter((id) => L.score.isParticipant(s, id));
     const pct = L.score.isPercent(s);
-    const rows = ids.map((id) => Object.assign({ id }, L.score.standing(id, st, pct))).sort((a, b) => b.value - a.value || L.ui.nameOf(a.id).localeCompare(L.ui.nameOf(b.id)));
+    const rows = L.score.ranking(ids, st, s);   // já com os critérios de desempate
     const money = L.score.moneyFor(s, rows);
-    let last = null, rank = 0;
     const MEDAL = { 1: "gold", 2: "silver", 3: "bronze" };
-    return el("ol", { class: "results" + (final ? " final" : "") }, rows.map((r, i) => {
-      if (r.value !== last) { rank = i + 1; last = r.value; }
+    return el("ol", { class: "results" + (final ? " final" : "") }, rows.map((r) => {
+      const rank = r.rank;
       const m = MEDAL[rank] || "";
       return el("li", { class: m },
         el("span", { class: "rk" }, rank + "º"),
         L.ui.avatar(r.id),
-        el("span", { class: "nm" }, L.ui.userLink(r.id), r.id === S.myId ? el("span", { class: "you" }, "você") : null, L.ui.moneyTag(money[r.id])),
+        el("span", { class: "nm" }, L.ui.userLink(r.id), r.id === S.myId ? el("span", { class: "you" }, "você") : null, L.ui.moneyTag(money[r.id]),
+          r.tbText ? el("small", { class: "tbreak" }, r.tbText) : null),
         m ? el("span", { class: "medal", "aria-label": m === "gold" ? "ouro" : m === "silver" ? "prata" : "bronze" }, icon("trophy")) : null,
         el("span", { class: "pt" + (r.neg ? " neg" : ""), title: r.detail || null }, r.text, pct ? el("small", null, r.detail) : null));
     }));
   }
 
-  L.tasksUI = { row, group, sheet, openSheet, results, windowKeys };
+  L.tasksUI = { row, group, sheet, openSheet, results, windowKeys, dayLog, fmtWhen };
 })(window.Liga);

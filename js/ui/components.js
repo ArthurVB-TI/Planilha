@@ -185,15 +185,17 @@ window.Liga = window.Liga || {};
   function board(ids, tasks, boardKey, opts) {
     boardKey = boardKey || "geral";
     const pct = !!(opts && opts.pct);
-    const rows = ids.map((id) => Object.assign({ id }, L.score.standing(id, tasks, pct), pct ? {} : L.score.scoreFor(id, tasks)))
-      .sort((a, b) => b.value - a.value || nameOf(a.id).localeCompare(nameOf(b.id)));
+    // placar de uma listRat (opts.sub): com os critérios de desempate; senão, empate divide a posição
+    const rows = opts && opts.sub ? L.score.ranking(ids, tasks, opts.sub)
+      : ids.map((id) => Object.assign({ id }, L.score.standing(id, tasks, pct), pct ? {} : L.score.scoreFor(id, tasks)))
+        .sort((a, b) => b.value - a.value || nameOf(a.id).localeCompare(nameOf(b.id)));
     if (!rows.length) return empty("Ninguém no placar ainda.");
     const ol = el("ol", { class: "board" + (pct ? " pct" : "") });
     // listRat com valores em dinheiro: quem ganha e quem paga (opts.sub)
     const money = opts && opts.sub ? L.score.moneyFor(opts.sub, rows) : {};
     let last = null, rank = 0;
     rows.forEach((r, i) => {
-      if (r.value !== last) { rank = i + 1; last = r.value; }
+      if (r.rank) rank = r.rank; else if (r.value !== last) { rank = i + 1; last = r.value; }
       const lead = rank === 1 && r.value > 0;
       ol.append(el("li", { class: lead ? "first" : "" },
         el("div", { class: "rank" }, rank + "º"),
@@ -202,6 +204,7 @@ window.Liga = window.Liga || {};
           el("div", { class: "pname" }, userLink(r.id), r.id === S.myId ? el("span", { class: "you" }, "você") : null),
           pct ? el("div", { class: "split" }, r.detail)
             : L.rules.OBR_PENALTY ? el("div", { class: "split" }, "+" + r.plus.toLocaleString("pt-BR") + "  −" + r.minus.toLocaleString("pt-BR")) : null,
+          r.tbText ? el("div", { class: "split tbreak" }, r.tbText) : null,
           moneyTag(money[r.id])),
         pct
           ? el("div", { class: "pts" }, r.text)
@@ -225,7 +228,10 @@ window.Liga = window.Liga || {};
       el("div", { style: "overflow-x:auto" }, el("table", { class: "legend" },
         el("thead", null, el("tr", null, el("th", null, "Nível"), el("th", { class: "r" }, "Normal ganha"), el("th", { class: "r" }, "Obrigatória"))),
         el("tbody", null, DIFF_KEYS.map((k) =>
-          el("tr", null, el("td", null, diffText(k)), el("td", { class: "r num" }, "+" + DIFF[k].pts), el("td", { class: "r num" }, L.rules.OBR_PENALTY ? "−" + DIFF[k].pen : "não conta")))))));
+          el("tr", null, el("td", null, diffText(k)),
+            el("td", { class: "r num" }, "+" + DIFF[k].pts + " / +" + DIFF[k].pts * L.rules.WEEKLY_MULT),
+            el("td", { class: "r num" }, L.rules.OBR_PENALTY ? "−" + DIFF[k].pen + " / −" + DIFF[k].pen * L.rules.WEEKLY_MULT : "não conta"))))),
+      el("p", { class: "hint" }, "Por dia / por semana: a tarefa semanal vale " + L.rules.WEEKLY_MULT + "× a diária.")));
   }
 
   /* ---------- projetos ---------- */

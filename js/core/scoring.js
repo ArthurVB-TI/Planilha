@@ -20,12 +20,14 @@ window.Liga = window.Liga || {};
   /* ---------- prova (foto ou comentário) ---------- */
   // último dia do período marcado (diária: o próprio dia; semanal: o domingo) e o último dia para pôr a prova
   const dueKey = (task, k) => (task.kind === "daily" ? k : addDays(k, 6));
-  // prazo para pôr a prova (e mexer no dia): até o dia seguinte ao fim da listRat, para qualquer dia dela.
-  // ListRat sem fim: até 7 dias depois do prazo do dia.
+  // prazo para pôr a prova (e mexer no dia): até o fim da contestação (ou o dia seguinte ao fim, o que vier depois),
+  // para qualquer dia da listRat. ListRat sem fim: até 7 dias depois do prazo do dia.
   function proofLimit(task, k) {
     const sp = span(task);
     const base = addDays(dueKey(task, k), L.rules.PROOF_GRACE);
-    const lim = sp.end ? addDays(sp.end, L.rules.PROOF_GRACE) : addDays(dueKey(task, k), 7);
+    let lim = sp.end ? addDays(sp.end, L.rules.PROOF_GRACE) : addDays(dueKey(task, k), 7);
+    const ce = sp.end && L.review ? L.review.contestEnd(S.subs[task.subId]) : "";
+    if (ce && ce > lim) lim = ce;
     return lim > base ? lim : base;
   }
   const needsProof = (task, k) => dueKey(task, k) >= L.rules.PROOF_FROM;

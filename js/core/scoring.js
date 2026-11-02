@@ -106,7 +106,8 @@ window.Liga = window.Liga || {};
       const end = minKey(addDays(todayKey(), -1), sp.end);
       for (let k = sp.from, i = 0; k <= end && i < 4000; k = addDays(k, 1), i++) if (!done.has(k) && !pend.has(k)) missed++;
     } else {
-      const end = minKey(addDays(curWeek(), -7), sp.end && weekOf(sp.end));
+      // semana que já acabou; se a listRat já terminou, a semana do fim também conta (não espera o domingo)
+      const end = sp.end && todayKey() > sp.end ? weekOf(sp.end) : minKey(addDays(curWeek(), -7), sp.end && weekOf(sp.end));
       for (let k = weekOf(sp.from), i = 0; k <= end && i < 600; k = addDays(k, 7), i++) if (!done.has(k) && !pend.has(k)) missed++;
     }
     return { done, pend, unproven, plus: 0, minus: L.rules.OBR_PENALTY ? L.rules.penOf(task) * missed : 0, missed, voided };

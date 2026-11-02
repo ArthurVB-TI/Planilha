@@ -435,8 +435,16 @@ window.Liga = window.Liga || {};
       }
     }
     if (s && s.status === "inscricoes" && info.money) patch.money = info.money;
-    // dias de contestação: até a listRat terminar
-    if (s && info.end && info.contestDays && ["inscricoes", "andamento"].includes(L.review.phase(s)) && info.contestDays !== s.contestDays) patch.contestDays = info.contestDays;
+    // dias de contestação: até a listRat terminar e, depois do fim, para reabrir ou fechar a contestação
+    if (s && info.end && info.contestDays && L.review.canSetContestDays(s) && info.contestDays !== s.contestDays) {
+      patch.contestDays = info.contestDays;
+      const ph = L.review.phase(s);
+      if (ph === "contestacao" || ph === "final") {
+        const fim = L.dates.addDays(info.end, info.contestDays);
+        const txt = myName() + " mudou a contestação da listRat " + s.name + ": " + (fim >= L.dates.todayKey() ? "dá para contestar até " + L.dates.shortDate(fim) + "." : "está fechada.");
+        for (const id of (s.participants || []).filter((x) => x !== S.myId)) notify(id, "projetos", "contest_days", txt, { projectId: s.projectId, sid });
+      }
+    }
     return db().update("subprojetos/" + sid, patch);
   }
   const renameSub = (sid, name) => db().update("subprojetos/" + sid, { name });

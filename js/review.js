@@ -30,6 +30,9 @@ window.Liga = window.Liga || {};
   const contestDays = (s) => (s && s.contestDays >= 1 ? s.contestDays : 1);
   const contestDay = (s) => (s && s.end ? addDays(s.end, 1) : "");                // primeiro dia de contestação
   const contestEnd = (s) => (s && s.end ? addDays(s.end, contestDays(s)) : "");   // último dia de contestação
+  // dá para mudar os dias de contestação? até a listRat terminar e, depois do fim, enquanto ainda dá para reabrir
+  // (até CONTEST_MAX dias depois do fim)
+  const canSetContestDays = (s) => !!s && !!s.end && (s.status === "inscricoes" || todayKey() <= addDays(s.end, L.rules.CONTEST_MAX));
   function phase(s) {
     if (!s) return "";
     if (s.status === "inscricoes") return "inscricoes";
@@ -157,7 +160,7 @@ window.Liga = window.Liga || {};
   const contestText = (c) => (lost(c) && c.status === "aberta" ? "sem prova: perdeu os pontos" : STATUS_TEXT[c.status]);
 
   L.review = {
-    MAX_CONTESTS, phase, contestDay, contestEnd, contestDays, untilText, byText, isJudge,
+    MAX_CONTESTS, phase, contestDay, contestEnd, contestDays, canSetContestDays, untilText, byText, isJudge,
     justOf, justsOfTask, acceptedKeys, pendingFor, sendJustification, removeJustification, judgeJustification,
     contestOf, contestsOf, myContests, left, lost, taskLost, canContest, openContest, sendProof, judgeContest, cancelContest, contestText,
   };

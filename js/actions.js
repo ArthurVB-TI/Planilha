@@ -211,6 +211,19 @@ window.Liga = window.Liga || {};
     const W = L.dates.weekOf;
     return key === W(key) && key >= W(sp.from) && key <= W(t) && (!sp.end || key <= W(sp.end));
   }
+  // dá para justificar este dia (ou semana)? Enquanto dá para mudar o dia e, depois do fim da listRat,
+  // durante todo o período de contestação (dia que não contou: não marcado ou marcado sem prova)
+  function canJustify(task, key) {
+    if (canChangeDay(task, key)) return true;
+    if (!canMark(task) || !L.score.counts(task)) return false;
+    const sp = L.score.span(task), s = S.subs[task.subId];
+    if (sp.prep || !sp.end || !s) return false;
+    const t = todayKey(), W = L.dates.weekOf;
+    if (t <= sp.end || t > L.review.contestEnd(s)) return false;
+    if (L.score.taskResult(task).done.has(key)) return false;
+    if (task.kind === "daily") return key >= sp.from && key <= sp.end;
+    return key === W(key) && key >= W(sp.from) && key <= W(sp.end);
+  }
   const noteOf = (task, key) => {
     const p = L.score.playerDoc(task.assignee);
     const m = p && p.notes && p.notes[task.id];
@@ -581,7 +594,7 @@ window.Liga = window.Liga || {};
   L.actions = {
     createInvite, deleteInvite, inviteUrl, peekInvite, joinByInvite, setSubReq, startSub, addParticipant, kickParticipant, readmitParticipant,
     setSubRole, removeMember,
-    errMsg, flush, scheduleSave, canMark, canChangeDay, noteOf, setNote, toggleMark, attachProof, removeProof, roomFor, removePhoto, setAvatar, join, setNick,
+    errMsg, flush, scheduleSave, canMark, canChangeDay, canJustify, noteOf, setNote, toggleMark, attachProof, removeProof, roomFor, removePhoto, setAvatar, join, setNick,
     createProject, transferProject, setProjectHelper, saveProject, deleteProject, createSub, saveSub, renameSub, setSubHelpers, deleteSub,
     createTask, saveTask, deleteTask,
   };

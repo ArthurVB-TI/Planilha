@@ -59,7 +59,7 @@ window.Liga = window.Liga || {};
   async function sendJustification(task, key, comment, photo) {
     const text = cleanLong(comment, 300);
     if (!text) throw fail("need_comment");
-    if (task.assignee !== S.myId || !L.actions.canChangeDay(task, key)) throw fail("denied");
+    if (task.assignee !== S.myId || !L.actions.canJustify(task, key)) throw fail("denied");
     const s = S.subs[task.subId];
     await db().set("justificativas/" + justId(task.id, key), {
       taskId: task.id, subId: task.subId, projectId: s ? s.projectId : "", uid: S.myId, key, comment: text,

@@ -307,6 +307,7 @@ window.Liga = window.Liga || {};
     const k = sh.key;
     const st = dayState(task, k, r, sp, marked);
     const can = L.actions.canChangeDay(task, k);
+    const canJ = L.actions.canJustify(task, k);   // depois do fim: justificar durante a contestação
     const proofs = L.photos.proofsOf(task.assignee, task.id);
     const note = L.actions.noteOf(task, k);
     const j = R().justOf(task.id, k);
@@ -346,7 +347,11 @@ window.Liga = window.Liga || {};
     } else if (mine && !can && st !== "off" && st !== "soon") {
       day.append(el("p", { class: "hint" }, st === "noproof"
         ? "O prazo para pôr a foto ou o comentário deste dia acabou."
-        : sp.end && todayKey() > sp.end ? "A listRat terminou: não dá mais para mudar este dia." : "Este dia já passou do prazo e não pode mais ser mudado."));
+        : sp.end && todayKey() > sp.end ? "A listRat terminou: não dá mais para marcar nem pôr prova neste dia." : "Este dia já passou do prazo e não pode mais ser mudado.",
+        canJ ? " Ainda dá para justificar até " + shortDate(R().contestEnd(s)) + " (fim da contestação)." : ""));
+      if (canJ && !j && sh.mode !== "justify")
+        day.append(el("div", { class: "row sh-actions" },
+          el("button", { type: "button", class: "btn ghost", onclick: () => { sh.mode = "justify"; rerender(); } }, icon("help"), "Não consegui fazer")));
     }
 
     // falta prova: aviso com o prazo
@@ -418,10 +423,10 @@ window.Liga = window.Liga || {};
         j.photo ? photoThumb(j.photo, "Justificativa — " + task.title) : null,
         j.decidedBy ? el("p", { class: "muted small" }, (j.status === "aceita" ? "Aceita" : "Recusada") + " por " + L.ui.nameOf(j.decidedBy) + ".") : null,
         el("div", { class: "row" },
-          mine && pend && can ? el("button", { type: "button", class: "btn ghost sm", onclick: () => run(sh, () => R().removeJustification(j), "Justificativa apagada.") }, "Apagar justificativa") : null,
+          mine && pend && canJ ? el("button", { type: "button", class: "btn ghost sm", onclick: () => run(sh, () => R().removeJustification(j), "Justificativa apagada.") }, "Apagar justificativa") : null,
           judge && !mine && j.status !== "aceita" ? el("button", { type: "button", class: "btn purple sm", onclick: () => run(sh, () => R().judgeJustification(j, true), "Justificativa aceita.") }, icon("check"), "Aceitar") : null,
           judge && !mine && j.status !== "recusada" ? el("button", { type: "button", class: "btn danger-ghost sm", onclick: () => run(sh, () => R().judgeJustification(j, false), "Justificativa recusada.") }, "Recusar") : null)));
-    } else if (sh.mode === "justify" && mine && can) {
+    } else if (sh.mode === "justify" && mine && canJ) {
       day.append(el("div", { class: "sh-card j-form" },
         el("div", { class: "sh-cardhead" }, el("b", null, "Justificar: por que não deu para fazer?")),
         el("p", { class: "muted small" }, "Só vale como feita se o dono ou um ajudante da listRat aceitar."),

@@ -177,14 +177,15 @@ window.Liga.pages = window.Liga.pages || {};
         : el("p", { class: "hint" }, "Placar " + (s.scoring === "porcentagem" ? "por porcentagem" : "por pontos") + " (não dá para trocar depois que a listRat termina)."),
 
       // contestação: quantos dias depois do fim (só com data de fim; dá para mudar até a listRat terminar)
-      d.hasEnd && (!editing || ["inscricoes", "andamento"].includes(L.review.phase(s)))
+      d.hasEnd && (!editing || L.review.canSetContestDays(s))
         ? el("fieldset", { class: "period" },
             el("legend", { class: "lbl" }, "Contestação"),
             el("div", { class: "field nfield" }, el("label", { for: "sfContest" }, "Dias de contestação depois do fim"),
               el("input", { id: "sfContest", type: "number", inputmode: "numeric", min: "1", max: String(L.rules.CONTEST_MAX), step: "1",
                 value: d.contestDays, oninput: (e) => { d.contestDays = e.target.value; } })),
             el("p", { class: "hint" }, "Quando a listRat termina, cada participante pode contestar (de forma anônima) até " + L.review.MAX_CONTESTS +
-              " tarefas dos outros durante esses dias, e quem for contestado manda a prova até o último deles. Padrão: " + L.rules.CONTEST_DAYS + " dias."))
+              " tarefas dos outros durante esses dias, e quem for contestado manda a prova até o último deles. Padrão: " + L.rules.CONTEST_DAYS + " dias." +
+              (editing && ["contestacao", "final"].includes(L.review.phase(s)) ? " A listRat já terminou: mudar aqui reabre (ou fecha) a contestação, até " + L.rules.CONTEST_MAX + " dias depois do fim (" + L.ui.fmtDate(L.dates.addDays(s.end, L.rules.CONTEST_MAX)) + ")." : "")))
         : editing && s.end ? el("p", { class: "hint" }, "Contestação: " + plural(L.review.contestDays(s), "dia", "dias") + " depois do fim.") : null,
 
       // dinheiro: top 3 ganha, 3 piores pagam (só antes de começar)

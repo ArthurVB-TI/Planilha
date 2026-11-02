@@ -113,7 +113,7 @@ window.Liga.pages = window.Liga.pages || {};
       for (let k = sp.from, i = 0; k <= end && i < 4000; k = addDays(k, 1), i++) if (!done.has(k)) out.push(k);
     } else {
       let end = addDays(curWeek(), -7);
-      if (sp.end && weekOf(sp.end) < end) end = weekOf(sp.end);
+      if (sp.end && (weekOf(sp.end) < end || todayKey() > sp.end)) end = weekOf(sp.end);
       for (let k = weekOf(sp.from), i = 0; k <= end && i < 600; k = addDays(k, 7), i++) if (!done.has(k)) out.push(k);
     }
     return out;

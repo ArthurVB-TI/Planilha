@@ -46,13 +46,14 @@ window.Liga.pages = window.Liga.pages || {};
           "O placar do Início e o do projeto somam os pontos de todas as listRats. O gráfico de pontuação mostra a porcentagem quando você escolhe uma listRat por porcentagem."),
 
         sec("Marcar e provar",
-          "Cada pessoa só marca as próprias tarefas. Dá para marcar e pôr foto em qualquer dia da listRat, até o dia seguinte ao fim dela.",
+          "Cada pessoa só marca as próprias tarefas. Dá para marcar, pôr foto, comentar e justificar qualquer dia da listRat até o fim da contestação (os dias depois do fim).",
           el("p", null, el("b", null, "Um dia marcado só conta com prova: uma foto, um arquivo ou um comentário"), " (pelo menos um). A foto pode ser tirada na hora ou escolhida da galeria (um print também vale), e o arquivo pode ser um PDF de até uns 650 KB. Dá para mandar até " + L.rules.PROOF_PHOTOS + " fotos ou arquivos no mesmo dia (na galeria, várias de uma vez). Mandar a foto ou o arquivo já marca o dia."),
-          "Você tem até o fim do dia seguinte ao fim da listRat para pôr a prova de qualquer dia. Enquanto falta, o dia aparece como \"falta a prova\" e não dá pontos. Depois do prazo, ele não conta.",
+          "Você tem até o último dia da contestação para pôr a prova de qualquer dia. Enquanto falta, o dia aparece como \"falta a prova\" e não dá pontos. Depois do prazo, ele não conta.",
           "Todo mundo vê as fotos, os arquivos, os comentários e o histórico de cada dia: quando a tarefa foi marcada como feita, quando a foto e o comentário foram colocados e quando foi justificada."),
 
         sec("Não consegui fazer",
-          "Quem não fez um dia pode mandar uma justificativa (comentário obrigatório, foto opcional). Ela só conta como feita se o dono ou um ajudante da listRat aceitar."),
+          "Quem não fez um dia pode mandar uma justificativa (comentário obrigatório, foto opcional). Ela só conta como feita se o dono ou um ajudante da listRat aceitar.",
+          "Depois que a listRat termina, ainda dá para justificar os dias que não contaram (não marcados ou sem prova) durante todo o período de contestação."),
 
         sec("Fim da listRat: contestação e resultado",
           "Depois do fim vem a contestação (" + L.rules.CONTEST_DAYS + " dias, ou o que o dono escolheu ao criar a listRat): cada participante pode duvidar de até " + L.review.MAX_CONTESTS + " tarefas de outras pessoas, e cada tarefa só pode ser contestada uma vez.",
